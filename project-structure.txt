@@ -1,0 +1,55 @@
+groupware/
+├── config/                 # 設定ファイル
+│   ├── config.php          # 基本設定
+│   └── database.php        # データベース設定
+├── core/                   # コアシステム
+│   ├── Auth.php            # 認証クラス
+│   ├── Controller.php      # コントローラー基底クラス
+│   ├── Database.php        # データベース接続
+│   └── Router.php          # ルーティング
+├── controllers/            # コントローラー
+│   ├── OrganizationController.php
+│   ├── ScheduleController.php
+│   └── UserController.php
+├── db/                     # データベース関連
+│   └── schema.sql          # データベーススキーマ
+├── models/                 # モデル
+│   ├── Organization.php    # 組織モデル
+│   ├── Schedule.php        # スケジュールモデル
+│   └── User.php            # ユーザーモデル
+├── public/                 # 公開ディレクトリ
+│   ├── css/                # スタイルシート
+│   │   └── style.css       # カスタムCSS
+│   ├── img/                # 画像ファイル
+│   ├── index.php           # エントリーポイント
+│   ├── js/                 # JavaScriptファイル
+│   │   ├── app.js          # メインJSファイル
+│   │   ├── organization.js # 組織管理JS
+│   │   ├── schedule.js     # スケジュール管理JS
+│   │   └── user.js         # ユーザー管理JS
+│   └── .htaccess           # Apacheリライトルール
+└── views/                  # ビュー
+    ├── auth/               # 認証関連画面
+    │   └── login.php       # ログイン画面
+    ├── layouts/            # レイアウトテンプレート
+    │   ├── footer.php      # フッターテンプレート
+    │   └── header.php      # ヘッダーテンプレート
+    ├── organization/       # 組織管理画面
+    │   ├── create.php      # 組織作成画面
+    │   ├── edit.php        # 組織編集画面
+    │   ├── index.php       # 組織一覧画面
+    │   └── view.php        # 組織詳細画面
+    ├── schedule/           # スケジュール管理画面
+    │   ├── create.php      # スケジュール作成画面
+    │   ├── day.php         # 日表示画面
+    │   ├── edit.php        # スケジュール編集画面
+    │   ├── form_fields.php # フォーム共通パーツ
+    │   ├── month.php       # 月表示画面
+    │   ├── view.php        # スケジュール詳細画面
+    │   └── week.php        # 週表示画面
+    └── user/               # ユーザー管理画面
+        ├── create.php      # ユーザー作成画面
+        ├── edit.php        # ユーザー編集画面
+        ├── form_fields.php # フォーム共通パーツ
+        ├── index.php       # ユーザー一覧画面
+        └── view.php        # ユーザー詳細画面

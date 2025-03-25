@@ -1,0 +1,7 @@
+._*
+composer.lock
+config/config.php
+config/database.php
+/vendor/
+/public/uploads/
+
