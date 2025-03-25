@@ -32,10 +32,6 @@ class Auth
     // ログイン処理
     public function login($username, $password, $remember = false)
     {
-        // $sql = "SELECT * FROM users WHERE username = ? AND status = 'active' LIMIT 1";
-        // $user = $this->db->fetch($sql, [$username]);
-        // // デバッグ情報
-        // error_log("Login attempt for user: $username");
         // 入力値をトリム
         $username = trim($username);
         $password = trim($password);

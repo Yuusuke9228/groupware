@@ -238,4 +238,38 @@ if ($startDate->format('Y-m') === $endDate->format('Y-m')) {
         background-color: #cfe2ff;
         border-left: 3px solid #0d6efd;
     }
+
+    .schedule-timespan {
+        position: absolute;
+        padding: 4px;
+        border-radius: 3px;
+        font-size: 0.8rem;
+        cursor: pointer;
+        overflow: hidden;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+        z-index: 10;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        /* 幅と位置はJSで動的に設定 */
+    }
+
+    .schedule-timespan:hover {
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+        z-index: 20;
+    }
+
+    .schedule-timespan .schedule-title {
+        font-weight: bold;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        flex: 1;
+    }
+
+    .schedule-timespan .schedule-time {
+        font-size: 0.75rem;
+        white-space: nowrap;
+        text-align: right;
+    }
 </style>

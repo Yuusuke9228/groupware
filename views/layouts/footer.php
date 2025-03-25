@@ -7,6 +7,16 @@
     </div>
 </div>
 
+<!-- フッター -->
+<footer class="footer py-3 bg-light fixed-bottom">
+    <div class="container text-center">
+        <span class="text-muted">Copyright&copy; 2025 Yuusuke. All rights reserved.</span>
+    </div>
+</footer>
+
+<!-- 固定フッターの下に余白を確保するための空div -->
+<div style="margin-bottom: 60px;"></div>
+
 <!-- jQuery -->
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <!-- Bootstrap JS -->

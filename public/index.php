@@ -57,11 +57,11 @@ if (!$auth->check()) {
 }
 
 // ルーティングの設定
-
-// ホームページ
+// ホームページ 
 $router->get('/', function () use ($auth) {
     if ($auth->check()) {
-        header('Location: ' . BASE_PATH . '/schedule');
+        $controller = new Controllers\HomeController();
+        $controller->index();
     } else {
         header('Location: ' . BASE_PATH . '/login');
     }
@@ -70,7 +70,7 @@ $router->get('/', function () use ($auth) {
 // 認証関連
 $router->get('/login', function () use ($auth) {
     if ($auth->check()) {
-        header('Location: ' . BASE_PATH . '/schedule');
+        header('Location: ' . BASE_PATH . '/');
         exit;
     }
 
@@ -797,6 +797,18 @@ $router->apiPost('/notifications/read-all', function () {
 $router->apiPost('/notifications/settings', function ($params, $data) {
     $controller = new Controllers\NotificationController();
     return $controller->apiUpdateSettings($params, $data);
+}, true);
+
+// 未読通知取得API
+$router->apiGet('/notifications/unread', function () {
+    $controller = new Controllers\NotificationController();
+    return $controller->apiGetUnread();
+}, true);
+
+// ホーム画面用API
+$router->apiGet('/home/unread-counts', function () {
+    $controller = new Controllers\HomeController();
+    return $controller->apiGetUnreadCounts();
 }, true);
 
 // リクエストのディスパッチ（ルーティング処理の実行）

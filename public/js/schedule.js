@@ -1513,6 +1513,38 @@ const Schedule = {
             });
         }
 
+        // 各日付ごとに時間の重なるスケジュールを整理して配置位置を決定
+        for (const date in dailySchedules) {
+            // 時間ブロックごとにスケジュールをグループ化
+            const timeBlocks = {};
+
+            // 各スパンスケジュールの開始・終了時間を元にブロックを作成
+            dailySchedules[date].timeSpans.forEach(span => {
+                const blockKey = `${span.startHour}-${span.endHour}`;
+                if (!timeBlocks[blockKey]) {
+                    timeBlocks[blockKey] = [];
+                }
+                timeBlocks[blockKey].push(span);
+            });
+
+            // 各ブロック内で横位置を割り当て
+            for (const blockKey in timeBlocks) {
+                const overlappingSpans = timeBlocks[blockKey];
+                if (overlappingSpans.length > 1) {
+                    // 複数のスケジュールがある場合は横に並べる
+                    const totalColumns = overlappingSpans.length;
+                    overlappingSpans.forEach((span, index) => {
+                        span.columnIndex = index;
+                        span.totalColumns = totalColumns;
+                    });
+                } else if (overlappingSpans.length === 1) {
+                    // 単一スケジュールの場合は幅いっぱいに表示
+                    overlappingSpans[0].columnIndex = 0;
+                    overlappingSpans[0].totalColumns = 1;
+                }
+            }
+        }
+
         // HTML生成
         let html = '<div class="week-schedule">';
 
@@ -1527,9 +1559,9 @@ const Schedule = {
             const todayClass = isToday ? 'today' : '';
 
             html += `<div class="week-day ${todayClass}" data-date="${date}">
-                    <div class="week-day-name">${dayOfWeek}</div>
-                    <div class="week-day-number">${dayOfMonth}</div>
-                </div>`;
+                <div class="week-day-name">${dayOfWeek}</div>
+                <div class="week-day-number">${dayOfMonth}</div>
+            </div>`;
         });
 
         html += '</div>';
@@ -1578,7 +1610,12 @@ const Schedule = {
                 // 各時間帯で最初に表示される時のみレンダリング
                 timeSpans.forEach(span => {
                     if (span.startHour === hour) {
-                        html += this.renderWeekScheduleTimespan(span.schedule, span.height);
+                        html += this.renderWeekScheduleTimespan(
+                            span.schedule,
+                            span.height,
+                            span.columnIndex || 0,
+                            span.totalColumns || 1
+                        );
                     }
                 });
 
@@ -1620,7 +1657,7 @@ const Schedule = {
             }
         });
 
-        // スケジュールアイテムのクリックイベント - この部分が問題です
+        // スケジュールアイテムのクリックイベント
         $('.schedule-item, .schedule-timespan').on('click', function (e) {
             e.preventDefault();
             e.stopPropagation();
@@ -1672,19 +1709,38 @@ const Schedule = {
     `;
     },
     // 週表示用時間スパンスケジュールのレンダリング
-    renderWeekScheduleTimespan: function (schedule, height) {
+    // renderWeekScheduleTimespan: function (schedule, height) {
+    //     const startTime = moment(schedule.start_time).format('HH:mm');
+    //     const endTime = moment(schedule.end_time).format('HH:mm');
+    //     const timeDisplay = startTime + ' - ' + endTime;
+    //     const priorityClass = this.getPriorityClass(schedule.priority);
+
+    //     return `
+    //     <div class="schedule-item schedule-timespan ${priorityClass}"
+    //          style="height: ${height}px;"
+    //          data-id="${schedule.id}">
+    //         <div class="schedule-title">${schedule.title}</div>
+    //         <div class="schedule-time">${timeDisplay}</div>
+    //     </div>
+    // `;
+    // },
+    renderWeekScheduleTimespan: function (schedule, height, columnIndex, totalColumns) {
         const startTime = moment(schedule.start_time).format('HH:mm');
         const endTime = moment(schedule.end_time).format('HH:mm');
         const timeDisplay = startTime + ' - ' + endTime;
         const priorityClass = this.getPriorityClass(schedule.priority);
 
+        // カラム数に基づいて幅を計算
+        const width = totalColumns > 1 ? (100 / totalColumns) : 100;
+        const leftPosition = columnIndex * width;
+
         return `
-        <div class="schedule-item schedule-timespan ${priorityClass}"
-             style="height: ${height}px;" 
-             data-id="${schedule.id}">
-            <div class="schedule-title">${schedule.title}</div>
-            <div class="schedule-time">${timeDisplay}</div>
-        </div>
+    <div class="schedule-item schedule-timespan ${priorityClass}"
+         style="height: ${height}px; width: ${width}%; left: ${leftPosition}%; right: auto;" 
+         data-id="${schedule.id}">
+        <div class="schedule-title">${schedule.title}</div>
+        <div class="schedule-time">${timeDisplay}</div>
+    </div>
     `;
     },
 

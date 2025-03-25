@@ -7,7 +7,17 @@ $pageTitle = $title ?? 'GroupWare Sample';
 // 現在のページを取得
 $currentPage = '';
 $requestUri = $_SERVER['REQUEST_URI'];
-if (strpos($requestUri, '/organizations') !== false) {
+
+// ベースパスを除去してページ判定
+$basePath = BASE_PATH;
+if ($basePath && strpos($requestUri, $basePath) === 0) {
+    $requestUri = substr($requestUri, strlen($basePath));
+}
+
+// ホームページ判定
+if ($requestUri === '/' || $requestUri === '') {
+    $currentPage = 'home';
+} elseif (strpos($requestUri, '/organizations') !== false) {
     $currentPage = 'organizations';
 } elseif (strpos($requestUri, '/users') !== false) {
     $currentPage = 'users';
@@ -15,10 +25,24 @@ if (strpos($requestUri, '/organizations') !== false) {
     $currentPage = 'schedule';
 } elseif (strpos($requestUri, '/workflow') !== false) {
     $currentPage = 'workflow';
+} elseif (strpos($requestUri, '/messages') !== false) {
+    $currentPage = 'messages';
 }
 
 // 現在のユーザー情報
 $currentUser = \Core\Auth::getInstance()->user();
+
+// 未読メッセージ数を取得
+$unreadMessageCount = 0;
+$unreadNotificationCount = 0;
+
+if ($currentUser) {
+    $messageModel = new \Models\Message();
+    $unreadMessageCount = $messageModel->getUnreadCount($currentUser['id']);
+
+    $notificationModel = new \Models\Notification();
+    $unreadNotificationCount = $notificationModel->getUnreadCount($currentUser['id']);
+}
 ?>
 <!DOCTYPE html>
 <html lang="ja">
@@ -51,6 +75,7 @@ $currentUser = \Core\Auth::getInstance()->user();
 
     <!-- カスタムCSS -->
     <link href="<?php echo BASE_PATH; ?>/css/style.css" rel="stylesheet">
+    <link href="<?php echo BASE_PATH; ?>/css/home.css" rel="stylesheet">
     <!-- views/layouts/header.php の最後に追加 -->
     <style>
         /* モーダル内のselect2対応 */
@@ -90,15 +115,17 @@ $currentUser = \Core\Auth::getInstance()->user();
 
                     <ul class="navbar-nav me-auto">
                         <li class="nav-item">
-                            <a class="nav-link" href="<?php echo BASE_PATH; ?>/messages/inbox">
+                            <a class="nav-link <?php echo $currentPage === 'home' ? 'active' : ''; ?>" href="<?php echo BASE_PATH; ?>/">
+                                <i class="fas fa-home"></i> ホーム
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link <?php echo $currentPage === 'messages' ? 'active' : ''; ?>" href="<?php echo BASE_PATH; ?>/messages/inbox">
                                 <i class="far fa-envelope"></i> メッセージ
-                                <?php
-                                // 未読メッセージ数を取得
-                                $messageModel = new \Models\Message();
-                                $unreadCount = $messageModel->getUnreadCount($currentUser['id']);
-                                if ($unreadCount > 0):
-                                ?>
-                                    <span class="badge bg-danger"><?php echo $unreadCount; ?></span>
+                                <?php if ($unreadMessageCount > 0): ?>
+                                    <span class="badge bg-danger message-unread-badge"><?php echo $unreadMessageCount; ?></span>
+                                <?php else: ?>
+                                    <span class="badge bg-danger message-unread-badge d-none"></span>
                                 <?php endif; ?>
                             </a>
                         </li>
@@ -135,7 +162,51 @@ $currentUser = \Core\Auth::getInstance()->user();
                     </ul>
                     <ul class="navbar-nav">
                         <li class="nav-item dropdown">
-                            <?php include __DIR__ . '/notification_dropdown.php'; ?>
+                            <a class="nav-link dropdown-toggle" href="#" id="notificationDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="fas fa-bell"></i>
+                                <?php if ($unreadNotificationCount > 0): ?>
+                                    <span class="badge bg-danger notification-unread-badge"><?php echo $unreadNotificationCount; ?></span>
+                                <?php else: ?>
+                                    <span class="badge bg-danger notification-unread-badge d-none"></span>
+                                <?php endif; ?>
+                            </a>
+                            <div class="dropdown-menu dropdown-menu-end notification-dropdown" aria-labelledby="notificationDropdown" style="width: 300px; max-height: 400px; overflow-y: auto;">
+                                <div class="dropdown-header d-flex justify-content-between align-items-center">
+                                    <span>通知</span>
+                                    <a href="<?php echo BASE_PATH; ?>/notifications" class="text-decoration-none small">すべて表示</a>
+                                </div>
+                                <div class="dropdown-divider"></div>
+                                <div id="notification-list">
+                                    <?php
+                                    $notifications = [];
+                                    if ($currentUser) {
+                                        $notificationModel = new \Models\Notification();
+                                        $notifications = $notificationModel->getUnread($currentUser['id'], 5);
+                                    }
+                                    if (empty($notifications)):
+                                    ?>
+                                        <div class="dropdown-item text-center text-muted">
+                                            未読の通知はありません
+                                        </div>
+                                    <?php else: ?>
+                                        <?php foreach ($notifications as $notification): ?>
+                                            <a href="<?php echo BASE_PATH . $notification['link']; ?>" class="dropdown-item notification-item d-flex align-items-center" data-id="<?php echo $notification['id']; ?>">
+                                                <div class="flex-grow-1">
+                                                    <div class="fw-bold text-truncate"><?php echo htmlspecialchars($notification['title']); ?></div>
+                                                    <div class="small text-muted text-truncate"><?php echo htmlspecialchars($notification['content']); ?></div>
+                                                    <div class="small text-muted"><?php echo date('Y年m月d日 H:i', strtotime($notification['created_at'])); ?></div>
+                                                </div>
+                                            </a>
+                                        <?php endforeach; ?>
+                                    <?php endif; ?>
+                                </div>
+                                <div class="dropdown-divider"></div>
+                                <div class="dropdown-item text-center">
+                                    <a href="<?php echo BASE_PATH; ?>/notifications" class="btn btn-sm btn-primary w-100">すべての通知を見る</a>
+                                </div>
+                            </div>
+                        </li>
+                        <li class="nav-item dropdown">
                             <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                                 <i class="fas fa-user-circle"></i> <?php echo htmlspecialchars($currentUser['display_name']); ?>
                             </a>
