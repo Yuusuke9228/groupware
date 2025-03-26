@@ -64,38 +64,6 @@ mysql -u username -p < db/schema.sql
 
 - project-structure.txtへ記載
 
-## 開発について
-
-### コーディング規約
-
-- PSR-4 に準拠したオートロード
-- 名前空間を使用したクラス分類
-- MVC アーキテクチャパターンを採用
-
-### 主要コンポーネント
-
-#### Core
-
-- `Auth`: 認証管理
-- `Database`: データベース接続
-- `Router`: ルーティング
-
-#### Models
-
-- `Organization`: 組織データ
-- `User`: ユーザーデータ
-- `Schedule`: スケジュールデータ
-
-#### Controllers
-
-- `OrganizationController`: 組織管理
-- `UserController`: ユーザー管理
-- `ScheduleController`: スケジュール管理
-
-#### Views
-
-- 各機能の画面テンプレート
-
 ---
 
 ## ライセンス
