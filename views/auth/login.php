@@ -105,7 +105,7 @@
                 <small>初期ユーザー: admin / パスワード: admin123</small>
             </p>
 
-            <p class="mt-5 mb-3 text-muted">&copy; <?php echo date('Y'); ?> GroupWare</p>
+            <p class="mt-5 mb-3 text-muted">&copy; <?php echo date('Y'); ?> 2025 Yuusuke9228</p>
         </form>
     </main>
 
