@@ -330,4 +330,203 @@ $dayOfWeek = ['日', '月', '火', '水', '木', '金', '土'][date('w', strtoti
         border-radius: 3px;
         cursor: pointer;
     }
+
+    /* 日表示のスケジュール表示スタイル更新 */
+    .schedule-timespan {
+        position: absolute;
+        border-radius: 4px;
+        padding: 5px 8px;
+        overflow: hidden;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+        z-index: 10;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .schedule-timespan .schedule-creator {
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: #495057;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        margin-bottom: 1px;
+    }
+
+    .schedule-timespan .schedule-time {
+        font-size: 0.75rem;
+        color: #6c757d;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        text-align: left;
+        width: auto;
+        border-right: none;
+        padding: 0;
+        margin-bottom: 1px;
+    }
+
+    .schedule-timespan .schedule-title {
+        font-weight: bold;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    /* スケジュールが小さいときのスタイル調整 */
+    .schedule-timespan[style*="height: 30px"] .schedule-creator,
+    .schedule-timespan[style*="height: 30px"] .schedule-time {
+        display: none;
+    }
+
+    .schedule-timespan[style*="height: 45px"] .schedule-time {
+        display: none;
+    }
+
+    /* ホバー時のスタイル */
+    .schedule-timespan:hover {
+        opacity: 0.9;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        z-index: 20;
+    }
+
+    /* レスポンシブ対応 */
+    @media (max-width: 768px) {
+        .schedule-timespan {
+            padding: 3px 5px;
+        }
+
+        .schedule-timespan .schedule-creator,
+        .schedule-timespan .schedule-time {
+            font-size: 0.65rem;
+        }
+
+        .schedule-timespan .schedule-title {
+            font-size: 0.75rem;
+        }
+
+        /* 小さい画面での小さいスケジュール */
+        .schedule-timespan[style*="height: 60px"] .schedule-creator {
+            display: none;
+        }
+    }
+
+    /* スケジュール表示用のスタイル調整 */
+    .schedule-timespan {
+        position: absolute;
+        border-radius: 4px;
+        padding: 5px 8px;
+        overflow: hidden;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+        z-index: 10;
+        display: flex;
+        flex-direction: column;
+        margin: 0 2px;
+        /* 隣接するスケジュール間の間隔 */
+    }
+
+    .schedule-timespan .schedule-creator {
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: #495057;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        margin-bottom: 1px;
+    }
+
+    .schedule-timespan .schedule-time {
+        font-size: 0.75rem;
+        color: #6c757d;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        text-align: left;
+        width: auto;
+        border-right: none;
+        padding: 0;
+        margin-bottom: 1px;
+    }
+
+    .schedule-timespan .schedule-title {
+        font-weight: bold;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    /* スケジュールの高さに応じた表示調整 */
+    .schedule-timespan[style*="height: 30px"],
+    .schedule-timespan[style*="height: 2"] {
+        padding: 2px 4px;
+    }
+
+    .schedule-timespan[style*="height: 30px"] .schedule-creator,
+    .schedule-timespan[style*="height: 2"] .schedule-creator,
+    .schedule-timespan[style*="height: 30px"] .schedule-time,
+    .schedule-timespan[style*="height: 2"] .schedule-time {
+        display: none;
+    }
+
+    .schedule-timespan[style*="height: 45px"] .schedule-time,
+    .schedule-timespan[style*="height: 4"] .schedule-time {
+        display: none;
+    }
+
+    /* ホバー時のスタイル */
+    .schedule-timespan:hover {
+        opacity: 0.9;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        z-index: 20;
+    }
+
+    /* タイムラインの調整 */
+    .schedule-timeline {
+        display: flex;
+        flex-direction: column;
+        overflow-x: hidden;
+        /* 横スクロールを防止 */
+    }
+
+    .schedule-hour {
+        display: flex;
+        min-height: 60px;
+        border-bottom: 1px solid #dee2e6;
+        position: relative;
+    }
+
+    .schedule-time {
+        width: 80px;
+        min-width: 80px;
+        padding: 8px;
+        font-weight: bold;
+        color: #6c757d;
+        text-align: right;
+        border-right: 1px solid #dee2e6;
+    }
+
+    .schedule-items {
+        flex: 1;
+        padding: 5px;
+        min-height: 60px;
+        position: relative;
+        overflow: visible;
+        /* 重要: スケジュールが隠れないように */
+    }
+
+    /* レスポンシブ対応 */
+    @media (max-width: 768px) {
+        .schedule-timespan {
+            padding: 3px 5px;
+        }
+
+        .schedule-timespan .schedule-creator,
+        .schedule-timespan .schedule-time {
+            font-size: 0.65rem;
+        }
+
+        .schedule-timespan .schedule-title {
+            font-size: 0.75rem;
+        }
+    }
 </style>

@@ -1208,7 +1208,7 @@ const Schedule = {
             });
     },
 
-    // 日単位スケジュールの表示メソッドを修正
+    // 日単位スケジュールの表示メソッド
     renderDaySchedules: function (schedules, date) {
         const container = $('#day-schedule-container');
         console.log('日表示のスケジュール:', schedules);
@@ -1265,6 +1265,91 @@ const Schedule = {
             }
         });
 
+        // 重複するスケジュールの検出を改善
+        // まず重なる時間帯でグループ化
+        let overlapGroups = [];
+
+        // すべてのスケジュール間の重複チェック
+        for (let i = 0; i < timeSpans.length; i++) {
+            let span1 = timeSpans[i];
+            let overlapping = [span1];
+
+            for (let j = 0; j < timeSpans.length; j++) {
+                if (i === j) continue; // 同じスケジュールはスキップ
+
+                let span2 = timeSpans[j];
+
+                // 時間の重複をチェック
+                if ((span1.startHour < span2.endHour && span1.endHour > span2.startHour) ||
+                    (span2.startHour < span1.endHour && span2.endHour > span1.startHour)) {
+                    overlapping.push(span2);
+                }
+            }
+
+            if (overlapping.length > 1) {
+                // 重複するスケジュールがあればグループに追加
+                let groupExists = false;
+
+                // 既存のグループとの重複をチェック
+                for (let g = 0; g < overlapGroups.length; g++) {
+                    let group = overlapGroups[g];
+                    let hasCommon = false;
+
+                    for (let s = 0; s < overlapping.length; s++) {
+                        if (group.includes(overlapping[s])) {
+                            hasCommon = true;
+                            break;
+                        }
+                    }
+
+                    if (hasCommon) {
+                        // 既存のグループに新しいスケジュールを追加
+                        overlapping.forEach(span => {
+                            if (!group.includes(span)) {
+                                group.push(span);
+                            }
+                        });
+                        groupExists = true;
+                        break;
+                    }
+                }
+
+                // 新しいグループを作成
+                if (!groupExists) {
+                    overlapGroups.push(overlapping);
+                }
+            }
+        }
+
+        // 単独のスケジュール（重複なし）も別グループとして追加
+        timeSpans.forEach(span => {
+            let isInGroup = false;
+            for (let g = 0; g < overlapGroups.length; g++) {
+                if (overlapGroups[g].includes(span)) {
+                    isInGroup = true;
+                    break;
+                }
+            }
+
+            if (!isInGroup) {
+                // 単独のスケジュールは幅100%で表示
+                span.width = 100;
+                span.left = 0;
+            }
+        });
+
+        // 各グループ内でスケジュールの幅と位置を計算
+        overlapGroups.forEach(group => {
+            const totalWidth = 100; // 全体の幅（%）
+            const columnWidth = totalWidth / group.length;
+
+            // 各スケジュールに列番号と幅を割り当て
+            group.forEach((span, index) => {
+                span.width = columnWidth;
+                span.left = index * columnWidth;
+            });
+        });
+
         // HTML生成
         let html = '';
 
@@ -1300,7 +1385,13 @@ const Schedule = {
             // 各時間帯で最初に表示される時のみレンダリング
             hourSpans.forEach(span => {
                 if (span.startHour === hour) {
-                    html += this.renderDayScheduleTimespan(span.schedule, span.height, span.topPosition);
+                    html += this.renderDayScheduleTimespan(
+                        span.schedule,
+                        span.height,
+                        span.topPosition,
+                        span.width || 100,
+                        span.left || 0
+                    );
                 }
             });
 
@@ -1358,19 +1449,21 @@ const Schedule = {
     },
 
     // 日表示用時間スパンスケジュールのレンダリング
-    renderDayScheduleTimespan: function (schedule, height, topPosition) {
+    renderDayScheduleTimespan: function (schedule, height, topPosition, width, left) {
         const startTime = moment(schedule.start_time).format('HH:mm');
         const endTime = moment(schedule.end_time).format('HH:mm');
         const timeDisplay = startTime + ' - ' + endTime;
         const priorityClass = this.getPriorityClass(schedule.priority);
+        const creatorName = schedule.creator_name || '不明';
 
         return `
-        <div class="schedule-item schedule-timespan ${priorityClass}" 
-             style="position: absolute; top: ${topPosition % 60}px; height: ${height}px; left: 0; right: 0; z-index: 10;" 
-             data-id="${schedule.id}">
-            <div class="schedule-title">${schedule.title}</div>
-            <div class="schedule-time">${timeDisplay}</div>
-        </div>
+    <div class="schedule-item schedule-timespan ${priorityClass}" 
+         style="position: absolute; top: ${topPosition % 60}px; height: ${height}px; width: calc(${width}% - 10px); left: ${left}%; z-index: 10;" 
+         data-id="${schedule.id}">
+        <div class="schedule-creator">${creatorName}</div>
+        <div class="schedule-time">${timeDisplay}</div>
+        <div class="schedule-title">${schedule.title}</div>
+    </div>
     `;
     },
 
@@ -1513,34 +1606,70 @@ const Schedule = {
             });
         }
 
-        // 各日付ごとに時間の重なるスケジュールを整理して配置位置を決定
+        // 重複するスケジュールの整理 - ホーム画面の処理を参考に実装
         for (const date in dailySchedules) {
-            // 時間ブロックごとにスケジュールをグループ化
-            const timeBlocks = {};
+            // 時間によるグループ化
+            let timeGroups = {};
 
-            // 各スパンスケジュールの開始・終了時間を元にブロックを作成
+            // スパンスケジュールをグループ化
             dailySchedules[date].timeSpans.forEach(span => {
-                const blockKey = `${span.startHour}-${span.endHour}`;
-                if (!timeBlocks[blockKey]) {
-                    timeBlocks[blockKey] = [];
+                const startHour = span.startHour;
+                const endHour = span.endHour;
+
+                // この予定が関係する各時間帯にグループIDを設定
+                for (let hour = startHour; hour < endHour; hour++) {
+                    if (!timeGroups[hour]) {
+                        timeGroups[hour] = [];
+                    }
+
+                    // 予定が重複しているかチェック
+                    let overlappingGroups = [];
+                    for (let group of timeGroups[hour]) {
+                        for (let existingSpan of group) {
+                            // 同じ時間帯に存在する場合
+                            if ((existingSpan.startHour <= startHour && existingSpan.endHour > startHour) ||
+                                (existingSpan.startHour < endHour && existingSpan.endHour >= endHour) ||
+                                (startHour <= existingSpan.startHour && endHour > existingSpan.startHour)) {
+                                overlappingGroups.push(group);
+                                break;
+                            }
+                        }
+                    }
+
+                    // 重複するグループがない場合、新しいグループを作成
+                    if (overlappingGroups.length === 0) {
+                        timeGroups[hour].push([span]);
+                    } else {
+                        // 最初の重複グループに追加
+                        overlappingGroups[0].push(span);
+                    }
                 }
-                timeBlocks[blockKey].push(span);
             });
 
-            // 各ブロック内で横位置を割り当て
-            for (const blockKey in timeBlocks) {
-                const overlappingSpans = timeBlocks[blockKey];
-                if (overlappingSpans.length > 1) {
-                    // 複数のスケジュールがある場合は横に並べる
-                    const totalColumns = overlappingSpans.length;
-                    overlappingSpans.forEach((span, index) => {
-                        span.columnIndex = index;
-                        span.totalColumns = totalColumns;
-                    });
-                } else if (overlappingSpans.length === 1) {
-                    // 単一スケジュールの場合は幅いっぱいに表示
-                    overlappingSpans[0].columnIndex = 0;
-                    overlappingSpans[0].totalColumns = 1;
+            // 各予定の列位置を計算
+            let processedSpans = {};
+            for (const hour in timeGroups) {
+                for (const group of timeGroups[hour]) {
+                    if (group.length > 1) {
+                        // 複数予定がある場合、予定ごとに位置を設定
+                        group.forEach((span, index) => {
+                            const spanKey = span.schedule.id;
+                            if (!processedSpans[spanKey]) {
+                                span.columnIndex = index;
+                                span.totalColumns = group.length;
+                                processedSpans[spanKey] = true;
+                            }
+                        });
+                    } else if (group.length === 1) {
+                        // 単一予定の場合、幅いっぱいに表示
+                        const span = group[0];
+                        const spanKey = span.schedule.id;
+                        if (!processedSpans[spanKey]) {
+                            span.columnIndex = 0;
+                            span.totalColumns = 1;
+                            processedSpans[spanKey] = true;
+                        }
+                    }
                 }
             }
         }
@@ -1557,11 +1686,13 @@ const Schedule = {
             const dayOfMonth = moment(date).format('D');
             const isToday = moment().format('YYYY-MM-DD') === date;
             const todayClass = isToday ? 'today' : '';
+            const weekDay = moment(date).day(); // 0（日曜日）から6（土曜日）
+            const weekendClass = (weekDay === 0 || weekDay === 6) ? 'weekend' : '';
 
-            html += `<div class="week-day ${todayClass}" data-date="${date}">
-                <div class="week-day-name">${dayOfWeek}</div>
-                <div class="week-day-number">${dayOfMonth}</div>
-            </div>`;
+            html += `<div class="week-day ${todayClass} ${weekendClass}" data-date="${date}">
+            <div class="week-day-name">${dayOfWeek}</div>
+            <div class="week-day-number">${dayOfMonth}</div>
+        </div>`;
         });
 
         html += '</div>';
@@ -1574,12 +1705,20 @@ const Schedule = {
             const allDayItems = dailySchedules[date].allDay;
             const isToday = moment().format('YYYY-MM-DD') === date;
             const todayClass = isToday ? 'today' : '';
+            const weekDay = moment(date).day();
+            const weekendClass = (weekDay === 0 || weekDay === 6) ? 'weekend' : '';
 
-            html += `<div class="week-day-content ${todayClass}" data-date="${date}">`;
+            html += `<div class="week-day-content ${todayClass} ${weekendClass}" data-date="${date}">`;
 
             if (allDayItems.length > 0) {
-                allDayItems.forEach(schedule => {
-                    html += this.renderWeekScheduleItem(schedule, true);
+                // 終日予定も重複を考慮
+                const maxAllDayItems = 3;  // 最大表示数
+                allDayItems.forEach((schedule, index) => {
+                    if (index < maxAllDayItems) {
+                        html += this.renderWeekScheduleItem(schedule, true);
+                    } else if (index === maxAllDayItems) {
+                        html += `<div class="more-schedules">他 ${allDayItems.length - maxAllDayItems} 件</div>`;
+                    }
                 });
             }
 
@@ -1596,27 +1735,28 @@ const Schedule = {
             html += `<div class="week-time-column">${timeStr}</div>`;
 
             weekDates.forEach(date => {
-                const hourItems = dailySchedules[date].timeSlots[timeStr];
                 const isToday = moment().format('YYYY-MM-DD') === date;
                 const todayClass = isToday ? 'today' : '';
+                const weekDay = moment(date).day();
+                const weekendClass = (weekDay === 0 || weekDay === 6) ? 'weekend' : '';
 
-                html += `<div class="week-day-content ${todayClass}" data-date="${date}" data-hour="${hour}">`;
+                html += `<div class="week-day-content ${todayClass} ${weekendClass}" data-date="${date}" data-hour="${hour}">`;
 
-                // この時間帯のスパンスケジュールを表示
+                // この時間帯のスパンスケジュールを表示（開始時間が一致するもののみ）
                 const timeSpans = dailySchedules[date].timeSpans.filter(span =>
-                    span.startHour <= hour && span.endHour > hour
+                    span.startHour === hour
                 );
 
-                // 各時間帯で最初に表示される時のみレンダリング
                 timeSpans.forEach(span => {
-                    if (span.startHour === hour) {
-                        html += this.renderWeekScheduleTimespan(
-                            span.schedule,
-                            span.height,
-                            span.columnIndex || 0,
-                            span.totalColumns || 1
-                        );
-                    }
+                    const columnIndex = span.columnIndex || 0;
+                    const totalColumns = span.totalColumns || 1;
+
+                    html += this.renderWeekScheduleTimespan(
+                        span.schedule,
+                        span.height,
+                        columnIndex,
+                        totalColumns
+                    );
                 });
 
                 html += '</div>';
@@ -1632,21 +1772,19 @@ const Schedule = {
         // セルのクリックイベント
         $('.week-day-content').on('click', function (e) {
             // スケジュールアイテムのクリックは除外
-            if ($(e.target).closest('.schedule-item, .schedule-timespan').length === 0) {
+            if ($(e.target).closest('.schedule-item, .schedule-timespan, .more-schedules').length === 0) {
                 const date = $(this).data('date');
                 const hour = $(this).data('hour');
 
                 if (date) {
                     if (hour !== undefined) {
                         const time = hour.toString().padStart(2, '0') + ':00';
-                        // モーダルを使用するよう変更
                         if ($('#schedule-modal').length) {
                             Schedule.showCreateModal(date, time, false);
                         } else {
                             window.location.href = BASE_PATH + '/schedule/create?date=' + date + '&time=' + time;
                         }
                     } else {
-                        // モーダルを使用するよう変更
                         if ($('#schedule-modal').length) {
                             Schedule.showCreateModal(date, '00:00', true);
                         } else {
@@ -1657,13 +1795,12 @@ const Schedule = {
             }
         });
 
-        // スケジュールアイテムのクリックイベント
+        // スケジュールアイテムとmore-schedulesのクリックイベント
         $('.schedule-item, .schedule-timespan').on('click', function (e) {
             e.preventDefault();
             e.stopPropagation();
             const scheduleId = $(this).data('id');
             if (scheduleId) {
-                // モーダルを使用するよう変更
                 if ($('#schedule-modal').length) {
                     Schedule.showViewModal(scheduleId);
                 } else {
@@ -1671,6 +1808,41 @@ const Schedule = {
                 }
             }
         });
+
+        $('.more-schedules').on('click', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            const date = $(this).closest('.week-day-content').data('date');
+            window.location.href = BASE_PATH + '/schedule/day?date=' + date;
+        });
+    },
+
+    // 週表示用時間スパンスケジュールのレンダリング
+    renderWeekScheduleTimespan: function (schedule, height, columnIndex, totalColumns) {
+        const startTime = moment(schedule.start_time).format('HH:mm');
+        const endTime = moment(schedule.end_time).format('HH:mm');
+        const timeDisplay = startTime + ' - ' + endTime;
+        const priorityClass = this.getPriorityClass(schedule.priority);
+        const creatorName = schedule.creator_name || '不明';
+
+        // カラム数に基づいて幅を計算
+        const width = totalColumns > 1 ? (100 / totalColumns) : 100;
+        const leftPosition = columnIndex * width;
+
+        return `
+    <div class="schedule-item schedule-timespan ${priorityClass}"
+         style="height: ${height}px; width: ${width}%; left: ${leftPosition}%; right: auto;" 
+         data-id="${schedule.id}">
+        <div class="schedule-creator">${creatorName}</div>
+        <div class="schedule-time">${timeDisplay}</div>
+        <div class="schedule-title">${schedule.title}</div>
+    </div>
+    `;
+    },
+
+    // イベントが重複しているかチェックするヘルパー関数を追加
+    eventsOverlap: function (start1, end1, start2, end2) {
+        return start1 < end2 && start2 < end1;
     },
 
     // 時間位置を計算（分単位で）
@@ -1724,25 +1896,25 @@ const Schedule = {
     //     </div>
     // `;
     // },
-    renderWeekScheduleTimespan: function (schedule, height, columnIndex, totalColumns) {
-        const startTime = moment(schedule.start_time).format('HH:mm');
-        const endTime = moment(schedule.end_time).format('HH:mm');
-        const timeDisplay = startTime + ' - ' + endTime;
-        const priorityClass = this.getPriorityClass(schedule.priority);
+    // renderWeekScheduleTimespan: function (schedule, height, columnIndex, totalColumns) {
+    //     const startTime = moment(schedule.start_time).format('HH:mm');
+    //     const endTime = moment(schedule.end_time).format('HH:mm');
+    //     const timeDisplay = startTime + ' - ' + endTime;
+    //     const priorityClass = this.getPriorityClass(schedule.priority);
 
-        // カラム数に基づいて幅を計算
-        const width = totalColumns > 1 ? (100 / totalColumns) : 100;
-        const leftPosition = columnIndex * width;
+    //     // カラム数に基づいて幅を計算
+    //     const width = totalColumns > 1 ? (100 / totalColumns) : 100;
+    //     const leftPosition = columnIndex * width;
 
-        return `
-    <div class="schedule-item schedule-timespan ${priorityClass}"
-         style="height: ${height}px; width: ${width}%; left: ${leftPosition}%; right: auto;" 
-         data-id="${schedule.id}">
-        <div class="schedule-title">${schedule.title}</div>
-        <div class="schedule-time">${timeDisplay}</div>
-    </div>
-    `;
-    },
+    //     return `
+    // <div class="schedule-item schedule-timespan ${priorityClass}"
+    //      style="height: ${height}px; width: ${width}%; left: ${leftPosition}%; right: auto;" 
+    //      data-id="${schedule.id}">
+    //     <div class="schedule-title">${schedule.title}</div>
+    //     <div class="schedule-time">${timeDisplay}</div>
+    // </div>
+    // `;
+    // },
 
     // 月単位スケジュールの読み込み
     loadMonthSchedules: function (year, month, userId) {
@@ -1881,17 +2053,18 @@ const Schedule = {
         const endTime = moment(schedule.end_time).format('HH:mm');
         const timeDisplay = schedule.all_day == 1 ? '終日' : startTime + ' - ' + endTime;
         const priorityClass = this.getPriorityClass(schedule.priority);
+        const creatorName = schedule.creator_name || '不明';
 
         return `
-            <div class="list-group-item list-group-item-action ${priorityClass} schedule-item" data-id="${schedule.id}">
-                <div class="d-flex w-100 justify-content-between">
-                    <h5 class="mb-1">${schedule.title}</h5>
-                    <small>${timeDisplay}</small>
-                </div>
-                <p class="mb-1">${schedule.description || ''}</p>
-                <small>${schedule.creator_name}</small>
+        <div class="list-group-item list-group-item-action ${priorityClass} schedule-item" data-id="${schedule.id}">
+            <div class="d-flex w-100 justify-content-between">
+                <h5 class="mb-1">${schedule.title}</h5>
+                <small>${timeDisplay}</small>
             </div>
-        `;
+            <div class="mb-1">${schedule.description || ''}</div>
+            <small class="schedule-creator"><i class="fas fa-user"></i> ${creatorName}</small>
+        </div>
+    `;
     },
 
     // タイムライン用スケジュールアイテムのレンダリング
@@ -1900,40 +2073,51 @@ const Schedule = {
         const endTime = moment(schedule.end_time).format('HH:mm');
         const timeDisplay = startTime + ' - ' + endTime;
         const priorityClass = this.getPriorityClass(schedule.priority);
+        const creatorName = schedule.creator_name || '不明';
 
         return `
-            <div class="schedule-item ${priorityClass}" data-id="${schedule.id}">
-                <div class="schedule-time">${timeDisplay}</div>
-                <div class="schedule-title">${schedule.title}</div>
-            </div>
-        `;
+        <div class="schedule-item ${priorityClass}" data-id="${schedule.id}">
+            <div class="schedule-creator">${creatorName}</div>
+            <div class="schedule-time">${timeDisplay}</div>
+            <div class="schedule-title">${schedule.title}</div>
+        </div>
+    `;
     },
+
 
     // 週表示用スケジュールアイテムのレンダリング
     renderWeekScheduleItem: function (schedule, isAllDay) {
         const startTime = moment(schedule.start_time).format('HH:mm');
         const endTime = moment(schedule.end_time).format('HH:mm');
-        const timeDisplay = isAllDay ? '' : startTime + ' - ' + endTime;
+        const timeDisplay = isAllDay ? '終日' : startTime + ' - ' + endTime;
         const priorityClass = this.getPriorityClass(schedule.priority);
+        const creatorName = schedule.creator_name || '不明';
 
         return `
-            <div class="schedule-item ${priorityClass}" data-id="${schedule.id}">
-                <div class="schedule-title">${schedule.title}</div>
-                ${timeDisplay ? '<div class="schedule-time">' + timeDisplay + '</div>' : ''}
-            </div>
-        `;
+        <div class="schedule-item ${priorityClass}" data-id="${schedule.id}">
+            <div class="schedule-creator">${creatorName}</div>
+            <div class="schedule-time">${timeDisplay}</div>
+            <div class="schedule-title">${schedule.title}</div>
+        </div>
+    `;
     },
 
     // 月表示用スケジュールアイテムのレンダリング
     renderMonthScheduleItem: function (schedule) {
         const priorityClass = this.getPriorityClass(schedule.priority);
         const allDayClass = schedule.all_day == 1 ? 'all-day' : '';
+        const startTime = moment(schedule.start_time).format('HH:mm');
+        const endTime = moment(schedule.end_time).format('HH:mm');
+        const timeDisplay = schedule.all_day == 1 ? '終日' : startTime + ' - ' + endTime;
+        const creatorName = schedule.creator_name || '不明';
 
         return `
-            <div class="schedule-item ${priorityClass} ${allDayClass}" data-id="${schedule.id}">
-                ${schedule.title}
-            </div>
-        `;
+        <div class="schedule-item ${priorityClass} ${allDayClass}" data-id="${schedule.id}">
+            <span class="schedule-creator">${creatorName}</span>
+            <span class="schedule-time">${timeDisplay}</span>
+            <span class="schedule-title">${schedule.title}</span>
+        </div>
+    `;
     },
 
     // フォームのバリデーション

@@ -154,6 +154,10 @@ if ($startDate->format('Y-m') === $endDate->format('Y-m')) {
         background-color: #fff3cd;
     }
 
+    .week-day.weekend {
+        background-color: #f8f9fa;
+    }
+
     .week-day-name {
         font-weight: bold;
     }
@@ -184,6 +188,10 @@ if ($startDate->format('Y-m') === $endDate->format('Y-m')) {
         background-color: #fff3cd;
     }
 
+    .week-day-content.weekend {
+        background-color: #f8f9fa;
+    }
+
     .schedule-item,
     .schedule-timespan {
         margin-bottom: 2px;
@@ -193,13 +201,18 @@ if ($startDate->format('Y-m') === $endDate->format('Y-m')) {
         cursor: pointer;
         overflow: hidden;
         box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
-        position: absolute;
-        left: 2px;
-        right: 2px;
+        position: relative;
         z-index: 10;
         display: flex;
         flex-direction: column;
         justify-content: space-between;
+    }
+
+    .schedule-timespan {
+        position: absolute;
+        left: 2px;
+        right: 2px;
+        z-index: 10;
     }
 
     .schedule-item:hover,
@@ -239,37 +252,17 @@ if ($startDate->format('Y-m') === $endDate->format('Y-m')) {
         border-left: 3px solid #0d6efd;
     }
 
-    .schedule-timespan {
-        position: absolute;
-        padding: 4px;
-        border-radius: 3px;
-        font-size: 0.8rem;
-        cursor: pointer;
-        overflow: hidden;
-        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
-        z-index: 10;
-        display: flex;
-        flex-direction: column;
-        justify-content: space-between;
-        /* 幅と位置はJSで動的に設定 */
-    }
-
-    .schedule-timespan:hover {
-        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
-        z-index: 20;
-    }
-
-    .schedule-timespan .schedule-title {
-        font-weight: bold;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        flex: 1;
-    }
-
-    .schedule-timespan .schedule-time {
+    .more-schedules {
         font-size: 0.75rem;
-        white-space: nowrap;
-        text-align: right;
+        text-align: center;
+        padding: 2px;
+        margin-top: 2px;
+        background-color: #eee;
+        border-radius: 3px;
+        cursor: pointer;
+    }
+
+    .more-schedules:hover {
+        background-color: #ddd;
     }
 </style>

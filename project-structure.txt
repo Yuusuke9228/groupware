@@ -1,55 +1,116 @@
 groupware/
-├── config/                 # 設定ファイル
-│   ├── config.php          # 基本設定
-│   └── database.php        # データベース設定
-├── core/                   # コアシステム
-│   ├── Auth.php            # 認証クラス
-│   ├── Controller.php      # コントローラー基底クラス
-│   ├── Database.php        # データベース接続
-│   └── Router.php          # ルーティング
-├── controllers/            # コントローラー
-│   ├── OrganizationController.php
-│   ├── ScheduleController.php
-│   └── UserController.php
-├── db/                     # データベース関連
-│   └── schema.sql          # データベーススキーマ
-├── models/                 # モデル
-│   ├── Organization.php    # 組織モデル
-│   ├── Schedule.php        # スケジュールモデル
-│   └── User.php            # ユーザーモデル
-├── public/                 # 公開ディレクトリ
-│   ├── css/                # スタイルシート
-│   │   └── style.css       # カスタムCSS
-│   ├── img/                # 画像ファイル
-│   ├── index.php           # エントリーポイント
-│   ├── js/                 # JavaScriptファイル
-│   │   ├── app.js          # メインJSファイル
-│   │   ├── organization.js # 組織管理JS
-│   │   ├── schedule.js     # スケジュール管理JS
-│   │   └── user.js         # ユーザー管理JS
-│   └── .htaccess           # Apacheリライトルール
-└── views/                  # ビュー
-    ├── auth/               # 認証関連画面
-    │   └── login.php       # ログイン画面
-    ├── layouts/            # レイアウトテンプレート
-    │   ├── footer.php      # フッターテンプレート
-    │   └── header.php      # ヘッダーテンプレート
-    ├── organization/       # 組織管理画面
-    │   ├── create.php      # 組織作成画面
-    │   ├── edit.php        # 組織編集画面
-    │   ├── index.php       # 組織一覧画面
-    │   └── view.php        # 組織詳細画面
-    ├── schedule/           # スケジュール管理画面
-    │   ├── create.php      # スケジュール作成画面
-    │   ├── day.php         # 日表示画面
-    │   ├── edit.php        # スケジュール編集画面
-    │   ├── form_fields.php # フォーム共通パーツ
-    │   ├── month.php       # 月表示画面
-    │   ├── view.php        # スケジュール詳細画面
-    │   └── week.php        # 週表示画面
-    └── user/               # ユーザー管理画面
-        ├── create.php      # ユーザー作成画面
-        ├── edit.php        # ユーザー編集画面
-        ├── form_fields.php # フォーム共通パーツ
-        ├── index.php       # ユーザー一覧画面
-        └── view.php        # ユーザー詳細画面
+├── composer.json
+├── config/                             # 設定関連
+│   ├── config_sample.php
+│   ├── database_sample.php
+│   └── temp/
+├── Controllers/                        # コントローラー
+│   ├── HomeController.php              # ホーム画面
+│   ├── MessageController.php           # メッセージ管理
+│   ├── NotificationController.php      # 通知管理
+│   ├── OrganizationController.php      # 組織管理
+│   ├── ScheduleController.php          # スケジュール管理
+│   ├── SettingController.php           # 設定関連
+│   ├── UserController.php              # ユーザー管理
+│   └── WorkflowController.php          # ワークフロー管理
+├── Core/                               # コアライブラリ
+│   ├── Auth.php
+│   ├── Controller.php
+│   ├── Database.php
+│   └── Router.php
+├── db/
+│   └── schema.sql                      # DB定義
+├── exports/
+│   └── workflow/                       # ワークフロー出力ファイル保存
+├── Models/                             # モデル
+│   ├── Message.php
+│   ├── Notification.php
+│   ├── Organization.php
+│   ├── Schedule.php
+│   ├── Setting.php
+│   ├── User.php
+│   └── Workflow.php
+├── project-structure.txt               # 構造ファイル（このファイル）
+├── public/                             # 公開ディレクトリ
+│   ├── css/
+│   │   ├── home.css
+│   │   └── style.css
+│   ├── img/
+│   ├── index.php                       # エントリーポイント
+│   ├── js/
+│   │   ├── app.js
+│   │   ├── home.js
+│   │   ├── js_constants.php
+│   │   ├── message.js
+│   │   ├── notification.js
+│   │   ├── organization.js
+│   │   ├── schedule.js
+│   │   ├── setting.js
+│   │   ├── user.js
+│   │   ├── workflow.js
+│   │   ├── workflow-form-designer.js
+│   │   └── workflow-route-designer.js
+│   └── uploads/                       # 添付ファイル保存
+│       ├── messages/
+│       └── workflow/
+├── readme.md
+├── reset_admin_password.php
+├── scripts/
+│   └── process_email_queue.php         # メール送信バッチ処理
+├── vendor/                             # Composer関連
+└── views/                              # 画面テンプレート
+    ├── auth/
+    │   └── login.php
+    ├── home/
+    │   └── index.php
+    ├── layouts/
+    │   ├── footer.php
+    │   ├── header.php
+    │   └── notification_dropdown.php
+    ├── message/
+    │   ├── compose.php
+    │   ├── inbox.php
+    │   ├── sent.php
+    │   ├── sidebar.php
+    │   ├── starred.php
+    │   └── view.php
+    ├── notification/
+    │   ├── index.php
+    │   └── settings.php
+    ├── organization/
+    │   ├── create.php
+    │   ├── edit.php
+    │   ├── index.php
+    │   └── view.php
+    ├── schedule/
+    │   ├── create.php
+    │   ├── day.php
+    │   ├── edit.php
+    │   ├── form_fields.php
+    │   ├── form.php
+    │   ├── modal.php
+    │   ├── month.php
+    │   ├── view.php
+    │   └── week.php
+    ├── setting/
+    │   ├── index.php
+    │   ├── notification.php
+    │   └── smtp.php
+    ├── user/
+    │   ├── create.php
+    │   ├── edit.php
+    │   ├── form_fields.php
+    │   ├── index.php
+    │   └── view.php
+    └── workflow/
+        ├── approvals.php
+        ├── delegates.php
+        ├── form_designer.php
+        ├── index.php
+        ├── request_form.php
+        ├── requests.php
+        ├── request_view.php
+        ├── route_designer.php
+        ├── submenu.php
+        ├── template_form.php
+        └── templates.php
