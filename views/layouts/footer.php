@@ -10,7 +10,7 @@
 <!-- フッター -->
 <footer class="footer py-3 bg-light fixed-bottom">
     <div class="container text-center">
-        <span class="text-muted">Copyright&copy; 2025 Yuusuke. All rights reserved.</span>
+        <span class="text-muted">Copyright&copy; 2025 Yuusuke9228. All rights reserved.</span>
     </div>
 </footer>
 
