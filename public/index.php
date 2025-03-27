@@ -83,7 +83,7 @@ $router->post('/login', function () use ($auth) {
     $remember = isset($_POST['remember']) ? true : false;
 
     if ($auth->login($username, $password, $remember)) {
-        $redirect = $_GET['redirect'] ?? '/schedule';
+        $redirect = $_GET['redirect'] ?? '/';
         header('Location: ' . BASE_PATH . $redirect);
     } else {
         $_SESSION['login_error'] = 'ユーザー名またはパスワードが正しくありません';
@@ -177,6 +177,12 @@ $router->get('/schedule/edit/:id', function ($params) {
 $router->get('/schedule/view/:id', function ($params) {
     $controller = new Controllers\ScheduleController();
     $controller->viewDetails($params);
+}, true);
+
+// 組織スケジュール管理
+$router->get('/schedule/organization-week', function () {
+    $controller = new Controllers\ScheduleController();
+    $controller->organizationWeek();
 }, true);
 
 // API ルート
@@ -290,6 +296,11 @@ $router->apiGet('/schedule/month', function ($params) {
 $router->apiGet('/schedule/range', function ($params) {
     $controller = new Controllers\ScheduleController();
     return $controller->apiGetByDateRange($params);
+}, true);
+
+$router->apiGet('/schedule/organization-week', function ($params) {
+    $controller = new Controllers\ScheduleController();
+    return $controller->apiGetOrganizationWeek($params);
 }, true);
 
 $router->apiGet('/schedule/:id', function ($params) {

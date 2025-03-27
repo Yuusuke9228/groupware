@@ -23,6 +23,23 @@
                             <i class="fas fa-plus-circle"></i> 予定登録
                         </a>
                         -->
+                        <div class="dropdown d-inline-block me-2">
+                            <button class="btn btn-sm btn-primary dropdown-toggle" type="button" id="scheduleDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="fas fa-plus-circle"></i> 予定登録
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="scheduleDropdown">
+                                <li><a class="dropdown-item" href="<?php echo BASE_PATH; ?>/schedule/create">個人予定登録</a></li>
+                                <li>
+                                    <hr class="dropdown-divider">
+                                </li>
+                                <li>
+                                    <h6 class="dropdown-header">組織スケジュール</h6>
+                                </li>
+                                <?php foreach ($organizations as $org): ?>
+                                    <li><a class="dropdown-item" href="<?php echo BASE_PATH; ?>/schedule/organization-week?organization_id=<?php echo $org['id']; ?>"><?php echo htmlspecialchars($org['name']); ?></a></li>
+                                <?php endforeach; ?>
+                            </ul>
+                        </div>
                         <a href="<?php echo BASE_PATH; ?>/schedule/week" class="btn btn-sm btn-outline-secondary ms-2">
                             <i class="far fa-calendar-alt"></i> 予定管理
                         </a>

@@ -413,11 +413,12 @@ class User {
         $sql = "UPDATE users SET password = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?";
         return $this->db->execute($sql, [$hashedPassword, $userId]);
     }
-    
+
     // 特定の組織に所属するユーザーを取得
-    public function getUsersByOrganization($organizationId, $includeChildren = false) {
+    public function getUsersByOrganization($organizationId, $includeChildren = false)
+    {
         $orgIds = [$organizationId];
-        
+
         // 子組織も含める場合
         if ($includeChildren) {
             $orgModel = new Organization();
@@ -426,16 +427,37 @@ class User {
                 $orgIds[] = $descendant['id'];
             }
         }
-        
+
+        // デバッグ情報を追加
+        error_log("GetUsersByOrganization - 対象組織ID: " . implode(', ', $orgIds));
+
+        // プレースホルダーを生成
         $placeholders = implode(',', array_fill(0, count($orgIds), '?'));
-        
+
+        // クエリの実行
         $sql = "SELECT DISTINCT u.* 
                 FROM users u 
                 JOIN user_organizations uo ON u.id = uo.user_id 
                 WHERE uo.organization_id IN ({$placeholders}) 
                 ORDER BY u.last_name, u.first_name";
-        
-        return $this->db->fetchAll($sql, $orgIds);
+
+        $users = $this->db->fetchAll($sql, $orgIds);
+
+        // デバッグ情報を追加
+        error_log("GetUsersByOrganization - 取得ユーザー数: " . count($users));
+        if (count($users) === 0) {
+            // ユーザー組織関連テーブルの状態を確認
+            $check_sql = "SELECT * FROM user_organizations WHERE organization_id = ?";
+            $check_result = $this->db->fetchAll($check_sql, [$organizationId]);
+            error_log("組織ID " . $organizationId . " の user_organizations テーブル: " . json_encode($check_result));
+
+            // ユーザーテーブルの状態も確認
+            $users_sql = "SELECT COUNT(*) as count FROM users";
+            $users_count = $this->db->fetch($users_sql);
+            error_log("ユーザーテーブルの総数: " . $users_count['count']);
+        }
+
+        return $users;
     }
 
     // アクティブなユーザー一覧を取得するメソッド

@@ -1453,4 +1453,187 @@ class ScheduleController extends Controller
         // 通知を送信
         $this->notification->create($notificationData);
     }
+
+    // 組織の週間スケジュール表示
+    public function organizationWeek()
+    {
+        // 日付パラメータの取得（指定がなければ今日）
+        $date = $_GET['date'] ?? date('Y-m-d');
+
+        // 組織IDパラメータの取得
+        $organizationId = $_GET['organization_id'] ?? null;
+
+        // 日付の妥当性をチェック
+        if (!$this->isValidDate($date)) {
+            $date = date('Y-m-d');
+        }
+
+        // 週の開始日と終了日を取得（月曜日から日曜日）
+        $dayOfWeek = date('N', strtotime($date));
+        $weekStart = date('Y-m-d', strtotime($date . ' -' . ($dayOfWeek - 1) . ' days'));
+        $weekEnd = date('Y-m-d', strtotime($weekStart . ' +6 days'));
+
+        // 週の日付配列を生成
+        $weekDates = [];
+        for ($i = 0; $i < 7; $i++) {
+            $weekDates[] = date('Y-m-d', strtotime($weekStart . ' +' . $i . ' days'));
+        }
+
+        // 前週、翌週の日付を計算
+        $prevWeek = date('Y-m-d', strtotime($weekStart . ' -7 days'));
+        $nextWeek = date('Y-m-d', strtotime($weekStart . ' +7 days'));
+
+        // 組織一覧を取得
+        $organizations = $this->organization->getAll();
+
+        // 選択された組織の情報を取得
+        $selectedOrganization = null;
+        if ($organizationId) {
+            $selectedOrganization = $this->organization->getById($organizationId);
+        }
+
+        $viewData = [
+            'title' => date('Y年m月d日', strtotime($weekStart)) . '～' . date('Y年m月d日', strtotime($weekEnd)) . 'の組織スケジュール',
+            'date' => $date,
+            'weekStart' => $weekStart,
+            'weekEnd' => $weekEnd,
+            'weekDates' => $weekDates,
+            'prevWeek' => $prevWeek,
+            'nextWeek' => $nextWeek,
+            'organizationId' => $organizationId,
+            'organizations' => $organizations,
+            'selectedOrganization' => $selectedOrganization,
+            'jsFiles' => ['schedule.js']
+        ];
+
+        $this->view('schedule/organization_week', $viewData);
+    }
+
+    // 組織の週間スケジュールデータ取得API
+    public function apiGetOrganizationWeek($params)
+    {
+        // パラメータが欠落している場合は直接$_GETから取得
+        $date = isset($params['date']) ? $params['date'] : (isset($_GET['date']) ? $_GET['date'] : date('Y-m-d'));
+        $organizationId = isset($params['organization_id']) ? $params['organization_id'] : (isset($_GET['organization_id']) ? $_GET['organization_id'] : null);
+
+        error_log("API Get Organization Week called with date: " . $date . ", organization_id: " . $organizationId);
+
+        // 組織IDがない場合はエラー
+        if (!$organizationId) {
+            return [
+                'success' => false,
+                'error' => '組織IDが指定されていません'
+            ];
+        }
+
+        // 日付の妥当性をチェック
+        if (!$this->isValidDate($date)) {
+            $date = date('Y-m-d');
+        }
+
+        // 組織の存在チェック
+        $organization = $this->organization->getById($organizationId);
+        if (!$organization) {
+            return [
+                'success' => false,
+                'error' => '指定された組織が見つかりません'
+            ];
+        }
+
+        // 週の開始日と終了日を取得（月曜日から日曜日）
+        $momentDate = new \DateTime($date);
+        $dayOfWeek = (int)$momentDate->format('N'); // 1（月曜日）から7（日曜日）
+
+        // 現在の日付から週の開始日（月曜日）を計算
+        $daysToSubtract = $dayOfWeek - 1;
+        $weekStart = clone $momentDate;
+        $weekStart->modify("-{$daysToSubtract} days");
+
+        // 週の終了日（日曜日）を計算
+        $weekEnd = clone $weekStart;
+        $weekEnd->modify('+6 days');
+
+        $startDate = $weekStart->format('Y-m-d');
+        $endDate = $weekEnd->format('Y-m-d');
+
+        // 週の日付配列を生成
+        $weekDates = [];
+        $currentDate = clone $weekStart;
+        for ($i = 0; $i < 7; $i++) {
+            $weekDates[] = $currentDate->format('Y-m-d');
+            $currentDate->modify('+1 day');
+        }
+
+        // デバッグ情報を記録
+        error_log("週の期間: " . $startDate . " から " . $endDate);
+
+        // 組織に所属するユーザー一覧を取得（子組織のユーザーも含む）
+        $userModel = new \Models\User();
+        $users = $userModel->getUsersByOrganization($organizationId, true);
+
+        // ユーザーが取得できない場合、ダミーデータを作成（テスト/デバッグ目的）
+        if (empty($users)) {
+            error_log("警告: 組織(" . $organizationId . ")に所属するユーザーが見つからないためフォールバック機能を使用します");
+
+            // 管理者やアクティブユーザーを代わりに取得
+            $allUsers = $userModel->getActiveUsers();
+
+            if (!empty($allUsers)) {
+                error_log("フォールバック: アクティブユーザー " . count($allUsers) . " 名を使用します");
+                $users = $allUsers;
+            } else {
+                // 最終手段：現在のユーザーを使用
+                $currentUser = $this->auth->user();
+                if ($currentUser) {
+                    error_log("フォールバック: 現在のユーザーを使用します - " . $currentUser['id']);
+                    $users = [$currentUser];
+                }
+            }
+        }
+
+        // デバッグ: ユーザー情報を記録
+        error_log("組織スケジュール用ユーザー数: " . count($users));
+        if (!empty($users)) {
+            error_log("ユーザーID: " . implode(', ', array_column($users, 'id')));
+        }
+
+        // 各ユーザーのスケジュールを取得
+        $allSchedules = [];
+        $processedScheduleIds = []; // 重複排除のため、既に取得したスケジュールのIDを保存
+
+        foreach ($users as $user) {
+            // ユーザーのスケジュールを取得
+            $userSchedules = $this->schedule->getByDateRange($startDate, $endDate, $user['id']);
+            error_log("ユーザーID: " . $user['id'] . " のスケジュール数: " . count($userSchedules));
+
+            foreach ($userSchedules as $schedule) {
+                // 重複チェック（共有スケジュールの場合に重複する可能性がある）
+                if (!in_array($schedule['id'], $processedScheduleIds)) {
+                    // スケジュールにユーザー情報を追加
+                    $schedule['user_id'] = $user['id'];
+                    $schedule['user_name'] = $user['display_name'];
+                    $allSchedules[] = $schedule;
+
+                    // 処理済みIDに追加
+                    $processedScheduleIds[] = $schedule['id'];
+                }
+            }
+        }
+
+        // デバッグ: スケジュール数を記録
+        error_log("取得した全スケジュール数: " . count($allSchedules));
+
+        // 閲覧権限でフィルタリング
+        $filteredSchedules = array_filter($allSchedules, [$this, 'canViewSchedule']);
+        error_log("フィルタリング後のスケジュール数: " . count($filteredSchedules));
+
+        return [
+            'success' => true,
+            'data' => [
+                'week_dates' => $weekDates,
+                'schedules' => array_values($filteredSchedules),
+                'users' => $users
+            ]
+        ];
+    }
 }

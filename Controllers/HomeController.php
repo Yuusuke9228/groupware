@@ -117,6 +117,10 @@ class HomeController extends Controller
             $tempDate->modify('+1 day');
         }
 
+        // 組織一覧を取得
+        $organizationModel = new \Models\Organization();
+        $organizations = $organizationModel->getAll();
+
         $viewData = [
             'title' => 'ホーム',
             'today' => $today,
@@ -130,6 +134,7 @@ class HomeController extends Controller
             'unreadMessageCount' => $unreadMessageCount,
             'unreadNotificationCount' => $unreadNotificationCount,
             'user' => $user,
+            'organizations' => $organizations,
             'jsFiles' => ['home.js']
         ];
 

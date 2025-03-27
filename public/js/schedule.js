@@ -34,6 +34,10 @@ const Schedule = {
                 this.currentView = 'month';
                 this.initMonth();
                 break;
+            case 'organization-week':
+                this.currentView = 'organization-week';
+                this.initOrganizationWeek();
+                break;
             case 'create':
                 this.initForm();
                 break;
@@ -387,6 +391,341 @@ const Schedule = {
 
         // モーダル初期化
         this.initScheduleModal();
+    },
+
+    // 組織スケジュール初期化
+    initOrganizationWeek: function () {
+        const initialDate = $('#current-date').val();
+        const organizationId = $('#organization-id').val();
+
+        // 組織が選択されている場合のみスケジュールを取得
+        if (organizationId) {
+            // 組織週間スケジュールデータを取得
+            this.loadOrganizationWeekSchedules(initialDate, organizationId);
+        }
+
+        // 前週・翌週ボタン
+        $('.btn-prev-week').on('click', function () {
+            const currentDate = $('#current-date').val();
+            const organizationId = $('#organization-id').val();
+
+            const prevWeek = moment(currentDate, 'YYYY-MM-DD').subtract(7, 'days').format('YYYY-MM-DD');
+
+            // URLパラメータ更新
+            const newUrl = BASE_PATH + '/schedule/organization-week?date=' + prevWeek + '&organization_id=' + organizationId;
+
+            // ページをリロードせずに内容を更新
+            $('#current-date').val(prevWeek);
+            Schedule.loadOrganizationWeekSchedules(prevWeek, organizationId);
+
+            // URLを変更（履歴に追加）
+            window.history.pushState({}, '', newUrl);
+
+            // タイトル更新 - 週の開始日と終了日を計算
+            const weekStart = moment(prevWeek).startOf('week').add(1, 'days'); // 月曜開始
+            const weekEnd = moment(weekStart).add(6, 'days');
+            const formattedWeek = weekStart.format('YYYY年M月D日') + '～' + weekEnd.format('M月D日');
+            $('h1.h3').text(`${formattedWeek} - 組織スケジュール管理`);
+        });
+
+        $('.btn-next-week').on('click', function () {
+            const currentDate = $('#current-date').val();
+            const organizationId = $('#organization-id').val();
+
+            const nextWeek = moment(currentDate, 'YYYY-MM-DD').add(7, 'days').format('YYYY-MM-DD');
+
+            // URLパラメータ更新
+            const newUrl = BASE_PATH + '/schedule/organization-week?date=' + nextWeek + '&organization_id=' + organizationId;
+
+            // ページをリロードせずに内容を更新
+            $('#current-date').val(nextWeek);
+            Schedule.loadOrganizationWeekSchedules(nextWeek, organizationId);
+
+            // URLを変更（履歴に追加）
+            window.history.pushState({}, '', newUrl);
+
+            // タイトル更新 - 週の開始日と終了日を計算
+            const weekStart = moment(nextWeek).startOf('week').add(1, 'days'); // 月曜開始
+            const weekEnd = moment(weekStart).add(6, 'days');
+            const formattedWeek = weekStart.format('YYYY年M月D日') + '～' + weekEnd.format('M月D日');
+            $('h1.h3').text(`${formattedWeek} - 組織スケジュール管理`);
+        });
+
+        // 今週ボタン
+        $('.btn-this-week').on('click', function () {
+            const today = moment().format('YYYY-MM-DD');
+            const organizationId = $('#organization-id').val();
+
+            // URLパラメータ更新
+            const newUrl = BASE_PATH + '/schedule/organization-week?date=' + today + '&organization_id=' + organizationId;
+
+            // ページをリロードせずに内容を更新
+            $('#current-date').val(today);
+            Schedule.loadOrganizationWeekSchedules(today, organizationId);
+
+            // URLを変更（履歴に追加）
+            window.history.pushState({}, '', newUrl);
+
+            // タイトル更新 - 週の開始日と終了日を計算
+            const weekStart = moment(today).startOf('week').add(1, 'days'); // 月曜開始
+            const weekEnd = moment(weekStart).add(6, 'days');
+            const formattedWeek = weekStart.format('YYYY年M月D日') + '～' + weekEnd.format('M月D日');
+            $('h1.h3').text(`${formattedWeek} - 組織スケジュール管理`);
+        });
+
+        // 組織選択イベント
+        $('#organization-selector').on('change', function () {
+            const organizationId = $(this).val();
+            const currentDate = $('#current-date').val();
+
+            // 選択された組織のページに移動
+            window.location.href = BASE_PATH + '/schedule/organization-week?date=' + currentDate + '&organization_id=' + organizationId;
+        });
+
+        // 表示切替ボタンの調整
+        $('.btn-view-switcher').on('click', function () {
+            const view = $(this).data('view');
+            const date = $('#current-date').val() || moment().format('YYYY-MM-DD');
+            const organizationId = $('#organization-id').val();
+
+            // 組織ビューからユーザービューへの移動は、日付のみ引き継ぐ
+            if (view === 'day') {
+                window.location.href = BASE_PATH + '/schedule/day?date=' + date;
+            } else if (view === 'week') {
+                window.location.href = BASE_PATH + '/schedule/week?date=' + date;
+            } else if (view === 'month') {
+                const monthDate = moment(date, 'YYYY-MM-DD');
+                window.location.href = BASE_PATH + '/schedule/month?year=' + monthDate.year() + '&month=' + (monthDate.month() + 1);
+            }
+        });
+
+        // モーダル初期化
+        this.initScheduleModal();
+    },
+
+    // 組織の週間スケジュールを読み込む
+    loadOrganizationWeekSchedules: function (date, organizationId) {
+        console.log("Loading organization week schedules for date:", date, "organization:", organizationId);
+
+        // ローディング表示
+        $('#organization-week-schedule-container').html(`
+            <div class="text-center p-5">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+            </div>
+        `);
+
+        App.apiGet('/api/schedule/organization-week', { date: date, organization_id: organizationId })
+            .then(response => {
+                console.log("Organization week schedules response:", response);
+                console.log("Data: ",date + ' ' + organizationId);
+                if (response.success) {
+                    const data = response.data;
+                    this.renderOrganizationWeekSchedules(data.schedules, data.week_dates, data.users);
+                } else {
+                    $('#organization-week-schedule-container').html(`
+                        <div class="alert alert-danger">
+                            ${response.error || 'スケジュールの読み込みに失敗しました'}
+                        </div>
+                    `);
+                    App.showNotification('スケジュールの読み込みに失敗しました', 'error');
+                }
+            })
+            .catch(error => {
+                console.error("Error loading organization week schedules:", error);
+                $('#organization-week-schedule-container').html(`
+                    <div class="alert alert-danger">
+                        サーバーとの通信に失敗しました。ネットワーク接続を確認してください。
+                    </div>
+                `);
+                App.showNotification('スケジュールの読み込みに失敗しました', 'error');
+            });
+        return false;
+    },
+
+    // 組織の週間スケジュールの表示
+    renderOrganizationWeekSchedules: function (schedules, weekDates, users) {
+        const container = $('#organization-week-schedule-container');
+
+        console.log("Rendering organization schedules:", {
+            schedules: schedules,
+            weekDates: weekDates,
+            users: users
+        });
+
+        if (!Array.isArray(users) || users.length === 0) {
+            container.html('<div class="alert alert-info">この組織にはメンバーがいません</div>');
+            return;
+        }
+
+        if (!Array.isArray(schedules)) {
+            schedules = [];
+        }
+
+        // ユーザーごとにスケジュールを整理
+        const userSchedules = {};
+
+        // ユーザーID配列を作成し、初期化
+        users.forEach(user => {
+            userSchedules[user.id] = {
+                user: user,
+                dailySchedules: {}
+            };
+
+            // 各日のスケジュールを初期化
+            weekDates.forEach(date => {
+                userSchedules[user.id].dailySchedules[date] = [];
+            });
+        });
+
+        // スケジュールをユーザーと日付で分類
+        schedules.forEach(schedule => {
+            const userId = schedule.user_id;
+            const startDate = moment(schedule.start_time).format('YYYY-MM-DD');
+            const endDate = moment(schedule.end_time).format('YYYY-MM-DD');
+
+            // 該当ユーザーのスケジュールエリアがない場合はスキップ
+            if (!userSchedules[userId]) {
+                console.warn("User not found for schedule:", schedule);
+                return;
+            }
+
+            // スケジュールの期間が週内にある各日にスケジュールを追加
+            weekDates.forEach(date => {
+                if (date >= startDate && date <= endDate) {
+                    userSchedules[userId].dailySchedules[date].push(schedule);
+                }
+            });
+        });
+
+        // HTML生成
+        let html = '<div class="org-timeline">';
+
+        // ヘッダー行
+        html += '<div class="org-timeline-header">';
+        html += '<div class="org-timeline-header-cell user-column">ユーザー</div>';
+
+        // 日付ヘッダー
+        weekDates.forEach(date => {
+            const dayOfWeek = moment(date).format('ddd');
+            const dayOfMonth = moment(date).format('D');
+            const isToday = moment().format('YYYY-MM-DD') === date;
+            const todayClass = isToday ? 'today' : '';
+            const weekDay = moment(date).day(); // 0（日曜日）から6（土曜日）
+            const weekendClass = (weekDay === 0 || weekDay === 6) ? 'weekend' : '';
+
+            html += `<div class="org-timeline-header-cell ${todayClass} ${weekendClass}">
+                <div class="org-timeline-day">${dayOfWeek}</div>
+                <div class="org-timeline-date">${dayOfMonth}</div>
+            </div>`;
+        });
+
+        html += '</div>'; // end of header
+
+        // ユーザー行
+        html += '<div class="org-timeline-body">';
+
+        Object.values(userSchedules).forEach(userData => {
+            html += '<div class="org-timeline-row">';
+
+            // ユーザー列
+            html += `<div class="org-timeline-user-cell">
+                <div class="org-timeline-user-name">${userData.user.display_name}</div>
+            </div>`;
+
+            // 各日のスケジュール
+            weekDates.forEach(date => {
+                const daySchedules = userData.dailySchedules[date];
+                const isToday = moment().format('YYYY-MM-DD') === date;
+                const todayClass = isToday ? 'today' : '';
+                const weekDay = moment(date).day();
+                const weekendClass = (weekDay === 0 || weekDay === 6) ? 'weekend' : '';
+
+                html += `<div class="org-timeline-day-cell ${todayClass} ${weekendClass}" data-date="${date}" data-user-id="${userData.user.id}">`;
+
+                // 最大3件まで表示
+                const maxDisplay = 3;
+                const displaySchedules = daySchedules.slice(0, maxDisplay);
+                const remainingCount = Math.max(0, daySchedules.length - maxDisplay);
+
+                displaySchedules.forEach(schedule => {
+                    html += this.renderOrganizationScheduleItem(schedule);
+                });
+
+                if (remainingCount > 0) {
+                    html += `<div class="more-schedules">他 ${remainingCount} 件</div>`;
+                }
+
+                html += '</div>'; // end of day cell
+            });
+
+            html += '</div>'; // end of user row
+        });
+
+        html += '</div>'; // end of body
+        html += '</div>'; // end of timeline
+
+        container.html(html);
+
+        // スケジュールアイテムクリックイベント
+        this.initOrganizationScheduleEvents();
+    },
+
+    // 組織スケジュール用のスケジュールアイテムをレンダリング
+    renderOrganizationScheduleItem: function (schedule) {
+        const priorityClass = this.getPriorityClass(schedule.priority);
+        const allDayClass = schedule.all_day == 1 ? 'all-day' : '';
+
+        let timeDisplay = '';
+        if (schedule.all_day == 1) {
+            timeDisplay = '終日';
+        } else {
+            const startTime = moment(schedule.start_time).format('HH:mm');
+            const endTime = moment(schedule.end_time).format('HH:mm');
+            timeDisplay = startTime + ' - ' + endTime;
+        }
+
+        return `
+        <div class="org-schedule-item ${priorityClass} ${allDayClass}" data-id="${schedule.id}">
+            <div class="org-schedule-time">${timeDisplay}</div>
+            <div class="org-schedule-title">${schedule.title}</div>
+        </div>
+        `;
+    },
+    
+    // 組織スケジュール用のイベントハンドラをセットアップ
+    initOrganizationScheduleEvents: function () {
+        // スケジュールアイテムクリックイベント
+        $('.org-schedule-item').on('click', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            const scheduleId = $(this).data('id');
+            if (scheduleId) {
+                Schedule.showViewModal(scheduleId);
+            }
+        });
+
+        // 「他 n 件」クリックイベント
+        $('.more-schedules').on('click', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            const date = $(this).closest('.org-timeline-day-cell').data('date');
+            const userId = $(this).closest('.org-timeline-day-cell').data('user-id');
+            window.location.href = BASE_PATH + '/schedule/day?date=' + date + '&user_id=' + userId;
+        });
+
+        // 日付セルクリックイベント
+        $('.org-timeline-day-cell').on('click', function (e) {
+            // スケジュールアイテムのクリックは除外
+            if ($(e.target).closest('.org-schedule-item, .more-schedules').length === 0) {
+                const date = $(this).data('date');
+                const userId = $(this).data('user-id');
+                if (date && userId) {
+                    window.location.href = BASE_PATH + '/schedule/day?date=' + date + '&user_id=' + userId;
+                }
+            }
+        });
     },
 
     // モーダル表示用の関数を追加

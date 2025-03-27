@@ -129,10 +129,28 @@ if ($currentUser) {
                                 <?php endif; ?>
                             </a>
                         </li>
-                        <li class="nav-item">
-                            <a class="nav-link <?php echo $currentPage === 'schedule' ? 'active' : ''; ?>" href="<?php echo BASE_PATH; ?>/schedule">
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle <?php echo $currentPage === 'schedule' ? 'active' : ''; ?>" href="#" id="scheduleDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                                 <i class="far fa-calendar-alt"></i> スケジュール
                             </a>
+                            <ul class="dropdown-menu" aria-labelledby="scheduleDropdown">
+                                <li><a class="dropdown-item" href="<?php echo BASE_PATH; ?>/schedule">個人スケジュール</a></li>
+                                <li>
+                                    <hr class="dropdown-divider">
+                                </li>
+                                <li>
+                                    <h6 class="dropdown-header">組織スケジュール</h6>
+                                </li>
+                                <?php
+                                // 組織一覧を取得
+                                $organizationModel = new \Models\Organization();
+                                $organizations = $organizationModel->getAll();
+
+                                foreach ($organizations as $org):
+                                ?>
+                                    <li><a class="dropdown-item" href="<?php echo BASE_PATH; ?>/schedule/organization-week?organization_id=<?php echo $org['id']; ?>"><?php echo htmlspecialchars($org['name']); ?></a></li>
+                                <?php endforeach; ?>
+                            </ul>
                         </li>
                         <li class="nav-item dropdown">
                             <a class="nav-link dropdown-toggle <?php echo strpos($requestUri, '/workflow') !== false ? 'active' : ''; ?>" href="#" id="workflowDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
