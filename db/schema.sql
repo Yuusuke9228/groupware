@@ -347,6 +347,111 @@ CREATE TABLE IF NOT EXISTS email_queue (
         NULL
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = 'メール送信キュー';
 
+-- WEBデータベーステーブル
+CREATE TABLE IF NOT EXISTS web_databases (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(100) NOT NULL COMMENT 'データベース名',
+    description TEXT COMMENT '説明',
+    icon VARCHAR(50) DEFAULT 'database' COMMENT 'アイコン',
+    color VARCHAR(20) DEFAULT '#3498db' COMMENT 'カラー',
+    is_public BOOLEAN NOT NULL DEFAULT 0 COMMENT '公開フラグ',
+    creator_id INT NOT NULL COMMENT '作成者ID',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '作成日時',
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新日時',
+    FOREIGN KEY (creator_id) REFERENCES users(id) ON DELETE RESTRICT
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = 'WEBデータベース';
+
+-- WEBデータベースフィールド定義テーブル
+CREATE TABLE IF NOT EXISTS web_database_fields (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    database_id INT NOT NULL COMMENT 'データベースID',
+    name VARCHAR(100) NOT NULL COMMENT 'フィールド名',
+    description TEXT COMMENT '説明',
+    type ENUM(
+        'text',
+        'textarea',
+        'number',
+        'date',
+        'datetime',
+        'select',
+        'radio',
+        'checkbox',
+        'file',
+        'user',
+        'organization'
+    ) NOT NULL COMMENT 'フィールドタイプ',
+    options TEXT COMMENT 'オプション（JSON形式）',
+    required BOOLEAN NOT NULL DEFAULT 0 COMMENT '必須フラグ',
+    unique_value BOOLEAN NOT NULL DEFAULT 0 COMMENT 'ユニーク値フラグ',
+    default_value TEXT COMMENT 'デフォルト値',
+    validation TEXT COMMENT 'バリデーションルール（JSON形式）',
+    sort_order INT NOT NULL DEFAULT 0 COMMENT '表示順',
+    is_title_field BOOLEAN NOT NULL DEFAULT 0 COMMENT 'タイトルフィールドフラグ',
+    is_filterable BOOLEAN NOT NULL DEFAULT 0 COMMENT 'フィルタ可能フラグ',
+    is_sortable BOOLEAN NOT NULL DEFAULT 0 COMMENT 'ソート可能フラグ',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '作成日時',
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新日時',
+    FOREIGN KEY (database_id) REFERENCES web_databases(id) ON DELETE CASCADE
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = 'WEBデータベースフィールド定義';
+
+-- WEBデータベースレコードテーブル
+CREATE TABLE IF NOT EXISTS web_database_records (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    database_id INT NOT NULL COMMENT 'データベースID',
+    creator_id INT NOT NULL COMMENT '作成者ID',
+    updater_id INT COMMENT '更新者ID',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '作成日時',
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新日時',
+    FOREIGN KEY (database_id) REFERENCES web_databases(id) ON DELETE CASCADE,
+    FOREIGN KEY (creator_id) REFERENCES users(id) ON DELETE RESTRICT,
+    FOREIGN KEY (updater_id) REFERENCES users(id) ON DELETE
+    SET
+        NULL
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = 'WEBデータベースレコード';
+
+-- WEBデータベースレコードデータテーブル
+CREATE TABLE IF NOT EXISTS web_database_record_data (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    record_id INT NOT NULL COMMENT 'レコードID',
+    field_id INT NOT NULL COMMENT 'フィールドID',
+    value TEXT COMMENT '値',
+    file_info TEXT COMMENT 'ファイル情報（JSON形式）',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '作成日時',
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新日時',
+    FOREIGN KEY (record_id) REFERENCES web_database_records(id) ON DELETE CASCADE,
+    FOREIGN KEY (field_id) REFERENCES web_database_fields(id) ON DELETE CASCADE,
+    INDEX (record_id, field_id)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = 'WEBデータベースレコードデータ';
+
+-- WEBデータベース権限テーブル
+CREATE TABLE IF NOT EXISTS web_database_permissions (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    database_id INT NOT NULL COMMENT 'データベースID',
+    target_type ENUM('user', 'organization') NOT NULL COMMENT '対象タイプ',
+    target_id INT NOT NULL COMMENT '対象ID',
+    permission_level ENUM('view', 'edit', 'admin') NOT NULL COMMENT '権限レベル',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '作成日時',
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新日時',
+    FOREIGN KEY (database_id) REFERENCES web_databases(id) ON DELETE CASCADE,
+    UNIQUE KEY (database_id, target_type, target_id)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = 'WEBデータベース権限';
+
+-- WEBデータベースビューテーブル
+CREATE TABLE IF NOT EXISTS web_database_views (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    database_id INT NOT NULL COMMENT 'データベースID',
+    name VARCHAR(100) NOT NULL COMMENT 'ビュー名',
+    description TEXT COMMENT '説明',
+    type ENUM('list', 'kanban', 'calendar', 'gantt', 'custom') NOT NULL DEFAULT 'list' COMMENT 'ビュータイプ',
+    settings TEXT COMMENT 'ビュー設定（JSON形式）',
+    is_default BOOLEAN NOT NULL DEFAULT 0 COMMENT 'デフォルトビューフラグ',
+    creator_id INT NOT NULL COMMENT '作成者ID',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '作成日時',
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新日時',
+    FOREIGN KEY (database_id) REFERENCES web_databases(id) ON DELETE CASCADE,
+    FOREIGN KEY (creator_id) REFERENCES users(id) ON DELETE RESTRICT
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = 'WEBデータベースビュー';
+
 -- 初期データ挿入
 INSERT INTO organizations (name, code, level, description)
 VALUES ('本社', 'HQ', 1, 'トップレベル組織');

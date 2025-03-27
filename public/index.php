@@ -822,5 +822,104 @@ $router->apiGet('/home/unread-counts', function () {
     return $controller->apiGetUnreadCounts();
 }, true);
 
+// WEBデータベース関連のルート
+$router->get('/webdatabase', function () {
+    $controller = new Controllers\WebDatabaseController();
+    $controller->index();
+}, true);
+
+$router->get('/webdatabase/create', function () {
+    $controller = new Controllers\WebDatabaseController();
+    $controller->create();
+}, true);
+
+$router->get('/webdatabase/edit/:id', function ($params) {
+    $controller = new Controllers\WebDatabaseController();
+    $controller->edit($params);
+}, true);
+
+$router->get('/webdatabase/fields/:id', function ($params) {
+    $controller = new Controllers\WebDatabaseController();
+    $controller->fields($params);
+}, true);
+
+$router->get('/webdatabase/records/:id', function ($params) {
+    $controller = new Controllers\WebDatabaseController();
+    $controller->records($params);
+}, true);
+
+$router->get('/webdatabase/create-record/:id', function ($params) {
+    $controller = new Controllers\WebDatabaseController();
+    $controller->createRecord($params);
+}, true);
+
+$router->get('/webdatabase/edit/:id/:record_id', function ($params) {
+    $params['record_id'] = $params['record_id'] ?? null;
+    $controller = new Controllers\WebDatabaseController();
+    $controller->editRecord($params);
+}, true);
+
+$router->get('/webdatabase/view/:id/:record_id', function ($params) {
+    $params['record_id'] = $params['record_id'] ?? null;
+    $controller = new Controllers\WebDatabaseController();
+    $controller->viewRecord($params);
+}, true);
+
+// WEBデータベースAPI
+$router->apiGet('/webdatabase', function ($params) {
+    $controller = new Controllers\WebDatabaseController();
+    return $controller->apiGetDatabases($params);
+}, true);
+
+$router->apiPost('/webdatabase', function ($params, $data) {
+    $controller = new Controllers\WebDatabaseController();
+    return $controller->apiCreateDatabase($params, $data);
+}, true);
+
+$router->apiPost('/webdatabase/:id', function ($params, $data) {
+    $controller = new Controllers\WebDatabaseController();
+    return $controller->apiUpdateDatabase($params, $data);
+}, true);
+
+$router->apiDelete('/webdatabase/:id', function ($params) {
+    $controller = new Controllers\WebDatabaseController();
+    return $controller->apiDeleteDatabase($params);
+}, true);
+
+$router->apiPost('/webdatabase/:id/fields', function ($params, $data) {
+    $controller = new Controllers\WebDatabaseController();
+    return $controller->apiCreateField($params, $data);
+}, true);
+
+$router->apiPost('/webdatabase/fields/:id', function ($params, $data) {
+    $controller = new Controllers\WebDatabaseController();
+    return $controller->apiUpdateField($params, $data);
+}, true);
+
+$router->apiDelete('/webdatabase/fields/:id', function ($params) {
+    $controller = new Controllers\WebDatabaseController();
+    return $controller->apiDeleteField($params);
+}, true);
+
+$router->apiGet('/webdatabase/:id/records', function ($params) {
+    $controller = new Controllers\WebDatabaseController();
+    return $controller->apiGetRecords($params);
+}, true);
+
+$router->apiPost('/webdatabase/:id', function ($params, $data) {
+    $controller = new Controllers\WebDatabaseController();
+    return $controller->apiCreateRecord($params, $data);
+}, true);
+
+$router->apiPost('/webdatabase/:id/:record_id', function ($params, $data) {
+    $controller = new Controllers\WebDatabaseController();
+    return $controller->apiUpdateRecord($params, $data);
+}, true);
+
+$router->apiDelete('/webdatabase/:id/:record_id', function ($params) {
+    $controller = new Controllers\WebDatabaseController();
+    return $controller->apiDeleteRecord($params);
+}, true);
+
 // リクエストのディスパッチ（ルーティング処理の実行）
 $router->dispatch();

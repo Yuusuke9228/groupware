@@ -168,6 +168,11 @@ if ($currentUser) {
                             </ul>
                         </li>
                         <li class="nav-item">
+                            <a class="nav-link <?= strpos($_SERVER['REQUEST_URI'], '/webdatabase') !== false ? 'active' : '' ?>" href="<?= BASE_PATH ?>/webdatabase">
+                                <i class="fas fa-database"></i> WEBデータベース
+                            </a>
+                        </li>
+                        <li class="nav-item">
                             <a class="nav-link <?php echo $currentPage === 'organizations' ? 'active' : ''; ?>" href="<?php echo BASE_PATH; ?>/organizations">
                                 <i class="far fa-building"></i> 組織管理
                             </a>
