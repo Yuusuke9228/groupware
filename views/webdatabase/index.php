@@ -14,65 +14,54 @@
     <div class="card">
         <div class="card-body">
             <div class="row mb-3">
-                <div class="mb-3">
-                    <label for="name" class="form-label">データベース名 <span class="text-danger">*</span></label>
-                    <input type="text" class="form-control" id="name" name="name" value="<?= htmlspecialchars($database['name']) ?>" required>
-                    <div class="invalid-feedback"></div>
+                <div class="col-md-6">
+                    <input type="text" id="search-databases" class="form-control" placeholder="データベースを検索...">
                 </div>
+            </div>
 
-                <div class="mb-3">
-                    <label for="description" class="form-label">説明</label>
-                    <textarea class="form-control" id="description" name="description" rows="3"><?= htmlspecialchars($database['description'] ?? '') ?></textarea>
-                    <div class="invalid-feedback"></div>
-                </div>
-
-                <div class="row">
-                    <div class="col-md-6 mb-3">
-                        <label for="icon" class="form-label">アイコン</label>
-                        <div class="input-group">
-                            <span class="input-group-text"><i id="icon-preview" class="fas fa-<?= htmlspecialchars($database['icon']) ?>"></i></span>
-                            <select class="form-select" id="icon" name="icon">
-                                <option value="database" <?= $database['icon'] === 'database' ? 'selected' : '' ?>>データベース</option>
-                                <option value="table" <?= $database['icon'] === 'table' ? 'selected' : '' ?>>テーブル</option>
-                                <option value="list" <?= $database['icon'] === 'list' ? 'selected' : '' ?>>リスト</option>
-                                <option value="tasks" <?= $database['icon'] === 'tasks' ? 'selected' : '' ?>>タスク</option>
-                                <option value="calendar" <?= $database['icon'] === 'calendar' ? 'selected' : '' ?>>カレンダー</option>
-                                <option value="users" <?= $database['icon'] === 'users' ? 'selected' : '' ?>>ユーザー</option>
-                                <option value="building" <?= $database['icon'] === 'building' ? 'selected' : '' ?>>組織</option>
-                                <option value="file" <?= $database['icon'] === 'file' ? 'selected' : '' ?>>ファイル</option>
-                                <option value="folder" <?= $database['icon'] === 'folder' ? 'selected' : '' ?>>フォルダ</option>
-                                <option value="project-diagram" <?= $database['icon'] === 'project-diagram' ? 'selected' : '' ?>>プロジェクト</option>
-                                <option value="chart-bar" <?= $database['icon'] === 'chart-bar' ? 'selected' : '' ?>>グラフ</option>
-                                <option value="clipboard" <?= $database['icon'] === 'clipboard' ? 'selected' : '' ?>>クリップボード</option>
-                                <option value="sticky-note" <?= $database['icon'] === 'sticky-note' ? 'selected' : '' ?>>メモ</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <div class="col-md-6 mb-3">
-                        <label for="color" class="form-label">カラー</label>
-                        <div class="input-group">
-                            <input type="color" class="form-control form-control-color" id="color" name="color" value="<?= htmlspecialchars($database['color']) ?>">
-                            <input type="text" class="form-control" id="color-text" value="<?= htmlspecialchars($database['color']) ?>" readonly>
-                        </div>
+            <div class="row" id="database-list">
+                <!-- データベース一覧がここに表示される -->
+                <div class="col-12 text-center py-5">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
                     </div>
                 </div>
-
-                <div class="mb-3">
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox" id="is_public" name="is_public" value="1" <?= $database['is_public'] ? 'checked' : '' ?>>
-                        <label class="form-check-label" for="is_public">
-                            全体に公開する
-                        </label>
-                    </div>
-                </div>
-
-                <div class="d-flex justify-content-between">
-                    <a href="<?= BASE_PATH ?>/webdatabase" class="btn btn-secondary">キャンセル</a>
-                    <button type="submit" class="btn btn-primary">更新</button>
-                </div>
-            </form>
+            </div>
         </div>
     </div>
 </div>
 
+<!-- データベースカードのテンプレート -->
+<template id="database-card-template">
+    <div class="col-md-4 col-lg-3 mb-4">
+        <div class="card h-100">
+            <div class="card-header" style="background-color: {{color}};">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0 text-white">
+                        <i class="fas fa-{{icon}}"></i> {{name}}
+                    </h5>
+                    <div class="dropdown">
+                        <button class="btn btn-sm text-white" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="fas fa-ellipsis-v"></i>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item" href="<?= BASE_PATH ?>/webdatabase/edit/{{id}}"><i class="fas fa-edit"></i> 編集</a></li>
+                            <li><a class="dropdown-item" href="<?= BASE_PATH ?>/webdatabase/fields/{{id}}"><i class="fas fa-list"></i> フィールド設定</a></li>
+                            <li>
+                                <hr class="dropdown-divider">
+                            </li>
+                            <li><a class="dropdown-item text-danger btn-delete" href="#" data-url="<?= BASE_PATH ?>/api/webdatabase/{{id}}" data-confirm="このデータベースを削除しますか？全てのレコードも削除されます。"><i class="fas fa-trash"></i> 削除</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body d-flex flex-column">
+                <p class="card-text flex-grow-1">{{description}}</p>
+                <div class="d-flex justify-content-between align-items-center mt-3">
+                    <small class="text-muted">作成者: {{creator_name}}</small>
+                    <a href="<?= BASE_PATH ?>/webdatabase/records/{{id}}" class="btn btn-sm btn-outline-primary">レコード一覧</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</template>

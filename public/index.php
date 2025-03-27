@@ -906,19 +906,47 @@ $router->apiGet('/webdatabase/:id/records', function ($params) {
     return $controller->apiGetRecords($params);
 }, true);
 
-$router->apiPost('/webdatabase/:id', function ($params, $data) {
+$router->apiPost('/webdatabase/record/:id', function ($params, $data) {
     $controller = new Controllers\WebDatabaseController();
     return $controller->apiCreateRecord($params, $data);
 }, true);
 
-$router->apiPost('/webdatabase/:id/:record_id', function ($params, $data) {
+$router->apiPost('/webdatabase/record/:id/:record_id', function ($params, $data) {
     $controller = new Controllers\WebDatabaseController();
     return $controller->apiUpdateRecord($params, $data);
 }, true);
 
-$router->apiDelete('/webdatabase/:id/:record_id', function ($params) {
+$router->apiDelete('/webdatabase/record/:id/:record_id', function ($params) {
     $controller = new Controllers\WebDatabaseController();
     return $controller->apiDeleteRecord($params);
+}, true);
+
+// CSVエクスポート関連のルート
+$router->get('/webdatabase/export-csv/:id', function ($params) {
+    $controller = new Controllers\WebDatabaseController();
+    $controller->exportCsv($params);
+}, true);
+
+$router->apiGet('/webdatabase/:id/export-csv', function ($params) {
+    $controller = new Controllers\WebDatabaseController();
+    return $controller->apiExportCsv($params);
+}, true);
+
+// CSVインポート関連のルート
+$router->get('/webdatabase/import-csv/:id', function ($params) {
+    $controller = new Controllers\WebDatabaseController();
+    $controller->importCsv($params);
+}, true);
+
+$router->apiPost('/webdatabase/:id/import-csv', function ($params, $data) {
+    $controller = new Controllers\WebDatabaseController();
+    return $controller->apiImportCsv($params, $data);
+}, true);
+
+// フィールド情報取得API
+$router->apiGet('/webdatabase/fields/:id', function ($params) {
+    $controller = new Controllers\WebDatabaseController();
+    return $controller->apiGetField($params);
 }, true);
 
 // リクエストのディスパッチ（ルーティング処理の実行）

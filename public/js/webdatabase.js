@@ -96,7 +96,7 @@ const WebDatabase = {
         });
 
         // フィールド作成モーダルの保存ボタン
-        $('#save-field-btn').on('click', function () {
+        $('#save-field-btn').off('click').on('click', function () {
             const form = $('#add-field-form');
             const url = form.attr('action');
             const data = form.serialize();
@@ -147,6 +147,7 @@ const WebDatabase = {
                     form.find('input[name="options"]').remove();
                 }
             });
+            return false;
         });
 
         // フィールド編集ボタン
@@ -164,7 +165,7 @@ const WebDatabase = {
         });
 
         // フィールド更新ボタン
-        $('#update-field-btn').on('click', function () {
+        $('#update-field-btn').off('click').on('click', function () {
             const form = $('#edit-field-form');
             const url = form.attr('action');
             const data = form.serialize();
@@ -215,7 +216,9 @@ const WebDatabase = {
                     form.find('input[name="options"]').remove();
                 }
             });
+            return false;
         });
+        return false;
     },
 
     // データベース一覧ページの初期化

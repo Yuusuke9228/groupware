@@ -552,4 +552,57 @@ class WebDatabaseRecord
             ]);
         }
     }
+
+    /**
+     * データベースに関連するレコードを全件取得（CSV出力用）
+     */
+    public function getAllByDatabaseId($databaseId, $search = null, $filters = [])
+    {
+        $params = [$databaseId];
+
+        // 基本クエリ
+        $sql = "SELECT r.*, u.display_name as creator_name 
+                FROM web_database_records r 
+                LEFT JOIN users u ON r.creator_id = u.id 
+                WHERE r.database_id = ? ";
+
+        // 検索条件
+        if ($search) {
+            // タイトルフィールドを取得して検索
+            $titleFieldSql = "SELECT id FROM web_database_fields WHERE database_id = ? AND is_title_field = 1 LIMIT 1";
+            $titleField = $this->db->fetch($titleFieldSql, [$databaseId]);
+
+            if ($titleField) {
+                $sql .= "AND r.id IN (
+                    SELECT record_id FROM web_database_record_data 
+                    WHERE field_id = ? AND value LIKE ?
+                ) ";
+                $params[] = $titleField['id'];
+                $params[] = "%" . $search . "%";
+            }
+        }
+
+        // フィルター条件
+        if (!empty($filters) && is_array($filters)) {
+            foreach ($filters as $fieldId => $value) {
+                $sql .= "AND r.id IN (
+                    SELECT record_id FROM web_database_record_data 
+                    WHERE field_id = ? AND value = ?
+                ) ";
+                $params[] = $fieldId;
+                $params[] = $value;
+            }
+        }
+
+        $sql .= "ORDER BY r.created_at DESC";
+
+        $records = $this->db->fetchAll($sql, $params);
+
+        // タイトルフィールド値を取得
+        foreach ($records as &$record) {
+            $record['title'] = $this->getRecordTitle($record['id'], $databaseId);
+        }
+
+        return $records;
+    }
 }

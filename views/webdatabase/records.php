@@ -1,13 +1,26 @@
 <!-- views/webdatabase/records.php -->
 <div class="container-fluid mt-4">
     <div class="row mb-3">
-        <div class="col-md-8">
+        <div class="col-md-6">
             <h1><?= htmlspecialchars($database['name']) ?> - レコード一覧</h1>
         </div>
-        <div class="col-md-4 text-end">
-            <a href="<?= BASE_PATH ?>/webdatabase/create-record/<?= $database['id'] ?>" class="btn btn-primary">
-                <i class="fas fa-plus"></i> 新規レコード作成
-            </a>
+        <div class="col-md-6 text-end">
+            <div class="btn-group">
+                <a href="<?= BASE_PATH ?>/webdatabase/create-record/<?= $database['id'] ?>" class="btn btn-primary">
+                    <i class="fas fa-plus"></i> 新規レコード作成
+                </a>
+                <button type="button" class="btn btn-primary dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown" aria-expanded="false">
+                    <span class="visually-hidden">ドロップダウン</span>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end">
+                    <li><a class="dropdown-item" href="<?= BASE_PATH ?>/webdatabase/export-csv/<?= $database['id'] ?>">
+                            <i class="fas fa-download"></i> CSVエクスポート
+                        </a></li>
+                    <li><a class="dropdown-item" href="<?= BASE_PATH ?>/webdatabase/import-csv/<?= $database['id'] ?>">
+                            <i class="fas fa-upload"></i> CSVインポート
+                        </a></li>
+                </ul>
+            </div>
         </div>
     </div>
 
@@ -140,6 +153,14 @@
 
     <div class="d-flex justify-content-between mt-3">
         <a href="<?= BASE_PATH ?>/webdatabase/fields/<?= $database['id'] ?>" class="btn btn-secondary">フィールド設定に戻る</a>
+        <div class="btn-group">
+            <a href="<?= BASE_PATH ?>/webdatabase/export-csv/<?= $database['id'] ?>" class="btn btn-outline-primary">
+                <i class="fas fa-download"></i> CSVエクスポート
+            </a>
+            <a href="<?= BASE_PATH ?>/webdatabase/import-csv/<?= $database['id'] ?>" class="btn btn-outline-primary">
+                <i class="fas fa-upload"></i> CSVインポート
+            </a>
+        </div>
     </div>
 </div>
 

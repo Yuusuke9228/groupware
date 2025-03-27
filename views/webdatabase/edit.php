@@ -8,7 +8,7 @@
 
     <div class="card">
         <div class="card-body">
-            <form id="edit-database-form" action="<?= BASE_PATH ?>/api/webdatabase/<?= $database['id'] ?>" method="POST">
+            <form id="edit-database-form" action="<?= BASE_PATH ?>/api/webdatabase/record/<?= $database['id'] ?>" method="POST">
                 <div class="mb-3">
                     <label for="name" class="form-label">データベース名 <span class="text-danger">*</span></label>
                     <input type="text" class="form-control" id="name" name="name" value="<?= htmlspecialchars($database['name']) ?>" required>
