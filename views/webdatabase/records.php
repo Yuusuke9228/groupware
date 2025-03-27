@@ -177,7 +177,7 @@
                 <a href="<?= BASE_PATH ?>/webdatabase/edit/{{database_id}}/{{id}}" class="btn btn-sm btn-outline-primary">
                     <i class="fas fa-edit"></i> 編集
                 </a>
-                <button class="btn btn-sm btn-outline-danger btn-delete" data-url="<?= BASE_PATH ?>/api/webdatabase/{{database_id}}/{{id}}" data-confirm="このレコードを削除しますか？">
+                <button class="btn btn-sm btn-outline-danger btn-delete" data-url="<?= BASE_PATH ?>/api/webdatabase/record/{{database_id}}/{{id}}" data-confirm="このレコードを削除しますか？">
                     <i class="fas fa-trash"></i> 削除
                 </button>
             </div>

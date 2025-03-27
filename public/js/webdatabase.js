@@ -59,11 +59,11 @@ const WebDatabase = {
         });
 
         // フィルター適用
-        $('#apply-filter-btn').on('click', function () {
-            WebDatabase.filters = $('#filter-form').serializeObject();
-            WebDatabase.currentPage = 1;
-            WebDatabase.loadRecords();
-        });
+        // $('#apply-filter-btn').on('click', function () {
+        //     WebDatabase.filters = $('#filter-form').serializeObject();
+        //     WebDatabase.currentPage = 1;
+        //     WebDatabase.loadRecords();
+        // });
 
         // フィルターリセット
         $('#reset-filter-btn').on('click', function () {
@@ -445,6 +445,7 @@ const WebDatabase = {
                 App.showNotification('データの取得に失敗しました', 'error');
             }
         });
+        return false;
     },
 
     // レコード一覧を表示

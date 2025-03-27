@@ -876,6 +876,12 @@ $router->apiPost('/webdatabase', function ($params, $data) {
     return $controller->apiCreateDatabase($params, $data);
 }, true);
 
+$router->apiGet('/webdatabase/:id/records', function ($params) {
+    // error_log('Routerr: apiGetRecords' . json_encode(['params: ' . $params]));
+    $controller = new Controllers\WebDatabaseController();
+    return $controller->apiGetRecords($params);
+}, true);
+
 $router->apiPost('/webdatabase/:id', function ($params, $data) {
     $controller = new Controllers\WebDatabaseController();
     return $controller->apiUpdateDatabase($params, $data);
@@ -899,11 +905,6 @@ $router->apiPost('/webdatabase/fields/:id', function ($params, $data) {
 $router->apiDelete('/webdatabase/fields/:id', function ($params) {
     $controller = new Controllers\WebDatabaseController();
     return $controller->apiDeleteField($params);
-}, true);
-
-$router->apiGet('/webdatabase/:id/records', function ($params) {
-    $controller = new Controllers\WebDatabaseController();
-    return $controller->apiGetRecords($params);
 }, true);
 
 $router->apiPost('/webdatabase/record/:id', function ($params, $data) {

@@ -16,6 +16,7 @@ const WebDatabaseRecord = {
 
     // 初期化
     init: function () {
+        console.log('Init');
         // 現在のページを判断して初期化処理
         const path = window.location.pathname;
 
@@ -48,15 +49,34 @@ const WebDatabaseRecord = {
         });
 
         // フィルター適用
+        // $('#apply-filter-btn').off('click').on('click', function () {
+        //     console.log('Apply filter button clicked');
+        //     const formData = $('#filter-form').serializeArray();
+        //     WebDatabaseRecord.filters = {};
+
+        //     formData.forEach(function (item) {
+        //         // filters[fieldId] 形式の名前をパース
+        //         const match = item.name.match(/filters\[(\d+)\]/);
+        //         if (match && match[1] && item.value) {
+        //             WebDatabaseRecord.filters[match[1]] = item.value;
+        //         }
+        //     });
+
+        //     WebDatabaseRecord.currentPage = 1;
+        //     WebDatabaseRecord.loadRecords();
+        // });
         $('#apply-filter-btn').on('click', function () {
-            const formData = $('#filter-form').serializeArray();
+            // フィルターデータを収集
             WebDatabaseRecord.filters = {};
 
-            formData.forEach(function (item) {
-                // filters[fieldId] 形式の名前をパース
-                const match = item.name.match(/filters\[(\d+)\]/);
-                if (match && match[1] && item.value) {
-                    WebDatabaseRecord.filters[match[1]] = item.value;
+            $('.filter-field').each(function () {
+                const input = $(this);
+                const value = input.val();
+
+                if (value) {
+                    // フィールドIDを取得
+                    const fieldId = input.attr('id').replace('filter-', '');
+                    WebDatabaseRecord.filters[fieldId] = value;
                 }
             });
 
@@ -72,7 +92,7 @@ const WebDatabaseRecord = {
         });
 
         // 削除ボタンのイベント処理（動的に追加される要素）
-        $(document).on('click', '.btn-delete', function () {
+        $(document).off('click', '.btn-delete').on('click', '.btn-delete', function () {
             const url = $(this).data('url');
             const confirmMessage = $(this).data('confirm');
 
@@ -87,12 +107,15 @@ const WebDatabaseRecord = {
                         } else {
                             App.showNotification(response.error, 'error');
                         }
+                        return false;
                     },
                     error: function () {
                         App.showNotification('エラーが発生しました', 'error');
                     }
                 });
+                return false;
             }
+            return false;
         });
 
         // ソートヘッダーのクリックイベント
@@ -112,19 +135,76 @@ const WebDatabaseRecord = {
     },
 
     // レコード一覧を取得
+    // loadRecords: function () {
+    //     // URLからデータベースIDを取得
+    //     const pathParts = window.location.pathname.split('/');
+    //     const databaseId = pathParts[pathParts.length - 1];
+
+    //     const params = {
+    //         search: this.searchTerm,
+    //         filters: this.filters,
+    //         sort: this.sortField,
+    //         order: this.sortOrder,
+    //         page: this.currentPage,
+    //         limit: 20
+    //     };
+
+    //     // APIリクエスト
+    //     $.ajax({
+    //         url: BASE_PATH + '/api/webdatabase/' + databaseId + '/records',
+    //         type: 'GET',
+    //         data: params,
+    //         beforeSend: function () {
+    //             const columnCount = $('#record-list').closest('table').find('th').length;
+    //             $('#record-list').html(`<tr><td colspan="${columnCount}" class="text-center"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div></td></tr>`);
+    //         },
+    //         success: function (response) {
+    //             if (response.success) {
+    //                 WebDatabaseRecord.renderRecordList(response.data.records, databaseId);
+    //                 WebDatabaseRecord.totalPages = response.data.pagination.total_pages;
+    //                 WebDatabaseRecord.renderRecordPagination(response.data.pagination);
+
+    //                 // ソートマークの更新
+    //                 WebDatabaseRecord.updateSortIndicators();
+    //             } else {
+    //                 App.showNotification(response.error, 'error');
+    //             }
+    //         },
+    //         error: function () {
+    //             App.showNotification('データの取得に失敗しました', 'error');
+    //         }
+    //     });
+    // },
     loadRecords: function () {
         // URLからデータベースIDを取得
         const pathParts = window.location.pathname.split('/');
         const databaseId = pathParts[pathParts.length - 1];
 
+        // パラメータを準備
         const params = {
-            search: this.searchTerm,
-            filters: this.filters,
-            sort: this.sortField,
-            order: this.sortOrder,
             page: this.currentPage,
             limit: 20
         };
+
+        // 検索条件を追加
+        if (this.searchTerm) {
+            params.search = this.searchTerm;
+        }
+
+        // フィルター条件をJSON文字列として追加
+        if (Object.keys(this.filters).length > 0) {
+            params.filter_json = JSON.stringify(this.filters);
+        }
+
+        // ソート条件を追加
+        if (this.sortField) {
+            params.sort = this.sortField;
+            params.order = this.sortOrder;
+        }
+
+        // デバッグログ
+        console.log('Filter params:', params);
+        console.log('Filter JSON:', params.filter_json || 'none');
 
         // APIリクエスト
         $.ajax({
@@ -140,18 +220,17 @@ const WebDatabaseRecord = {
                     WebDatabaseRecord.renderRecordList(response.data.records, databaseId);
                     WebDatabaseRecord.totalPages = response.data.pagination.total_pages;
                     WebDatabaseRecord.renderRecordPagination(response.data.pagination);
-
-                    // ソートマークの更新
-                    WebDatabaseRecord.updateSortIndicators();
                 } else {
                     App.showNotification(response.error, 'error');
                 }
             },
-            error: function () {
+            error: function (xhr, status, error) {
+                console.error("API Error:", error);
                 App.showNotification('データの取得に失敗しました', 'error');
             }
         });
     },
+
 
     // レコード一覧を表示
     renderRecordList: function (records, databaseId) {
@@ -179,9 +258,19 @@ const WebDatabaseRecord = {
             let row = rowTemplate
                 .replace(/\{\{id\}\}/g, record.id)
                 .replace(/\{\{database_id\}\}/g, databaseId)
-                .replace(/\{\{title\}\}/g, record.title || `ID: ${record.id}`)
-                .replace(/\{\{creator_name\}\}/g, record.creator_name || '')
                 .replace(/\{\{created_at\}\}/g, WebDatabaseRecord.formatDateTime(record.created_at));
+
+            // タイトルフィールドの処理
+            let titleDisplay = '';
+            if (record.title) {
+                // ハイフンで区切られたタイトルを空白で囲む（見やすさのため）
+                titleDisplay = record.title.replace(/\s*-\s*/g, ' - ');
+            } else {
+                titleDisplay = `ID: ${record.id}`;
+            }
+
+            row = row.replace(/\{\{title\}\}/g, titleDisplay);
+            row = row.replace(/\{\{creator_name\}\}/g, record.creator_name || '');
 
             // フィールド値のプレースホルダーを置換
             row = row.replace(/\{\{field_values\}\}/g, '');
@@ -332,35 +421,39 @@ const WebDatabaseRecord = {
         this.initOrganizationFieldDisplay();
 
         // 削除ボタンのイベント処理
-        $('.btn-delete').on('click', function () {
-            const url = $(this).data('url');
-            const confirmMessage = $(this).data('confirm');
-            const redirect = $(this).data('redirect');
+        // $('.btn-delete').off('click').on('click', function () {
+        //     const url = $(this).data('url');
+        //     const confirmMessage = $(this).data('confirm');
+        //     const redirect = $(this).data('redirect');
 
-            if (confirm(confirmMessage)) {
-                $.ajax({
-                    url: url,
-                    type: 'DELETE',
-                    success: function (response) {
-                        if (response.success) {
-                            App.showNotification(response.message, 'success');
+        //     if (confirm(confirmMessage)) {
+        //         $.ajax({
+        //             url: url,
+        //             type: 'DELETE',
+        //             success: function (response) {
+        //                 if (response.success) {
+        //                     App.showNotification(response.message, 'success');
 
-                            // リダイレクト
-                            if (redirect) {
-                                setTimeout(function () {
-                                    window.location.href = redirect;
-                                }, 1000);
-                            }
-                        } else {
-                            App.showNotification(response.error, 'error');
-                        }
-                    },
-                    error: function () {
-                        App.showNotification('エラーが発生しました', 'error');
-                    }
-                });
-            }
-        });
+        //                     // リダイレクト
+        //                     if (redirect) {
+        //                         setTimeout(function () {
+        //                             window.location.href = redirect;
+        //                         }, 1000);
+        //                         return false;
+        //                     }
+        //                     return false;
+        //                 } else {
+        //                     App.showNotification(response.error, 'error');
+        //                 }
+        //             },
+        //             error: function () {
+        //                 App.showNotification('エラーが発生しました', 'error');
+        //             }
+        //         });
+        //         return false;
+        //     }
+        //     return false;
+        // });
     },
 
     // ユーザーフィールドの選択肢を読み込み

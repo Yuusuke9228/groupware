@@ -15,19 +15,55 @@ const WebDatabaseExport = {
     setupEventListeners: function () {
         // エクスポートフォーム送信
         $('#export-form').on('submit', function (e) {
+            e.preventDefault(); // フォームのデフォルト送信を防止
+
             // ユーザーがフィールドを選択しているか確認
             const checkedFields = $('input[name="export_fields[]"]:checked');
             if (checkedFields.length === 0) {
-                e.preventDefault();
                 App.showNotification('少なくとも1つのフィールドを選択してください', 'error');
                 return false;
             }
 
+            // フィルターデータを収集
+            const filters = {};
+            let hasFilters = false;
+
+            $('[name^="filter_"]').each(function () {
+                const input = $(this);
+                const value = input.val();
+
+                if (value) {
+                    // filter_123 形式からフィールドIDを抽出
+                    const fieldId = input.attr('name').replace('filter_', '');
+                    filters[fieldId] = value;
+                    hasFilters = true;
+                }
+            });
+
             // 進行中メッセージを表示
             App.showNotification('CSVエクスポートを開始しました...', 'info');
 
-            // 通常のフォーム送信を許可（フォームのアクションURLにリダイレクト）
-            return true;
+            // フォームデータを取得してクエリパラメータを構築
+            const formData = new FormData(this);
+            const params = new URLSearchParams();
+
+            // フォームデータをURLSearchParamsに変換
+            for (const [key, value] of formData.entries()) {
+                if (key.startsWith('filter_')) {
+                    // filter_はJSONに変換するのでスキップ
+                    continue;
+                }
+                params.append(key, value);
+            }
+
+            // フィルターをJSON文字列として追加
+            if (hasFilters) {
+                params.append('filter_json', JSON.stringify(filters));
+            }
+
+            // リダイレクト
+            const url = $(this).attr('action') + '?' + params.toString();
+            window.location.href = url;
         });
     },
 

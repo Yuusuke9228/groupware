@@ -312,6 +312,8 @@ class WebDatabaseRecord
      */
     public function getByDatabaseId($databaseId, $page = 1, $limit = 20, $search = null, $filters = [], $sort = null, $order = 'asc')
     {
+        error_log("page: " . $page . ", limit: " . $limit . ", search: " . $search . ", filters: " . json_encode($filters) . ", sort: " . $sort . ", order: " . $order);
+        
         $offset = ($page - 1) * $limit;
         $params = [$databaseId];
 
@@ -340,12 +342,15 @@ class WebDatabaseRecord
         // フィルター条件
         if (!empty($filters) && is_array($filters)) {
             foreach ($filters as $fieldId => $value) {
-                $sql .= "AND r.id IN (
-                    SELECT record_id FROM web_database_record_data 
-                    WHERE field_id = ? AND value = ?
-                ) ";
-                $params[] = $fieldId;
-                $params[] = $value;
+                // 数値キーのみを処理（セキュリティ対策）
+                if (is_numeric($fieldId)) {
+                    $sql .= "AND r.id IN (
+                        SELECT record_id FROM web_database_record_data 
+                        WHERE field_id = ? AND value LIKE ?
+                    ) ";
+                    $params[] = $fieldId;
+                    $params[] = "%" . $value . "%";
+                }
             }
         }
 
@@ -446,18 +451,31 @@ class WebDatabaseRecord
     private function getRecordTitle($recordId, $databaseId)
     {
         // タイトルフィールドを取得
-        $titleFieldSql = "SELECT id FROM web_database_fields WHERE database_id = ? AND is_title_field = 1 LIMIT 1";
-        $titleField = $this->db->fetch($titleFieldSql, [$databaseId]);
+        $titleFieldSql = "SELECT id FROM web_database_fields WHERE database_id = ? AND is_title_field = 1";
+        $titleFields = $this->db->fetchAll($titleFieldSql, [$databaseId]);
 
-        if (!$titleField) {
+        if (empty($titleFields)) {
             return "ID: " . $recordId; // タイトルフィールドがない場合はID
         }
 
-        // タイトルフィールドの値を取得
-        $dataSql = "SELECT value FROM web_database_record_data WHERE record_id = ? AND field_id = ? LIMIT 1";
-        $data = $this->db->fetch($dataSql, [$recordId, $titleField['id']]);
+        $titleParts = [];
 
-        return $data ? $data['value'] : "ID: " . $recordId;
+        // 各タイトルフィールドの値を取得
+        foreach ($titleFields as $field) {
+            $dataSql = "SELECT value FROM web_database_record_data WHERE record_id = ? AND field_id = ? LIMIT 1";
+            $data = $this->db->fetch($dataSql, [$recordId, $field['id']]);
+
+            if ($data && !empty($data['value'])) {
+                $titleParts[] = $data['value'];
+            }
+        }
+
+        if (empty($titleParts)) {
+            return "ID: " . $recordId;
+        }
+
+        // タイトル部分を結合
+        return implode(' - ', $titleParts);
     }
 
     /**

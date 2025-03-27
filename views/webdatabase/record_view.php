@@ -10,7 +10,7 @@
     <div class="card">
         <div class="card-header">
             <div class="d-flex justify-content-between align-items-center">
-                <h5 class="mb-0"><?= htmlspecialchars($record['title']) ?></h5>
+                <h5 class="mb-0"><?= htmlspecialchars(str_replace(' - ', ' - ', $record['title'])) ?></h5>
                 <div>
                     <a href="<?= BASE_PATH ?>/webdatabase/edit/<?= $database['id'] ?>/<?= $record['id'] ?>" class="btn btn-primary btn-sm">
                         <i class="fas fa-edit"></i> 編集
@@ -151,7 +151,7 @@
                 <span class="visually-hidden">ドロップダウン</span>
             </button>
             <ul class="dropdown-menu dropdown-menu-end">
-                <li><button class="dropdown-item btn-delete" data-url="<?= BASE_PATH ?>/api/webdatabase/<?= $database['id'] ?>/<?= $record['id'] ?>" data-confirm="このレコードを削除しますか？" data-redirect="<?= BASE_PATH ?>/webdatabase/records/<?= $database['id'] ?>">
+                <li><button class="dropdown-item btn-delete" data-url="<?= BASE_PATH ?>/api/webdatabase/record/<?= $database['id'] ?>/<?= $record['id'] ?>" data-confirm="このレコードを削除しますか？" data-redirect="<?= BASE_PATH ?>/webdatabase/records/<?= $database['id'] ?>">
                         <i class="fas fa-trash text-danger"></i> 削除
                     </button></li>
             </ul>

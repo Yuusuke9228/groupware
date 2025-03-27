@@ -547,21 +547,66 @@ class WebDatabaseController extends Controller
             return ['error' => 'Unauthorized', 'code' => 401];
         }
 
-        $databaseId = $params['id'] ?? null;
+        // パラメータを$_GETから直接取得
+        $databaseId = isset($params['id']) ? $params['id'] : null;
         if (!$databaseId) {
             return ['error' => 'Database ID is required', 'code' => 400];
         }
 
+        // RAWリクエストのデバッグ
+        error_log('Raw $_GET: ' . json_encode($_GET));
+        error_log('Raw $_REQUEST: ' . json_encode($_REQUEST));
+
         // ページネーション
-        $page = $params['page'] ?? 1;
-        $limit = $params['limit'] ?? 20;
+        $page = isset($_GET['page']) ? intval($_GET['page']) : 1;
+        $limit = isset($_GET['limit']) ? intval($_GET['limit']) : 20;
 
-        // 検索・フィルター・ソート条件
-        $search = $params['search'] ?? null;
-        $filters = $params['filters'] ?? [];
-        $sort = $params['sort'] ?? null;
-        $order = $params['order'] ?? 'asc';
+        // 検索条件
+        $search = isset($_GET['search']) ? $_GET['search'] : null;
 
+        // フィルター条件の処理
+        $filters = [];
+
+        // JSON形式のフィルターがある場合はそれを使用
+        if (isset($_GET['filter_json']) && !empty($_GET['filter_json'])) {
+            $filterJson = $_GET['filter_json'];
+            $decodedFilters = json_decode($filterJson, true);
+
+            // JSONデコード成功時のみ使用
+            if (json_last_error() === JSON_ERROR_NONE && is_array($decodedFilters)) {
+                foreach ($decodedFilters as $fieldId => $value) {
+                    if (is_numeric($fieldId) && !empty($value)) {
+                        $filters[$fieldId] = $value;
+                    }
+                }
+            }
+            error_log('Decoded filter_json: ' . json_encode($decodedFilters));
+        }
+
+        // 個別のfilter_N形式も確認
+        foreach ($_GET as $key => $value) {
+            if (preg_match('/^filter_(\d+)$/', $key, $matches)) {
+                $fieldId = $matches[1];
+                if (!empty($value)) {
+                    $filters[$fieldId] = $value;
+                }
+            }
+        }
+
+        // デバッグ用
+        error_log('GET params: ' . json_encode($_GET));
+        error_log('Processed filters: ' . json_encode($filters));
+
+        // ソート条件
+        $sort = isset($_GET['sort']) ? $_GET['sort'] : null;
+        $order = isset($_GET['order']) ? strtolower($_GET['order']) : 'asc';
+        if ($order !== 'asc' && $order !== 'desc') {
+            $order = 'asc';
+        }
+
+        error_log('page: ' . $page . ', limit: ' . $limit . ', search: ' . $search . ', filters: ' . json_encode($filters) . ', sort: ' . $sort . ', order: ' . $order);
+
+        // データベースからレコードを取得
         $records = $this->recordModel->getByDatabaseId($databaseId, $page, $limit, $search, $filters, $sort, $order);
         $totalRecords = $this->recordModel->getCountByDatabaseId($databaseId, $search, $filters);
         $totalPages = ceil($totalRecords / $limit);
@@ -579,6 +624,7 @@ class WebDatabaseController extends Controller
             ]
         ];
     }
+
 
     /**
      * API: レコードを作成
@@ -741,7 +787,8 @@ class WebDatabaseController extends Controller
             return ['error' => 'Unauthorized', 'code' => 401];
         }
 
-        $databaseId = $params['id'] ?? null;
+        // パラメータを$_GETから直接取得
+        $databaseId = isset($params['id']) ? $params['id'] : null;
         if (!$databaseId) {
             return ['error' => 'Database ID is required', 'code' => 400];
         }
@@ -756,8 +803,41 @@ class WebDatabaseController extends Controller
         $fields = $this->fieldModel->getByDatabaseId($databaseId);
 
         // 検索・フィルター条件
-        $search = $params['search'] ?? null;
-        $filters = $params['filters'] ?? [];
+        $search = isset($_GET['search']) ? $_GET['search'] : null;
+
+        // フィルター条件の処理
+        $filters = [];
+
+        // JSON形式のフィルターがある場合はそれを使用
+        if (isset($_GET['filter_json']) && !empty($_GET['filter_json'])) {
+            $filterJson = $_GET['filter_json'];
+            $decodedFilters = json_decode($filterJson, true);
+
+            // JSONデコード成功時のみ使用
+            if (json_last_error() === JSON_ERROR_NONE && is_array($decodedFilters)) {
+                foreach ($decodedFilters as $fieldId => $value) {
+                    if (is_numeric($fieldId) && !empty($value)) {
+                        $filters[$fieldId] = $value;
+                    }
+                }
+            }
+        }
+
+        // 個別のfilter_N形式も確認
+        foreach ($_GET as $key => $value) {
+            if (preg_match('/^filter_(\d+)$/', $key, $matches)) {
+                $fieldId = $matches[1];
+                if (!empty($value)) {
+                    $filters[$fieldId] = $value;
+                }
+            }
+        }
+
+        // エクスポートするフィールドを指定
+        $exportFields = [];
+        if (isset($_GET['export_fields']) && is_array($_GET['export_fields'])) {
+            $exportFields = $_GET['export_fields'];
+        }
 
         // CSVファイル名
         $filename = $database['name'] . '_' . date('Ymd_His') . '.csv';
@@ -779,9 +859,16 @@ class WebDatabaseController extends Controller
 
         // ヘッダー行を出力
         $headers = ['ID', '作成日時', '作成者'];
+
+        // エクスポートするフィールドのみ含める
+        $fieldsToExport = [];
         foreach ($fields as $field) {
-            $headers[] = $field['name'];
+            if (empty($exportFields) || in_array($field['id'], $exportFields)) {
+                $headers[] = $field['name'];
+                $fieldsToExport[] = $field;
+            }
         }
+
         fputcsv($output, $headers);
 
         // レコードをページングなしで全件取得
@@ -791,7 +878,7 @@ class WebDatabaseController extends Controller
         foreach ($records as $record) {
             // レコードデータを取得
             $recordData = $this->recordModel->getRecordData($record['id']);
-            
+
             // 行データを作成
             $rowData = [
                 $record['id'],
@@ -800,9 +887,9 @@ class WebDatabaseController extends Controller
             ];
 
             // フィールドデータを追加
-            foreach ($fields as $field) {
+            foreach ($fieldsToExport as $field) {
                 $value = isset($recordData[$field['id']]) ? $recordData[$field['id']] : '';
-                
+
                 // 選択肢タイプのフィールドの場合はラベルを取得
                 if (in_array($field['type'], ['select', 'radio', 'checkbox']) && !empty($field['options'])) {
                     $options = json_decode($field['options'], true);
@@ -815,19 +902,19 @@ class WebDatabaseController extends Controller
                         }
                     }
                 }
-                
+
                 // ユーザーフィールドの場合はユーザー名を取得
                 if ($field['type'] == 'user' && !empty($value)) {
                     $user = $this->userModel->getById($value);
                     $value = $user ? $user['display_name'] : $value;
                 }
-                
+
                 // 組織フィールドの場合は組織名を取得
                 if ($field['type'] == 'organization' && !empty($value)) {
                     $organization = $this->organizationModel->getById($value);
                     $value = $organization ? $organization['name'] : $value;
                 }
-                
+
                 // ファイルフィールドの場合はファイル名を取得
                 if ($field['type'] == 'file' && !empty($value) && is_array($value)) {
                     $fileNames = [];
@@ -836,10 +923,10 @@ class WebDatabaseController extends Controller
                     }
                     $value = implode(', ', $fileNames);
                 }
-                
+
                 $rowData[] = $value;
             }
-            
+
             fputcsv($output, $rowData);
         }
 
@@ -847,6 +934,7 @@ class WebDatabaseController extends Controller
         ob_end_flush();
         exit;
     }
+
 
     /**
      * API: CSVインポート
@@ -1020,7 +1108,7 @@ class WebDatabaseController extends Controller
             'data' => $field
         ];
     }
-    
+
     /**
      * レコードファイルの処理
      */

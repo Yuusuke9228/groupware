@@ -177,6 +177,7 @@
                             <input class="form-check-input" type="checkbox" id="field-title" name="is_title_field" value="1">
                             <label class="form-check-label" for="field-title">
                                 タイトルフィールド（一覧表示に使用）
+                                <small class="text-muted">複数選択可能 - 選択した複数のフィールドはハイフン（-）で区切って表示されます</small>
                             </label>
                         </div>
                     </div>
@@ -294,6 +295,7 @@
                             <input class="form-check-input" type="checkbox" id="edit-field-title" name="is_title_field" value="1">
                             <label class="form-check-label" for="edit-field-title">
                                 タイトルフィールド（一覧表示に使用）
+                                <small class="text-muted">複数選択可能 - 選択した複数のフィールドはハイフン（-）で区切って表示されます</small>
                             </label>
                         </div>
                     </div>
