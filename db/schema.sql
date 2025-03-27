@@ -452,6 +452,187 @@ CREATE TABLE IF NOT EXISTS web_database_views (
     FOREIGN KEY (creator_id) REFERENCES users(id) ON DELETE RESTRICT
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = 'WEBデータベースビュー';
 
+-- タスクボード（カンバンボード）テーブル
+CREATE TABLE IF NOT EXISTS task_boards (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(100) NOT NULL COMMENT 'ボード名',
+    description TEXT COMMENT '説明',
+    owner_type ENUM('user', 'team', 'organization') NOT NULL COMMENT '所有者タイプ',
+    owner_id INT NOT NULL COMMENT '所有者ID',
+    is_public BOOLEAN NOT NULL DEFAULT 0 COMMENT '公開フラグ',
+    background_color VARCHAR(20) DEFAULT '#f0f2f5' COMMENT '背景色',
+    created_by INT NOT NULL COMMENT '作成者ID',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '作成日時',
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新日時',
+    FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE RESTRICT
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = 'タスクボード';
+
+-- タスクリスト（カンバンのカラム）テーブル
+CREATE TABLE IF NOT EXISTS task_lists (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    board_id INT NOT NULL COMMENT 'ボードID',
+    name VARCHAR(100) NOT NULL COMMENT 'リスト名',
+    description TEXT COMMENT '説明',
+    color VARCHAR(20) DEFAULT '#ffffff' COMMENT '色',
+    sort_order INT NOT NULL DEFAULT 0 COMMENT '表示順',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '作成日時',
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新日時',
+    FOREIGN KEY (board_id) REFERENCES task_boards(id) ON DELETE CASCADE
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = 'タスクリスト';
+
+-- タスクカード（カンバンのカード）テーブル
+CREATE TABLE IF NOT EXISTS task_cards (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    list_id INT NOT NULL COMMENT 'リストID',
+    title VARCHAR(255) NOT NULL COMMENT 'タスク名',
+    description TEXT COMMENT '説明',
+    due_date DATE COMMENT '期限日',
+    priority ENUM('highest', 'high', 'normal', 'low', 'lowest') NOT NULL DEFAULT 'normal' COMMENT '優先度',
+    status ENUM(
+        'not_started',
+        'in_progress',
+        'completed',
+        'deferred'
+    ) NOT NULL DEFAULT 'not_started' COMMENT 'ステータス',
+    progress INT NOT NULL DEFAULT 0 COMMENT '進捗率（0-100）',
+    color VARCHAR(20) DEFAULT NULL COMMENT 'カード色',
+    sort_order INT NOT NULL DEFAULT 0 COMMENT '表示順',
+    created_by INT NOT NULL COMMENT '作成者ID',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '作成日時',
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新日時',
+    FOREIGN KEY (list_id) REFERENCES task_lists(id) ON DELETE CASCADE,
+    FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE RESTRICT
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = 'タスクカード';
+
+-- タスク担当者テーブル
+CREATE TABLE IF NOT EXISTS task_assignees (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    card_id INT NOT NULL COMMENT 'カードID',
+    user_id INT NOT NULL COMMENT 'ユーザーID',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '作成日時',
+    FOREIGN KEY (card_id) REFERENCES task_cards(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    UNIQUE KEY (card_id, user_id)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = 'タスク担当者';
+
+-- タスクラベルテーブル
+CREATE TABLE IF NOT EXISTS task_labels (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    board_id INT NOT NULL COMMENT 'ボードID',
+    name VARCHAR(50) NOT NULL COMMENT 'ラベル名',
+    color VARCHAR(20) NOT NULL DEFAULT '#cccccc' COMMENT 'ラベル色',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '作成日時',
+    FOREIGN KEY (board_id) REFERENCES task_boards(id) ON DELETE CASCADE
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = 'タスクラベル';
+
+-- タスクカードとラベルの関連テーブル
+CREATE TABLE IF NOT EXISTS task_card_labels (
+    card_id INT NOT NULL COMMENT 'カードID',
+    label_id INT NOT NULL COMMENT 'ラベルID',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '作成日時',
+    PRIMARY KEY (card_id, label_id),
+    FOREIGN KEY (card_id) REFERENCES task_cards(id) ON DELETE CASCADE,
+    FOREIGN KEY (label_id) REFERENCES task_labels(id) ON DELETE CASCADE
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = 'タスクカードラベル関連';
+
+-- タスクボードメンバーテーブル
+CREATE TABLE IF NOT EXISTS task_board_members (
+    board_id INT NOT NULL COMMENT 'ボードID',
+    user_id INT NOT NULL COMMENT 'ユーザーID',
+    role ENUM('admin', 'editor', 'viewer') NOT NULL DEFAULT 'viewer' COMMENT '権限',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '作成日時',
+    PRIMARY KEY (board_id, user_id),
+    FOREIGN KEY (board_id) REFERENCES task_boards(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = 'タスクボードメンバー';
+
+-- チームテーブル
+CREATE TABLE IF NOT EXISTS teams (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(100) NOT NULL COMMENT 'チーム名',
+    description TEXT COMMENT 'チーム説明',
+    created_by INT NOT NULL COMMENT '作成者ID',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '作成日時',
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新日時',
+    FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE RESTRICT
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = 'チーム';
+
+-- チームメンバーテーブル
+CREATE TABLE IF NOT EXISTS team_members (
+    team_id INT NOT NULL COMMENT 'チームID',
+    user_id INT NOT NULL COMMENT 'ユーザーID',
+    role ENUM('admin', 'member') NOT NULL DEFAULT 'member' COMMENT '権限',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '作成日時',
+    PRIMARY KEY (team_id, user_id),
+    FOREIGN KEY (team_id) REFERENCES teams(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = 'チームメンバー';
+
+-- タスクコメントテーブル
+CREATE TABLE IF NOT EXISTS task_comments (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    card_id INT NOT NULL COMMENT 'カードID',
+    user_id INT NOT NULL COMMENT 'ユーザーID',
+    comment TEXT NOT NULL COMMENT 'コメント',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '作成日時',
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新日時',
+    FOREIGN KEY (card_id) REFERENCES task_cards(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = 'タスクコメント';
+
+-- タスク添付ファイルテーブル
+CREATE TABLE IF NOT EXISTS task_attachments (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    card_id INT NOT NULL COMMENT 'カードID',
+    file_name VARCHAR(255) NOT NULL COMMENT 'ファイル名',
+    file_path VARCHAR(255) NOT NULL COMMENT 'ファイルパス',
+    file_size INT NOT NULL COMMENT 'ファイルサイズ',
+    mime_type VARCHAR(100) NOT NULL COMMENT 'MIMEタイプ',
+    uploaded_by INT NOT NULL COMMENT 'アップロード者ID',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '作成日時',
+    FOREIGN KEY (card_id) REFERENCES task_cards(id) ON DELETE CASCADE,
+    FOREIGN KEY (uploaded_by) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = 'タスク添付ファイル';
+
+-- タスクチェックリストテーブル
+CREATE TABLE IF NOT EXISTS task_checklists (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    card_id INT NOT NULL COMMENT 'カードID',
+    title VARCHAR(100) NOT NULL COMMENT 'チェックリスト名',
+    sort_order INT NOT NULL DEFAULT 0 COMMENT '表示順',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '作成日時',
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新日時',
+    FOREIGN KEY (card_id) REFERENCES task_cards(id) ON DELETE CASCADE
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = 'タスクチェックリスト';
+
+-- タスクチェックリスト項目テーブル
+CREATE TABLE IF NOT EXISTS task_checklist_items (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    checklist_id INT NOT NULL COMMENT 'チェックリストID',
+    content VARCHAR(255) NOT NULL COMMENT '項目内容',
+    is_checked BOOLEAN NOT NULL DEFAULT 0 COMMENT 'チェック状態',
+    sort_order INT NOT NULL DEFAULT 0 COMMENT '表示順',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '作成日時',
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新日時',
+    FOREIGN KEY (checklist_id) REFERENCES task_checklists(id) ON DELETE CASCADE
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = 'タスクチェックリスト項目';
+
+-- タスク活動履歴テーブル
+CREATE TABLE IF NOT EXISTS task_activities (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    board_id INT NOT NULL COMMENT 'ボードID',
+    card_id INT COMMENT 'カードID',
+    user_id INT NOT NULL COMMENT 'ユーザーID',
+    action_type VARCHAR(50) NOT NULL COMMENT 'アクション種類',
+    action_data TEXT COMMENT 'アクションデータ（JSON形式）',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '作成日時',
+    FOREIGN KEY (board_id) REFERENCES task_boards(id) ON DELETE CASCADE,
+    FOREIGN KEY (card_id) REFERENCES task_cards(id) ON DELETE
+    SET
+        NULL,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = 'タスク活動履歴';
+
 -- 初期データ挿入
 INSERT INTO organizations (name, code, level, description)
 VALUES ('本社', 'HQ', 1, 'トップレベル組織');

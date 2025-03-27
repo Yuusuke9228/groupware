@@ -1,0 +1,70 @@
+/**
+ * GroupWare - タスク管理用スタイル
+ */
+
+/* カンバンボード全体のコンテナ */
+.kanban-container {
+    padding: 10px 0;
+    overflow-x: auto;
+}
+
+/* カンバンボード */
+.kanban-board {
+    display: flex;
+    align-items: flex-start;
+    min-height: calc(100vh - 230px);
+}
+
+/* カンバンリスト */
+.kanban-list {
+    width: 300px;
+    min-width: 300px;
+    background-color: #f0f2f5;
+    border-radius: 5px;
+    margin-right: 15px;
+    display: flex;
+    flex-direction: column;
+    max-height: calc(100vh - 230px);
+}
+
+/* リストヘッダー */
+.kanban-list-header {
+    padding: 10px;
+    background-color: #e0e4e9;
+    border-radius: 5px 5px 0 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: grab;
+}
+
+.kanban-list-title {
+    margin: 0;
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.kanban-list-menu .btn-link {
+    color: #6c757d;
+    padding: 0;
+}
+
+/* カードコンテナ */
+.kanban-cards {
+    padding: 10px;
+    overflow-y: auto;
+    flex-grow: 1;
+    min-height: 10px;
+}
+
+/* 空のリストメッセージ */
+.kanban-empty-msg {
+    text-align: center;
+    color: #a0a0a0;
+    padding: 20px 0;
+}
+
+/* リスト追加ボタン */
+.kanban-
