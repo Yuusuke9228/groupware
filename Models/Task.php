@@ -158,11 +158,11 @@ class Task
     {
         try {
             $sql = "SELECT b.* FROM task_boards b
-                    LEFT JOIN task_board_members m ON b.id = m.board_id
-                    WHERE (b.owner_type = 'user' AND b.owner_id = ?)
-                    OR (m.user_id = ?)
-                    GROUP BY b.id
-                    ORDER BY b.created_at DESC";
+                LEFT JOIN task_board_members m ON b.id = m.board_id
+                WHERE (b.owner_type = 'user' AND b.owner_id = ?)
+                OR (m.user_id = ?)
+                GROUP BY b.id
+                ORDER BY b.created_at DESC";
 
             return $this->db->fetchAll($sql, [$userId, $userId]);
         } catch (\Exception $e) {

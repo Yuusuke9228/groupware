@@ -254,33 +254,35 @@ const TaskBoard = {
         // 担当者に自分を設定
         $('#cardAssignees').val([this.currentUser]);
 
-        // Select2の初期化
-        if ($.fn.select2) {
-            $('#cardAssignees').select2({
-                placeholder: '担当者を選択',
-                width: '100%'
-            });
+        // Select2の初期化（必ず$.fn.select2が存在していることを確認）
+        setTimeout(function () {
+            if ($.fn.select2) {
+                $('#cardAssignees').select2({
+                    placeholder: '担当者を選択',
+                    width: '100%'
+                });
 
-            $('#cardLabels').select2({
-                placeholder: 'ラベルを選択',
-                width: '100%',
-                templateResult: function (label) {
-                    if (!label.id) return label.text;
+                $('#cardLabels').select2({
+                    placeholder: 'ラベルを選択',
+                    width: '100%',
+                    templateResult: function (label) {
+                        if (!label.id) return label.text;
 
-                    const $span = $('<span>').css({
-                        'display': 'inline-block',
-                        'width': '16px',
-                        'height': '16px',
-                        'background-color': $(label.element).data('color'),
-                        'margin-right': '5px',
-                        'vertical-align': 'middle',
-                        'border-radius': '3px'
-                    });
+                        const $span = $('<span>').css({
+                            'display': 'inline-block',
+                            'width': '16px',
+                            'height': '16px',
+                            'background-color': $(label.element).data('color'),
+                            'margin-right': '5px',
+                            'vertical-align': 'middle',
+                            'border-radius': '3px'
+                        });
 
-                    return $('<span>').append($span).append(label.text);
-                }
-            });
-        }
+                        return $('<span>').append($span).append(label.text);
+                    }
+                });
+            }
+        }, 100);
 
         $('#addCardModal').modal('show');
     },

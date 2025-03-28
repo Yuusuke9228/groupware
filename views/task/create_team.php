@@ -202,6 +202,15 @@
 
             const form = this;
             const submitBtn = form.querySelector('button[type="submit"]');
+
+            // 名前の入力チェック
+            const nameInput = form.querySelector('input[name="name"]');
+            if (!nameInput.value.trim()) {
+                alert('チーム名を入力してください');
+                nameInput.focus();
+                return;
+            }
+
             const formData = new FormData(form);
             const jsonData = {};
 

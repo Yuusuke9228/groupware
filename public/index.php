@@ -1000,7 +1000,7 @@ $router->get('/task/team/:id', function ($params) {
 }, true);
 
 // タスクボード作成画面
-$router->get('/task/create-board', function () {
+$router->get('/task/board', function () {
     $controller = new Controllers\TaskController();
     $controller->createBoard();
 }, true);
