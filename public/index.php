@@ -950,5 +950,224 @@ $router->apiGet('/webdatabase/fields/:id', function ($params) {
     return $controller->apiGetField($params);
 }, true);
 
+// タスク管理ルーティング
+// タスク管理ダッシュボード
+$router->get('/task', function () {
+    $controller = new Controllers\TaskController();
+    $controller->index();
+}, true);
+
+// 個人タスクボード一覧
+$router->get('/task/my-boards', function () {
+    $controller = new Controllers\TaskController();
+    $controller->myBoards();
+}, true);
+
+// チームタスクボード一覧
+$router->get('/task/team-boards', function () {
+    $controller = new Controllers\TaskController();
+    $controller->teamBoards();
+}, true);
+
+// 組織タスクボード一覧
+$router->get('/task/organization-boards', function () {
+    $controller = new Controllers\TaskController();
+    $controller->organizationBoards();
+}, true);
+
+// チーム一覧
+$router->get('/task/teams', function () {
+    $controller = new Controllers\TaskController();
+    $controller->teams();
+}, true);
+
+// チーム作成画面
+$router->get('/task/create-team', function () {
+    $controller = new Controllers\TaskController();
+    $controller->createTeam();
+}, true);
+
+// チーム編集画面
+$router->get('/task/edit-team/:id', function ($params) {
+    $controller = new Controllers\TaskController();
+    $controller->editTeam($params);
+}, true);
+
+// チーム詳細画面
+$router->get('/task/team/:id', function ($params) {
+    $controller = new Controllers\TaskController();
+    $controller->viewTeam($params);
+}, true);
+
+// タスクボード作成画面
+$router->get('/task/create-board', function () {
+    $controller = new Controllers\TaskController();
+    $controller->createBoard();
+}, true);
+
+// タスクボード編集画面
+$router->get('/task/edit-board/:id', function ($params) {
+    $controller = new Controllers\TaskController();
+    $controller->editBoard($params);
+}, true);
+
+// タスクボード表示画面
+$router->get('/task/board/:id', function ($params) {
+    $controller = new Controllers\TaskController();
+    $controller->board($params);
+}, true);
+
+// カード詳細画面
+$router->get('/task/card/:id', function ($params) {
+    $controller = new Controllers\TaskController();
+    $controller->card($params);
+}, true);
+
+// カード作成画面
+$router->get('/task/create-card/:list_id', function ($params) {
+    $controller = new Controllers\TaskController();
+    $controller->createCard($params);
+}, true);
+
+// カード編集画面
+$router->get('/task/edit-card/:id', function ($params) {
+    $controller = new Controllers\TaskController();
+    $controller->editCard($params);
+}, true);
+
+// マイタスク一覧
+$router->get('/task/my-tasks', function () {
+    $controller = new Controllers\TaskController();
+    $controller->myTasks();
+}, true);
+
+// API: タスク管理関連のAPI
+
+// API: チーム作成
+$router->apiPost('/task/teams', function ($params, $data) {
+    $controller = new Controllers\TaskController();
+    return $controller->apiCreateTeam($params, $data);
+}, true);
+
+// API: チーム更新
+$router->apiPost('/task/teams/:id', function ($params, $data) {
+    $controller = new Controllers\TaskController();
+    return $controller->apiUpdateTeam($params, $data);
+}, true);
+
+// API: チーム削除
+$router->apiDelete('/task/teams/:id', function ($params) {
+    $controller = new Controllers\TaskController();
+    return $controller->apiDeleteTeam($params);
+}, true);
+
+// API: タスクボード作成
+$router->apiPost('/task/boards', function ($params, $data) {
+    $controller = new Controllers\TaskController();
+    return $controller->apiCreateBoard($params, $data);
+}, true);
+
+// API: タスクボード更新
+$router->apiPost('/task/boards/:id', function ($params, $data) {
+    $controller = new Controllers\TaskController();
+    return $controller->apiUpdateBoard($params, $data);
+}, true);
+
+// API: タスクボード削除
+$router->apiDelete('/task/boards/:id', function ($params) {
+    $controller = new Controllers\TaskController();
+    return $controller->apiDeleteBoard($params);
+}, true);
+
+// API: タスクボード概要情報取得
+$router->apiGet('/task/boards/:id/summary', function ($params) {
+    $controller = new Controllers\TaskController();
+    return $controller->apiGetBoardSummary($params);
+}, true);
+
+// API: タスクリスト作成
+$router->apiPost('/task/lists', function ($params, $data) {
+    $controller = new Controllers\TaskController();
+    return $controller->apiCreateList($params, $data);
+}, true);
+
+// API: タスクリスト更新
+$router->apiPost('/task/lists/:id', function ($params, $data) {
+    $controller = new Controllers\TaskController();
+    return $controller->apiUpdateList($params, $data);
+}, true);
+
+// API: タスクリスト削除
+$router->apiDelete('/task/lists/:id', function ($params) {
+    $controller = new Controllers\TaskController();
+    return $controller->apiDeleteList($params);
+}, true);
+
+// API: タスクリスト情報取得
+$router->apiGet('/task/lists/:id', function ($params) {
+    $controller = new Controllers\TaskController();
+    return $controller->apiGetList($params);
+}, true);
+
+// API: リスト順序更新
+$router->apiPost('/task/lists/:id/order', function ($params, $data) {
+    $controller = new Controllers\TaskController();
+    return $controller->apiUpdateListOrder($params, $data);
+}, true);
+
+// API: タスクカード作成
+$router->apiPost('/task/cards', function ($params, $data) {
+    $controller = new Controllers\TaskController();
+    return $controller->apiCreateCard($params, $data);
+}, true);
+
+// API: タスクカード更新
+$router->apiPost('/task/cards/:id', function ($params, $data) {
+    $controller = new Controllers\TaskController();
+    return $controller->apiUpdateCard($params, $data);
+}, true);
+
+// API: タスクカード削除
+$router->apiDelete('/task/cards/:id', function ($params) {
+    $controller = new Controllers\TaskController();
+    return $controller->apiDeleteCard($params);
+}, true);
+
+// API: タスクカード情報取得
+$router->apiGet('/task/cards/:id', function ($params) {
+    $controller = new Controllers\TaskController();
+    return $controller->apiGetCard($params);
+}, true);
+
+// API: カード順序更新
+$router->apiPost('/task/cards/:id/order', function ($params, $data) {
+    $controller = new Controllers\TaskController();
+    return $controller->apiUpdateCardOrder($params, $data);
+}, true);
+
+// API: コメント追加
+$router->apiPost('/task/cards/:id/comments', function ($params, $data) {
+    $controller = new Controllers\TaskController();
+    return $controller->apiAddComment($params, $data);
+}, true);
+
+// API: ラベル作成
+$router->apiPost('/task/labels', function ($params, $data) {
+    $controller = new Controllers\TaskController();
+    return $controller->apiCreateLabel($params, $data);
+}, true);
+
+// API: ボードメンバー追加
+$router->apiPost('/task/board-members', function ($params, $data) {
+    $controller = new Controllers\TaskController();
+    return $controller->apiAddBoardMember($params, $data);
+}, true);
+
+// API: チェックリスト項目更新
+$router->apiPost('/task/checklist-items/:id', function ($params, $data) {
+    $controller = new Controllers\TaskController();
+    return $controller->apiUpdateChecklistItem($params, $data);
+}, true);
+
 // リクエストのディスパッチ（ルーティング処理の実行）
 $router->dispatch();

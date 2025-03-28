@@ -38,7 +38,7 @@
                                 <div class="card-body text-center p-3">
                                     <h6 class="card-subtitle mb-2 text-muted">完了タスク</h6>
                                     <h3 class="mb-0">
-                                        <?php 
+                                        <?php
                                         $completed = 0;
                                         foreach ($taskSummary['status'] ?? [] as $status) {
                                             if ($status['status'] == 'completed') {
@@ -86,7 +86,7 @@
                                 'completed' => '完了',
                                 'deferred' => '保留'
                             ];
-                            
+
                             foreach ($taskSummary['status'] ?? [] as $status) {
                                 $percentage = ($status['count'] / max(1, $taskSummary['total'])) * 100;
                                 $color = $statusColors[$status['status']] ?? 'bg-info';
@@ -117,18 +117,18 @@
                                 'low' => '低',
                                 'lowest' => '最低'
                             ];
-                            
+
                             foreach ($taskSummary['priority'] ?? [] as $priority) {
                                 $color = $priorityColors[$priority['priority']] ?? 'primary';
                                 $name = $priorityNames[$priority['priority']] ?? $priority['priority'];
-                                ?>
+                            ?>
                                 <div class="col-md-2 col-4 mb-2">
                                     <div class="d-flex justify-content-between">
                                         <span><?php echo $name; ?></span>
                                         <span class="badge bg-<?php echo $color; ?>"><?php echo $priority['count']; ?></span>
                                     </div>
                                 </div>
-                                <?php
+                            <?php
                             }
                             ?>
                         </div>
@@ -208,9 +208,9 @@
                                             <td><?php echo date('Y/m/d', strtotime($task['due_date'])); ?></td>
                                             <td>
                                                 <div class="progress" style="height: 8px;">
-                                                    <div class="progress-bar bg-<?php echo $statusColor; ?>" role="progressbar" 
-                                                         style="width: <?php echo $task['progress']; ?>%" 
-                                                         aria-valuenow="<?php echo $task['progress']; ?>" aria-valuemin="0" aria-valuemax="100"></div>
+                                                    <div class="progress-bar bg-<?php echo $statusColor; ?>" role="progressbar"
+                                                        style="width: <?php echo $task['progress']; ?>%"
+                                                        aria-valuenow="<?php echo $task['progress']; ?>" aria-valuemin="0" aria-valuemax="100"></div>
                                                 </div>
                                             </td>
                                             <td>
@@ -266,9 +266,9 @@
                                             <td class="text-danger"><?php echo date('Y/m/d', strtotime($task['due_date'])); ?></td>
                                             <td>
                                                 <div class="progress" style="height: 8px;">
-                                                    <div class="progress-bar bg-<?php echo $statusColor; ?>" role="progressbar" 
-                                                         style="width: <?php echo $task['progress']; ?>%" 
-                                                         aria-valuenow="<?php echo $task['progress']; ?>" aria-valuemin="0" aria-valuemax="100"></div>
+                                                    <div class="progress-bar bg-<?php echo $statusColor; ?>" role="progressbar"
+                                                        style="width: <?php echo $task['progress']; ?>%"
+                                                        aria-valuenow="<?php echo $task['progress']; ?>" aria-valuemin="0" aria-valuemax="100"></div>
                                                 </div>
                                             </td>
                                             <td>
@@ -297,10 +297,10 @@
                 <div class="card-body p-0">
                     <div class="list-group list-group-flush">
                         <?php
-                        $personalBoards = array_filter($boards, function($board) {
+                        $personalBoards = array_filter($boards, function ($board) {
                             return $board['owner_type'] == 'user';
                         });
-                        
+
                         if (empty($personalBoards)):
                         ?>
                             <div class="list-group-item text-center py-3">個人ボードはありません</div>
@@ -315,4 +315,140 @@
                                     <div class="d-flex justify-content-between align-items-center">
                                         <div>
                                             <i class="fas fa-clipboard-list me-2" style="color: <?php echo $board['background_color']; ?>"></i>
-                                            <?php echo htmlspecialchars($board['name']);
+                                            <?php echo htmlspecialchars($board['name']); ?>
+                                        </div>
+                                        <span class="badge bg-secondary rounded-pill">
+                                            <?php
+                                            $cardCount = 0;
+                                            foreach ($taskSummary['boards'] ?? [] as $boardStat) {
+                                                if ($boardStat['id'] == $board['id']) {
+                                                    $cardCount = $boardStat['count'];
+                                                    break;
+                                                }
+                                            }
+                                            echo $cardCount;
+                                            ?>
+                                        </span>
+                                    </div>
+                                </a>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                    </div>
+                    <div class="p-3">
+                        <a href="<?php echo BASE_PATH; ?>/task/create-board?type=user" class="btn btn-sm btn-outline-secondary w-100">
+                            <i class="fas fa-plus"></i> 新規ボード作成
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- チームボード -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">チームボード</h5>
+                    <a href="<?php echo BASE_PATH; ?>/task/team-boards" class="btn btn-sm btn-outline-primary">すべて表示</a>
+                </div>
+                <div class="card-body p-0">
+                    <div class="list-group list-group-flush">
+                        <?php
+                        $teamBoards = array_filter($boards, function ($board) {
+                            return $board['owner_type'] == 'team';
+                        });
+
+                        if (empty($teamBoards)):
+                        ?>
+                            <div class="list-group-item text-center py-3">チームボードはありません</div>
+                        <?php else: ?>
+                            <?php
+                            // 最大5件まで表示
+                            $count = 0;
+                            foreach ($teamBoards as $board):
+                                if ($count++ >= 5) break;
+                            ?>
+                                <a href="<?php echo BASE_PATH; ?>/task/board/<?php echo $board['id']; ?>" class="list-group-item list-group-item-action">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <i class="fas fa-users me-2" style="color: <?php echo $board['background_color']; ?>"></i>
+                                            <?php echo htmlspecialchars($board['name']); ?>
+                                        </div>
+                                        <span class="badge bg-secondary rounded-pill">
+                                            <?php
+                                            $cardCount = 0;
+                                            foreach ($taskSummary['boards'] ?? [] as $boardStat) {
+                                                if ($boardStat['id'] == $board['id']) {
+                                                    $cardCount = $boardStat['count'];
+                                                    break;
+                                                }
+                                            }
+                                            echo $cardCount;
+                                            ?>
+                                        </span>
+                                    </div>
+                                </a>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                    </div>
+                    <div class="p-3">
+                        <a href="<?php echo BASE_PATH; ?>/task/teams" class="btn btn-sm btn-outline-secondary w-100">
+                            <i class="fas fa-users"></i> チーム管理
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 組織ボード -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">組織ボード</h5>
+                    <a href="<?php echo BASE_PATH; ?>/task/organization-boards" class="btn btn-sm btn-outline-primary">すべて表示</a>
+                </div>
+                <div class="card-body p-0">
+                    <div class="list-group list-group-flush">
+                        <?php
+                        $orgBoards = array_filter($boards, function ($board) {
+                            return $board['owner_type'] == 'organization';
+                        });
+
+                        if (empty($orgBoards)):
+                        ?>
+                            <div class="list-group-item text-center py-3">組織ボードはありません</div>
+                        <?php else: ?>
+                            <?php
+                            // 最大5件まで表示
+                            $count = 0;
+                            foreach ($orgBoards as $board):
+                                if ($count++ >= 5) break;
+                            ?>
+                                <a href="<?php echo BASE_PATH; ?>/task/board/<?php echo $board['id']; ?>" class="list-group-item list-group-item-action">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <i class="fas fa-building me-2" style="color: <?php echo $board['background_color']; ?>"></i>
+                                            <?php echo htmlspecialchars($board['name']); ?>
+                                        </div>
+                                        <span class="badge bg-secondary rounded-pill">
+                                            <?php
+                                            $cardCount = 0;
+                                            foreach ($taskSummary['boards'] ?? [] as $boardStat) {
+                                                if ($boardStat['id'] == $board['id']) {
+                                                    $cardCount = $boardStat['count'];
+                                                    break;
+                                                }
+                                            }
+                                            echo $cardCount;
+                                            ?>
+                                        </span>
+                                    </div>
+                                </a>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                    </div>
+                    <div class="p-3">
+                        <a href="<?php echo BASE_PATH; ?>/task/create-board?type=organization" class="btn btn-sm btn-outline-secondary w-100">
+                            <i class="fas fa-plus"></i> 組織ボード作成
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

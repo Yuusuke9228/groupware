@@ -16,6 +16,9 @@ const Home = {
 
         // 未読数の定期更新を開始
         this.startUnreadCountUpdates();
+
+        // タスク概要の円グラフを初期化
+        this.initTaskCharts();
     },
 
     // イベントリスナーを設定
@@ -35,6 +38,17 @@ const Home = {
             if (targetDate) {
                 window.location.href = BASE_PATH + '/?date=' + targetDate;
             }
+        });
+
+        // タスク概要タブのクリックイベント
+        $(document).on('click', '.task-summary-tab', function (e) {
+            e.preventDefault();
+            $('.task-summary-tab').removeClass('active');
+            $(this).addClass('active');
+
+            const target = $(this).data('target');
+            $('.task-summary-content').hide();
+            $(`#${target}`).show();
         });
     },
 
@@ -82,6 +96,89 @@ const Home = {
             .catch(error => {
                 console.error('Error marking notification as read:', error);
             });
+    },
+
+    // タスク概要の円グラフを初期化
+    initTaskCharts: function () {
+        // Chart.jsが利用可能かチェック
+        if (typeof Chart === 'undefined') return;
+
+        // タスク状態チャート
+        const statusCtx = document.getElementById('taskStatusChart');
+        if (statusCtx) {
+            const statusData = JSON.parse(statusCtx.dataset.values || '[]');
+            const statusLabels = JSON.parse(statusCtx.dataset.labels || '[]');
+            const statusColors = [
+                '#6c757d', // secondary - 未対応
+                '#0d6efd', // primary - 処理中
+                '#198754', // success - 完了
+                '#ffc107'  // warning - 保留
+            ];
+
+            new Chart(statusCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: statusLabels,
+                    datasets: [{
+                        data: statusData,
+                        backgroundColor: statusColors
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'right',
+                            labels: {
+                                font: {
+                                    size: 12
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // タスク優先度チャート
+        const priorityCtx = document.getElementById('taskPriorityChart');
+        if (priorityCtx) {
+            const priorityData = JSON.parse(priorityCtx.dataset.values || '[]');
+            const priorityLabels = JSON.parse(priorityCtx.dataset.labels || '[]');
+            const priorityColors = [
+                '#dc3545', // danger - 最高
+                '#fd7e14', // orange - 高
+                '#0d6efd', // primary - 通常
+                '#0dcaf0', // info - 低
+                '#6c757d'  // secondary - 最低
+            ];
+
+            new Chart(priorityCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: priorityLabels,
+                    datasets: [{
+                        data: priorityData,
+                        backgroundColor: priorityColors
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'right',
+                            labels: {
+                                font: {
+                                    size: 12
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
     }
 };
 

@@ -76,6 +76,7 @@ if ($currentUser) {
     <!-- カスタムCSS -->
     <link href="<?php echo BASE_PATH; ?>/css/style.css" rel="stylesheet">
     <link href="<?php echo BASE_PATH; ?>/css/home.css" rel="stylesheet">
+    <link href="<?php echo BASE_PATH; ?>/css/task.css" rel="stylesheet">
     <!-- views/layouts/header.php の最後に追加 -->
     <style>
         /* モーダル内のselect2対応 */
@@ -127,6 +128,11 @@ if ($currentUser) {
                                 <?php else: ?>
                                     <span class="badge bg-danger message-unread-badge d-none"></span>
                                 <?php endif; ?>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="<?php echo BASE_PATH; ?>/task">
+                                <i class="fas fa-tasks"></i> タスク
                             </a>
                         </li>
                         <li class="nav-item dropdown">

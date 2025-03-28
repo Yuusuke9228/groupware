@@ -67,4 +67,219 @@
 }
 
 /* リスト追加ボタン */
-.kanban-
+.kanban-add-list {
+    width: 300px;
+    min-width: 300px;
+    margin-right: 15px;
+    height: 50px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+/* カード追加ボタンコンテナ */
+.kanban-add-card {
+    padding: 10px;
+    margin-top: auto;
+}
+
+/* カンバンカード */
+.kanban-card {
+    background-color: white;
+    border-radius: 5px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+    padding: 10px;
+    margin-bottom: 10px;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+}
+
+.kanban-card:hover {
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+/* カード色インジケーター */
+.kanban-card-color {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 5px;
+    height: 100%;
+}
+
+/* カードのラベル */
+.kanban-card-labels {
+    display: flex;
+    flex-wrap: wrap;
+    margin-bottom: 5px;
+}
+
+.kanban-label {
+    width: 32px;
+    height: 8px;
+    border-radius: 4px;
+    margin-right: 4px;
+    margin-bottom: 4px;
+}
+
+/* カードのタイトル */
+.kanban-card-title {
+    margin: 0 0 5px 0;
+    font-size: 0.9rem;
+    font-weight: 600;
+    word-break: break-word;
+}
+
+/* カードの期限日 */
+.kanban-card-due {
+    margin-bottom: 5px;
+    font-size: 0.8rem;
+    color: #6c757d;
+}
+
+.kanban-card-due.overdue {
+    color: #dc3545;
+    font-weight: bold;
+}
+
+/* カードのフッター */
+.kanban-card-footer {
+    display: flex;
+    flex-direction: column;
+    margin-top: 5px;
+}
+
+.kanban-card-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 5px;
+}
+
+.kanban-card-assignees,
+.kanban-card-checklist,
+.kanban-card-priority {
+    font-size: 0.75rem;
+    color: #6c757d;
+    margin-right: 5px;
+}
+
+/* 優先度色分け */
+.priority-highest {
+    color: #dc3545;
+}
+
+.priority-high {
+    color: #fd7e14;
+}
+
+.priority-normal {
+    color: #0d6efd;
+}
+
+.priority-low {
+    color: #0dcaf0;
+}
+
+.priority-lowest {
+    color: #6c757d;
+}
+
+/* アバター */
+.avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background-color: #0d6efd;
+    color: white;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-weight: bold;
+}
+
+/* カード詳細モーダル */
+.card-labels .badge {
+    font-size: 0.8rem;
+    font-weight: normal;
+}
+
+.checklist-items {
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.comment {
+    border-left: 3px solid #dee2e6;
+    padding-left: 10px;
+}
+
+/* ボード概要統計 */
+.summary-view {
+    padding: 20px 0;
+}
+
+/* チーム一覧カード */
+.team-card {
+    transition: transform 0.2s ease-in-out;
+}
+
+.team-card:hover {
+    transform: translateY(-5px);
+}
+
+.team-card .card-badge {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+}
+
+/* ボード一覧カード */
+.board-card {
+    transition: transform 0.2s ease-in-out;
+    height: 130px;
+}
+
+.board-card:hover {
+    transform: translateY(-5px);
+}
+
+.board-card .board-icon {
+    font-size: 1.5rem;
+    margin-bottom: 10px;
+}
+
+.board-card .card-body {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    height: 100%;
+}
+
+/* マイタスク一覧 */
+.task-filters .badge {
+    cursor: pointer;
+}
+
+.task-filters .badge.active {
+    background-color: #0d6efd !important;
+}
+
+/* レスポンシブ対応 */
+@media (max-width: 768px) {
+    .kanban-list {
+        width: 270px;
+        min-width: 270px;
+    }
+    
+    .kanban-add-list {
+        width: 270px;
+        min-width: 270px;
+    }
+    
+    .board-card {
+        height: 100px;
+    }
+}
