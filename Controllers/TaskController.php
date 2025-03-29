@@ -67,7 +67,8 @@ class TaskController extends Controller
             'organizations' => $organizations,
             'upcomingTasks' => $upcomingTasks,
             'overdueTasks' => $overdueTasks,
-            'jsFiles' => ['task.js']
+            'jsFiles' => ['task.js'],
+            'auth' => $this->auth
         ];
 
         $this->view('task/index', $viewData);
@@ -86,7 +87,8 @@ class TaskController extends Controller
         $viewData = [
             'title' => '個人タスクボード',
             'boards' => $boards,
-            'jsFiles' => ['task.js']
+            'jsFiles' => ['task.js'],
+            'auth' => $this->auth
         ];
 
         $this->view('task/my_boards', $viewData);
@@ -118,7 +120,8 @@ class TaskController extends Controller
             'title' => 'チームタスクボード',
             'teams' => $teams,
             'teamBoards' => $teamBoards,
-            'jsFiles' => ['task.js']
+            'jsFiles' => ['task.js'],
+            'auth' => $this->auth
         ];
 
         $this->view('task/team_boards', $viewData);
@@ -150,7 +153,8 @@ class TaskController extends Controller
             'title' => '組織タスクボード',
             'organizations' => $userOrgs,
             'orgBoards' => $orgBoards,
-            'jsFiles' => ['task.js']
+            'jsFiles' => ['task.js'],
+            'auth' => $this->auth
         ];
 
         $this->view('task/organization_boards', $viewData);
@@ -169,7 +173,8 @@ class TaskController extends Controller
         $viewData = [
             'title' => 'チーム管理',
             'teams' => $teams,
-            'jsFiles' => ['task.js']
+            'jsFiles' => ['task.js'],
+            'auth' => $this->auth
         ];
 
         $this->view('task/teams', $viewData);
@@ -182,11 +187,13 @@ class TaskController extends Controller
     {
         // アクティブユーザー一覧を取得（メンバー追加用）
         $users = $this->userModel->getActiveUsers();
+        $userId = $this->auth->id();
 
         $viewData = [
             'title' => 'チーム作成',
             'users' => $users,
-            'jsFiles' => ['task.js']
+            'jsFiles' => ['task.js'],
+            'auth' => $this->auth
         ];
 
         $this->view('task/create_team', $viewData);
@@ -226,7 +233,8 @@ class TaskController extends Controller
             'team' => $team,
             'members' => $members,
             'users' => $users,
-            'jsFiles' => ['task.js']
+            'jsFiles' => ['task.js'],
+            'auth' => $this->auth
         ];
 
         $this->view('task/edit_team', $viewData);
@@ -259,7 +267,8 @@ class TaskController extends Controller
             'team' => $team,
             'members' => $members,
             'boards' => $boards,
-            'jsFiles' => ['task.js']
+            'jsFiles' => ['task.js'],
+            'auth' => $this->auth
         ];
 
         $this->view('task/view_team', $viewData);
@@ -282,7 +291,8 @@ class TaskController extends Controller
             'title' => 'タスクボード作成',
             'teams' => $teams,
             'organizations' => $userOrgs,
-            'jsFiles' => ['task.js']
+            'jsFiles' => ['task.js'],
+            'auth' => $this->auth 
         ];
 
         $this->view('task/create_board', $viewData);
@@ -330,7 +340,8 @@ class TaskController extends Controller
             'organizations' => $userOrgs,
             'members' => $members,
             'canEdit' => $canEdit,
-            'jsFiles' => ['task.js']
+            'jsFiles' => ['task.js'],
+            'auth' => $this->auth
         ];
 
         $this->view('task/edit_board', $viewData);
@@ -393,7 +404,8 @@ class TaskController extends Controller
             'members' => $members,
             'summary' => $summary,
             'canEdit' => $canEdit,
-            'jsFiles' => ['task-board.js']
+            'jsFiles' => ['task-board.js'],
+            'auth' => $this->auth
         ];
 
         $this->view('task/view_board', $viewData);
@@ -453,7 +465,8 @@ class TaskController extends Controller
             'labels' => $labels,
             'members' => $members,
             'canEdit' => $canEdit,
-            'jsFiles' => ['task.js']
+            'jsFiles' => ['task.js'],
+            'auth' => $this->auth
         ];
 
         $this->view('task/view_card', $viewData);
@@ -503,7 +516,8 @@ class TaskController extends Controller
             'lists' => $lists,
             'labels' => $labels,
             'members' => $members,
-            'jsFiles' => ['task.js']
+            'jsFiles' => ['task.js'],
+            'auth' => $this->auth
         ];
 
         $this->view('task/create_card', $viewData);
@@ -564,7 +578,8 @@ class TaskController extends Controller
             'lists' => $lists,
             'labels' => $labels,
             'members' => $members,
-            'jsFiles' => ['task.js']
+            'jsFiles' => ['task.js'],
+            'auth' => $this->auth
         ];
 
         $this->view('task/edit_card', $viewData);
@@ -595,7 +610,8 @@ class TaskController extends Controller
             'tasks' => $tasks,
             'boards' => $boards,
             'filters' => $filters,
-            'jsFiles' => ['task.js']
+            'jsFiles' => ['task.js'],
+            'auth' => $this->auth
         ];
 
         $this->view('task/my_tasks', $viewData);
@@ -763,6 +779,9 @@ class TaskController extends Controller
     {
         $userId = $this->auth->id();
 
+        // リクエストデータのデバッグ
+        error_log("API Create Board - Request Data: " . print_r($data, true));
+
         // バリデーション
         if (empty($data['name'])) {
             return ['error' => 'ボード名は必須です', 'code' => 400];
@@ -794,6 +813,7 @@ class TaskController extends Controller
             }
         }
 
+        // ボードを作成
         $boardId = $this->taskModel->createBoard($boardData);
 
         if ($boardId) {
@@ -2041,6 +2061,92 @@ class TaskController extends Controller
         } else {
             return [
                 'error' => 'リストの削除に失敗しました',
+                'code' => 500
+            ];
+        }
+    }
+
+    /**
+     * API: チェックリストを削除
+     */
+    public function apiDeleteChecklist($params)
+    {
+        $userId = $this->auth->id();
+        $checklistId = $params['id'] ?? null;
+
+        if (!$checklistId) {
+            return ['error' => 'チェックリストIDが指定されていません', 'code' => 400];
+        }
+
+        // チェックリスト情報を取得
+        $checklist = $this->taskModel->getChecklist($checklistId);
+        if (!$checklist) {
+            return ['error' => 'チェックリストが見つかりません', 'code' => 404];
+        }
+
+        // ユーザーがカードを編集可能かチェック
+        if (!$this->taskModel->canUserEditCard($checklist['card_id'], $userId)) {
+            return ['error' => '権限がありません', 'code' => 403];
+        }
+
+        $result = $this->taskModel->deleteChecklist($checklistId);
+
+        if ($result) {
+            return [
+                'success' => true,
+                'message' => 'チェックリストを削除しました'
+            ];
+        } else {
+            return [
+                'error' => 'チェックリストの削除に失敗しました',
+                'code' => 500
+            ];
+        }
+    }
+
+    /**
+     * API: チェックリスト項目を削除
+     */
+    public function apiDeleteChecklistItem($params)
+    {
+        $userId = $this->auth->id();
+        $itemId = $params['id'] ?? null;
+
+        if (!$itemId) {
+            return ['error' => 'チェックリスト項目IDが指定されていません', 'code' => 400];
+        }
+
+        // チェックリスト項目の情報を取得し、所属するカードを特定する
+        // この処理はTaskModelに新たなメソッドが必要かもしれません
+        // 仮実装では、まずチェックリスト項目からチェックリストIDを取得し、
+        // そのチェックリストからカードIDを取得します
+
+        // API実装の例（TaskModelに対応するメソッドが必要）
+        $checklistItem = $this->taskModel->getChecklistItem($itemId);
+        if (!$checklistItem) {
+            return ['error' => 'チェックリスト項目が見つかりません', 'code' => 404];
+        }
+
+        $checklist = $this->taskModel->getChecklist($checklistItem['checklist_id']);
+        if (!$checklist) {
+            return ['error' => 'チェックリストが見つかりません', 'code' => 404];
+        }
+
+        // ユーザーがカードを編集可能かチェック
+        if (!$this->taskModel->canUserEditCard($checklist['card_id'], $userId)) {
+            return ['error' => '権限がありません', 'code' => 403];
+        }
+
+        $result = $this->taskModel->deleteChecklistItem($itemId);
+
+        if ($result) {
+            return [
+                'success' => true,
+                'message' => 'チェックリスト項目を削除しました'
+            ];
+        } else {
+            return [
+                'error' => 'チェックリスト項目の削除に失敗しました',
                 'code' => 500
             ];
         }

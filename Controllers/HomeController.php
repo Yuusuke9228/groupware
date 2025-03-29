@@ -9,6 +9,7 @@ use Models\Schedule;
 use Models\Message;
 use Models\Notification;
 use Models\User;
+use Models\Task; // タスクモデルを追加
 
 class HomeController extends Controller
 {
@@ -17,6 +18,7 @@ class HomeController extends Controller
     private $messageModel;
     private $notificationModel;
     private $userModel;
+    private $taskModel; // タスクモデルのプロパティを追加
 
     public function __construct()
     {
@@ -26,6 +28,7 @@ class HomeController extends Controller
         $this->messageModel = new Message();
         $this->notificationModel = new Notification();
         $this->userModel = new User();
+        $this->taskModel = new Task(); // タスクモデルをインスタンス化
 
         // 認証チェック
         if (!$this->auth->check()) {
@@ -121,6 +124,12 @@ class HomeController extends Controller
         $organizationModel = new \Models\Organization();
         $organizations = $organizationModel->getAll();
 
+        // タスク関連の情報を取得
+        $taskSummary = $this->taskModel->getUserTasksSummary($userId);
+        $upcomingTasks = $this->taskModel->getUserUpcomingTasks($userId, 5);
+        $overdueTasks = $this->taskModel->getUserOverdueTasks($userId, 5);
+        $boards = $this->taskModel->getUserBoards($userId);
+
         $viewData = [
             'title' => 'ホーム',
             'today' => $today,
@@ -135,7 +144,12 @@ class HomeController extends Controller
             'unreadNotificationCount' => $unreadNotificationCount,
             'user' => $user,
             'organizations' => $organizations,
-            'jsFiles' => ['home.js']
+            // タスク関連のデータを追加
+            'taskSummary' => $taskSummary,
+            'upcomingTasks' => $upcomingTasks,
+            'overdueTasks' => $overdueTasks,
+            'boards' => $boards,
+            'jsFiles' => ['home.js', 'task.js'] // task.jsを追加
         ];
 
         $this->view('home/index', $viewData);

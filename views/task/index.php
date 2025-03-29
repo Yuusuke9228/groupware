@@ -4,7 +4,7 @@
             <div class="d-flex justify-content-between align-items-center">
                 <h4>タスク管理</h4>
                 <div>
-                    <a href="<?php echo BASE_PATH; ?>/task/board" class="btn btn-primary">
+                    <a href="<?php echo BASE_PATH; ?>/task/create-board" class="btn btn-primary">
                         <i class="fas fa-plus-circle"></i> 新規ボード作成
                     </a>
                     <a href="<?php echo BASE_PATH; ?>/task/create-team" class="btn btn-outline-primary ms-2">
@@ -335,7 +335,7 @@
                         <?php endif; ?>
                     </div>
                     <div class="p-3">
-                        <a href="<?php echo BASE_PATH; ?>/task/board?type=user" class="btn btn-sm btn-outline-secondary w-100">
+                        <a href="<?php echo BASE_PATH; ?>/task/create-board?type=user" class="btn btn-sm btn-outline-secondary w-100">
                             <i class="fas fa-plus"></i> 新規ボード作成
                         </a>
                     </div>
@@ -443,7 +443,7 @@
                         <?php endif; ?>
                     </div>
                     <div class="p-3">
-                        <a href="<?php echo BASE_PATH; ?>/task/board?type=organization" class="btn btn-sm btn-outline-secondary w-100">
+                        <a href="<?php echo BASE_PATH; ?>/task/create-board?type=organization" class="btn btn-sm btn-outline-secondary w-100">
                             <i class="fas fa-plus"></i> 組織ボード作成
                         </a>
                     </div>

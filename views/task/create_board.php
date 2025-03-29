@@ -18,7 +18,8 @@
                     <h5 class="card-title mb-0">ボード情報</h5>
                 </div>
                 <div class="card-body">
-                    <form id="boardForm" method="POST" action="#">
+                    <!-- フォームのmethod属性とaction属性を修正 -->
+                    <form id="boardForm" method="post">
                         <div class="mb-3">
                             <label for="boardName" class="form-label">ボード名 <span class="text-danger">*</span></label>
                             <input type="text" class="form-control" id="boardName" name="name" required>
@@ -39,7 +40,7 @@
                             </select>
                         </div>
 
-                        <div class="mb-3" id="teamSelectContainer" style="display: none;">
+                        <div class="mb-3 d-none" id="teamSelectContainer">
                             <label for="teamSelect" class="form-label">チーム <span class="text-danger">*</span></label>
                             <select class="form-select" id="teamSelect" name="team_id">
                                 <option value="">選択してください</option>
@@ -50,7 +51,7 @@
                             <div class="invalid-feedback">チームを選択してください。</div>
                         </div>
 
-                        <div class="mb-3" id="organizationSelectContainer" style="display: none;">
+                        <div class="mb-3 d-none" id="organizationSelectContainer">
                             <label for="organizationSelect" class="form-label">組織 <span class="text-danger">*</span></label>
                             <select class="form-select" id="organizationSelect" name="organization_id">
                                 <option value="">選択してください</option>
@@ -73,7 +74,7 @@
 
                         <div class="d-flex justify-content-end">
                             <a href="<?php echo BASE_PATH; ?>/task" class="btn btn-secondary me-2">キャンセル</a>
-                            <button type="submit" class="btn btn-primary">ボードを作成</button>
+                            <button type="button" class="btn btn-primary" id="submitBtn">ボードを作成</button>
                         </div>
                     </form>
                 </div>
@@ -112,63 +113,98 @@
 </div>
 
 <script>
-    $(document).ready(function() {
-        console.log('TEST')
+    // DOMContentLoadedイベントを使用して、DOM読み込み後に処理を開始
+    document.addEventListener('DOMContentLoaded', function() {
+        // jQueryが定義されているか確認
+        if (typeof jQuery === 'undefined') {
+            console.error('jQuery is not loaded! Adding jQuery from CDN...');
+
+            // jQueryを動的に読み込む
+            var script = document.createElement('script');
+            script.src = 'https://code.jquery.com/jquery-3.6.4.min.js';
+            script.integrity = 'sha256-oP6HI9z1XaZNBrJURtCoUT5SUnxFr8s3BzRl+cbzUq8=';
+            script.crossOrigin = 'anonymous';
+
+            script.onload = function() {
+                console.log('jQuery loaded successfully. Initializing form...');
+                initializeForm();
+            };
+
+            document.head.appendChild(script);
+        } else {
+            console.log('jQuery is already loaded. Initializing form...');
+            initializeForm();
+        }
+    });
+
+    // フォームの初期化とイベントハンドラの設定
+    function initializeForm() {
+        // BASE_PATH変数がない場合に定義（念のため）
+        if (typeof BASE_PATH === 'undefined') {
+            BASE_PATH = '<?php echo BASE_PATH; ?>';
+        }
+
+        console.log('BASE_PATH:', BASE_PATH); // デバッグ用
+
         // 所有者タイプの切り替え
-        $('#ownerType').on('change', function() {
-            const ownerType = $(this).val();
+        jQuery('#ownerType').on('change', function() {
+            const ownerType = jQuery(this).val();
 
             // 全ての選択肢を非表示
-            $('#teamSelectContainer, #organizationSelectContainer').hide();
-            $('#teamSelect, #organizationSelect').prop('required', false);
+            jQuery('#teamSelectContainer, #organizationSelectContainer').addClass('d-none');
+            jQuery('#teamSelect, #organizationSelect').prop('required', false);
 
             // 選択されたタイプに応じて表示
             if (ownerType === 'team') {
-                $('#teamSelectContainer').show();
-                $('#teamSelect').prop('required', true);
+                jQuery('#teamSelectContainer').removeClass('d-none');
+                jQuery('#teamSelect').prop('required', true);
             } else if (ownerType === 'organization') {
-                $('#organizationSelectContainer').show();
-                $('#organizationSelect').prop('required', true);
+                jQuery('#organizationSelectContainer').removeClass('d-none');
+                jQuery('#organizationSelect').prop('required', true);
             }
         });
 
-        // ※※※ 重要：submit イベントが２度バインドされないように既存のハンドラを取り除く ※※※
-        $('#boardForm').off('submit');
+        // 送信ボタンがクリックされたときの処理
+        jQuery('#submitBtn').on('click', function() {
+            submitBoardForm();
+        });
 
-        // フォーム送信処理
-        $('#boardForm').on('submit', function(e) {
-            // デフォルトのフォーム送信をキャンセル
+        // フォームが送信されたときの処理
+        jQuery('#boardForm').on('submit', function(e) {
             e.preventDefault();
-            e.stopPropagation();
+            submitBoardForm();
+        });
 
+        // フォーム送信処理を関数化
+        function submitBoardForm() {
             // バリデーション
             let isValid = true;
 
-            if ($('#boardName').val().trim() === '') {
-                $('#boardName').addClass('is-invalid');
+            if (jQuery('#boardName').val().trim() === '') {
+                jQuery('#boardName').addClass('is-invalid');
                 isValid = false;
             } else {
-                $('#boardName').removeClass('is-invalid');
+                jQuery('#boardName').removeClass('is-invalid');
             }
 
-            const ownerType = $('#ownerType').val();
+            const ownerType = jQuery('#ownerType').val();
             let ownerId;
 
             if (ownerType === 'team') {
-                ownerId = $('#teamSelect').val();
+                ownerId = jQuery('#teamSelect').val();
                 if (!ownerId) {
-                    $('#teamSelect').addClass('is-invalid');
+                    jQuery('#teamSelect').addClass('is-invalid');
                     isValid = false;
                 } else {
-                    $('#teamSelect').removeClass('is-invalid');
+                    jQuery('#teamSelect').removeClass('is-invalid');
                 }
             } else if (ownerType === 'organization') {
-                ownerId = $('#organizationSelect').val();
+                ownerId = jQuery('#organizationSelect').val();
                 if (!ownerId) {
-                    $('#organizationSelect').addClass('is-invalid');
+                    jQuery('#organizationSelect').addClass('is-invalid');
                     isValid = false;
                 } else {
-                    $('#organizationSelect').removeClass('is-invalid');
+                    jQuery('#organizationSelect').removeClass('is-invalid');
                 }
             } else {
                 // 個人用の場合は、現在のユーザーIDを使用
@@ -178,32 +214,40 @@
             if (!isValid) return false;
 
             // 送信ボタンを無効化して二重送信を防止
-            const submitBtn = $(this).find('button[type="submit"]');
+            const submitBtn = jQuery('#submitBtn');
             submitBtn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> 処理中...');
 
             // フォームデータの取得
             const formData = {
-                name: $('#boardName').val(),
-                description: $('#boardDescription').val(),
+                name: jQuery('#boardName').val(),
+                description: jQuery('#boardDescription').val(),
                 owner_type: ownerType,
                 owner_id: ownerId,
-                background_color: $('#backgroundColor').val(),
-                is_public: $('#isPublic').is(':checked')
+                background_color: jQuery('#backgroundColor').val(),
+                is_public: jQuery('#isPublic').is(':checked'),
+                created_by: '<?php echo $auth->id(); ?>'
             };
 
             console.log('送信データ:', formData); // デバッグ用
+            console.log('送信先URL:', BASE_PATH + '/api/task/boards'); // デバッグ用
 
-            // API呼び出し
-            $.ajax({
-                url: BASE_PATH + '/api/task/boards',
-                type: 'POST',
-                contentType: 'application/json',
-                data: JSON.stringify(formData),
-                success: function(response) {
+            // XMLHttpRequestを使用してAPI呼び出し（jQuery.ajaxの代わりに）
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', BASE_PATH + '/api/task/boards', true);
+            xhr.setRequestHeader('Content-Type', 'application/json');
+
+            xhr.onload = function() {
+                if (xhr.status >= 200 && xhr.status < 300) {
+                    const response = JSON.parse(xhr.responseText);
                     console.log('レスポンス:', response); // デバッグ用
 
                     if (response.success) {
-                        toastr.success(response.message || 'ボードを作成しました');
+                        // 成功メッセージを表示
+                        if (typeof toastr !== 'undefined') {
+                            toastr.success(response.message || 'ボードを作成しました');
+                        } else {
+                            alert(response.message || 'ボードを作成しました');
+                        }
 
                         // リダイレクト
                         if (response.redirect) {
@@ -212,26 +256,41 @@
                             window.location.href = BASE_PATH + '/task';
                         }
                     } else {
-                        toastr.error(response.error || 'ボードの作成に失敗しました');
+                        // エラーメッセージを表示
+                        if (typeof toastr !== 'undefined') {
+                            toastr.error(response.error || 'ボードの作成に失敗しました');
+                        } else {
+                            alert(response.error || 'ボードの作成に失敗しました');
+                        }
+
                         // エラー時はボタンを元に戻す
                         submitBtn.prop('disabled', false).html('ボードを作成');
                     }
-                },
-                error: function(xhr, status, error) {
+                } else {
                     console.error('エラー詳細:', xhr.responseText); // デバッグ用
-                    toastr.error('サーバーとの通信に失敗しました');
+
+                    // エラーメッセージを表示
+                    if (typeof toastr !== 'undefined') {
+                        toastr.error('サーバーとの通信に失敗しました');
+                    } else {
+                        alert('サーバーとの通信に失敗しました');
+                    }
+
                     // エラー時はボタンを元に戻す
                     submitBtn.prop('disabled', false).html('ボードを作成');
                 }
-            });
+                return false;
+            };
 
-            return false; // フォーム送信をキャンセル
-        });
+            xhr.onerror = function() {
+                console.error('エラー: ネットワークエラーが発生しました'); // デバッグ用
+                alert('サーバーとの通信に失敗しました');
+                submitBtn.prop('disabled', false).html('ボードを作成');
+            };
 
-        // フォームのネイティブ送信も防止（念のため）
-        document.getElementById('boardForm').addEventListener('submit', function(e) {
-            e.preventDefault();
+            xhr.send(JSON.stringify(formData));
             return false;
-        }, true);
-    });
+        }
+        return false;
+    }
 </script>

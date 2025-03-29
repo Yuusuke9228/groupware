@@ -2296,4 +2296,21 @@ class Task
             return null;
         }
     }
+
+    /**
+     * チェックリスト項目を取得
+     * 
+     * @param int $id 項目ID
+     * @return array|null 項目情報
+     */
+    public function getChecklistItem($id)
+    {
+        try {
+            $sql = "SELECT * FROM task_checklist_items WHERE id = ? LIMIT 1";
+            return $this->db->fetch($sql, [$id]);
+        } catch (\Exception $e) {
+            error_log("Error getting checklist item: " . $e->getMessage());
+            return null;
+        }
+    }
 }

@@ -1000,7 +1000,7 @@ $router->get('/task/team/:id', function ($params) {
 }, true);
 
 // タスクボード作成画面
-$router->get('/task/board', function () {
+$router->get('/task/create-board', function () {
     $controller = new Controllers\TaskController();
     $controller->createBoard();
 }, true);
@@ -1163,10 +1163,34 @@ $router->apiPost('/task/board-members', function ($params, $data) {
     return $controller->apiAddBoardMember($params, $data);
 }, true);
 
+// API: チェックリスト作成
+$router->apiPost('/task/cards/:id/checklists', function ($params, $data) {
+    $controller = new Controllers\TaskController();
+    return $controller->apiCreateChecklist($params, $data);
+}, true);
+
 // API: チェックリスト項目更新
 $router->apiPost('/task/checklist-items/:id', function ($params, $data) {
     $controller = new Controllers\TaskController();
     return $controller->apiUpdateChecklistItem($params, $data);
+}, true);
+
+// API: チェックリスト削除
+$router->apiDelete('/task/checklists/:id', function ($params) {
+    $controller = new Controllers\TaskController();
+    return $controller->apiDeleteChecklist($params);
+}, true);
+
+// API: チェックリスト項目追加
+$router->apiPost('/task/checklists/:id/items', function ($params, $data) {
+    $controller = new Controllers\TaskController();
+    return $controller->apiAddChecklistItem($params, $data);
+}, true);
+
+// API: チェックリスト項目削除
+$router->apiDelete('/task/checklist-items/:id', function ($params) {
+    $controller = new Controllers\TaskController();
+    return $controller->apiDeleteChecklistItem($params);
 }, true);
 
 // リクエストのディスパッチ（ルーティング処理の実行）

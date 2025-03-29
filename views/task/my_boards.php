@@ -89,44 +89,81 @@
 </div>
 
 <script>
-    $(document).ready(function() {
-        // ボード削除処理
-        $('.delete-board').on('click', function() {
-            const boardId = $(this).data('id');
-            const boardName = $(this).data('name');
+    document.addEventListener('DOMContentLoaded', function() {
+        // jQueryが利用可能かチェック
+        if (typeof jQuery === 'undefined') {
+            console.error('jQuery is not loaded! Adding jQuery from CDN...');
 
-            $('#boardNameToDelete').text(boardName);
-            $('#confirmDeleteBoard').data('id', boardId);
-            $('#deleteBoardModal').modal('show');
+            // jQueryを動的に読み込む
+            var script = document.createElement('script');
+            script.src = 'https://code.jquery.com/jquery-3.6.4.min.js';
+            script.integrity = 'sha256-oP6HI9z1XaZNBrJURtCoUT5SUnxFr8s3BzRl+cbzUq8=';
+            script.crossOrigin = 'anonymous';
+
+            script.onload = function() {
+                console.log('jQuery loaded successfully');
+                initializeBoard();
+            };
+
+            document.head.appendChild(script);
+        } else {
+            console.log('jQuery is already loaded');
+            initializeBoard();
+        }
+    });
+
+    // ボード関連の機能を初期化
+    function initializeBoard() {
+        // ボード削除処理
+        jQuery('.delete-board').on('click', function() {
+            const boardId = jQuery(this).data('id');
+            const boardName = jQuery(this).data('name');
+
+            jQuery('#boardNameToDelete').text(boardName);
+            jQuery('#confirmDeleteBoard').data('id', boardId);
+            jQuery('#deleteBoardModal').modal('show');
         });
 
         // 削除確認
-        $('#confirmDeleteBoard').on('click', function() {
-            const boardId = $(this).data('id');
+        jQuery('#confirmDeleteBoard').on('click', function() {
+            const boardId = jQuery(this).data('id');
 
             // API呼び出し
-            $.ajax({
+            jQuery.ajax({
                 url: BASE_PATH + '/api/task/boards/' + boardId,
                 type: 'DELETE',
                 success: function(response) {
-                    $('#deleteBoardModal').modal('hide');
+                    jQuery('#deleteBoardModal').modal('hide');
 
                     if (response.success) {
-                        toastr.success(response.message || 'ボードを削除しました');
+                        if (typeof toastr !== 'undefined') {
+                            toastr.success(response.message || 'ボードを削除しました');
+                        } else {
+                            alert(response.message || 'ボードを削除しました');
+                        }
 
                         // ページをリロード
                         setTimeout(function() {
                             window.location.reload();
                         }, 1000);
                     } else {
-                        toastr.error(response.error || 'ボードの削除に失敗しました');
+                        if (typeof toastr !== 'undefined') {
+                            toastr.error(response.error || 'ボードの削除に失敗しました');
+                        } else {
+                            alert(response.error || 'ボードの削除に失敗しました');
+                        }
                     }
                 },
                 error: function() {
-                    $('#deleteBoardModal').modal('hide');
-                    toastr.error('サーバーとの通信に失敗しました');
+                    jQuery('#deleteBoardModal').modal('hide');
+
+                    if (typeof toastr !== 'undefined') {
+                        toastr.error('サーバーとの通信に失敗しました');
+                    } else {
+                        alert('サーバーとの通信に失敗しました');
+                    }
                 }
             });
         });
-    });
+    }
 </script>

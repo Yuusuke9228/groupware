@@ -126,9 +126,39 @@
 </div>
 
 <script>
+    // DOMが完全に読み込まれた後に実行
     document.addEventListener('DOMContentLoaded', function() {
+        // jQueryが定義されているか確認
+        if (typeof jQuery === 'undefined') {
+            console.error('jQuery is not loaded! Adding jQuery from CDN...');
+
+            // jQueryを動的に読み込む
+            var script = document.createElement('script');
+            script.src = 'https://code.jquery.com/jquery-3.6.4.min.js';
+            script.integrity = 'sha256-oP6HI9z1XaZNBrJURtCoUT5SUnxFr8s3BzRl+cbzUq8=';
+            script.crossOrigin = 'anonymous';
+
+            script.onload = function() {
+                console.log('jQuery loaded successfully. Initializing team form...');
+                initializeTeamForm();
+            };
+
+            document.head.appendChild(script);
+        } else {
+            console.log('jQuery is already loaded. Initializing team form...');
+            initializeTeamForm();
+        }
+    });
+
+    // チーム作成フォームの初期化
+    function initializeTeamForm() {
+        // BASE_PATH変数がない場合に定義
+        if (typeof BASE_PATH === 'undefined') {
+            BASE_PATH = '<?php echo BASE_PATH; ?>';
+        }
+
         // メンバー追加ボタンのイベント
-        document.getElementById('addMemberBtn').addEventListener('click', function() {
+        jQuery('#addMemberBtn').on('click', function() {
             const memberSelect = document.getElementById('memberSelect');
             const memberRole = document.getElementById('memberRole');
 
@@ -173,7 +203,8 @@
             document.getElementById('noMembersMessage').classList.add('d-none');
 
             // モーダルを閉じる
-            bootstrap.Modal.getInstance(document.getElementById('addMemberModal')).hide();
+            const modal = bootstrap.Modal.getInstance(document.getElementById('addMemberModal'));
+            if (modal) modal.hide();
 
             // セレクトをリセット
             memberSelect.value = '';
@@ -197,7 +228,7 @@
         });
 
         // フォーム送信時の処理
-        document.getElementById('createTeamForm').addEventListener('submit', function(e) {
+        jQuery('#createTeamForm').off('submit').on('submit', function(e) {
             e.preventDefault();
 
             const form = this;
@@ -211,6 +242,7 @@
                 return;
             }
 
+            // FormDataの準備
             const formData = new FormData(form);
             const jsonData = {};
 
@@ -241,42 +273,61 @@
             submitBtn.disabled = true;
             submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> 処理中...';
 
+            // デバッグログ
+            console.log('送信データ:', jsonData);
+            console.log('送信先URL:', form.action);
+
             // APIリクエスト
-            fetch(form.action, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-Requested-With': 'XMLHttpRequest'
-                    },
-                    body: JSON.stringify(jsonData)
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        // 成功メッセージを表示
-                        alert(data.message || 'チームを作成しました');
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', form.action, true);
+            xhr.setRequestHeader('Content-Type', 'application/json');
+            xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
 
-                        // リダイレクト
-                        if (data.redirect) {
-                            window.location.href = data.redirect;
+            xhr.onload = function() {
+                if (xhr.status >= 200 && xhr.status < 300) {
+                    try {
+                        const data = JSON.parse(xhr.responseText);
+
+                        if (data.success) {
+                            // 成功メッセージを表示
+                            alert(data.message || 'チームを作成しました');
+
+                            // リダイレクト
+                            if (data.redirect) {
+                                window.location.href = data.redirect;
+                            }
+                        } else {
+                            // エラーメッセージを表示
+                            alert(data.error || 'エラーが発生しました');
+
+                            // ボタンを元に戻す
+                            submitBtn.disabled = false;
+                            submitBtn.innerHTML = 'チームを作成';
                         }
-                    } else {
-                        // エラーメッセージを表示
-                        alert(data.error || 'エラーが発生しました');
-
-                        // ボタンを元に戻す
+                    } catch (e) {
+                        console.error('JSON解析エラー:', e);
+                        alert('サーバーからの応答を解析できませんでした');
                         submitBtn.disabled = false;
                         submitBtn.innerHTML = 'チームを作成';
                     }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
+                } else {
+                    console.error('APIエラー:', xhr.status, xhr.statusText);
                     alert('通信エラーが発生しました');
-
-                    // ボタンを元に戻す
                     submitBtn.disabled = false;
                     submitBtn.innerHTML = 'チームを作成';
-                });
+                }
+            };
+
+            xhr.onerror = function() {
+                console.error('通信エラー');
+                alert('通信エラーが発生しました');
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = 'チームを作成';
+            };
+
+            xhr.send(JSON.stringify(jsonData));
+            return false;
         });
-    });
+        return false;
+    }
 </script>
