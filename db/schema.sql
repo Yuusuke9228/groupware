@@ -633,6 +633,116 @@ CREATE TABLE IF NOT EXISTS task_activities (
         FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = 'タスク活動履歴';
 
+-- 日報機能用テーブル
+-- 日報テーブル
+CREATE TABLE IF NOT EXISTS daily_reports (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL COMMENT '作成者ID',
+    report_date DATE NOT NULL COMMENT '日報の日付',
+    title VARCHAR(255) NOT NULL COMMENT '日報のタイトル',
+    content TEXT NOT NULL COMMENT '日報の内容',
+    status ENUM('draft', 'published') NOT NULL DEFAULT 'published' COMMENT '公開状態',
+    is_template BOOLEAN NOT NULL DEFAULT 0 COMMENT 'テンプレートフラグ',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '作成日時',
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新日時',
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = '日報';
+
+-- 日報タグテーブル
+CREATE TABLE IF NOT EXISTS daily_report_tags (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(50) NOT NULL COMMENT 'タグ名',
+    user_id INT NOT NULL COMMENT '作成者ID',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '作成日時',
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    UNIQUE KEY (name, user_id)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = '日報タグ';
+
+-- 日報タグ関連テーブル
+CREATE TABLE IF NOT EXISTS daily_report_tag_relations (
+    report_id INT NOT NULL,
+    tag_id INT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '作成日時',
+    PRIMARY KEY (report_id, tag_id),
+    FOREIGN KEY (report_id) REFERENCES daily_reports(id) ON DELETE CASCADE,
+    FOREIGN KEY (tag_id) REFERENCES daily_report_tags(id) ON DELETE CASCADE
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = '日報タグ関連';
+
+-- 日報コメントテーブル
+CREATE TABLE IF NOT EXISTS daily_report_comments (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    report_id INT NOT NULL COMMENT '日報ID',
+    user_id INT NOT NULL COMMENT 'コメント投稿者ID',
+    comment TEXT NOT NULL COMMENT 'コメント内容',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '作成日時',
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新日時',
+    FOREIGN KEY (report_id) REFERENCES daily_reports(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = '日報コメント';
+
+-- 日報いいねテーブル
+CREATE TABLE IF NOT EXISTS daily_report_likes (
+    report_id INT NOT NULL COMMENT '日報ID',
+    user_id INT NOT NULL COMMENT 'いいねしたユーザーID',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '作成日時',
+    PRIMARY KEY (report_id, user_id),
+    FOREIGN KEY (report_id) REFERENCES daily_reports(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = '日報いいね';
+
+-- 日報閲覧権限テーブル
+CREATE TABLE IF NOT EXISTS daily_report_permissions (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    report_id INT NOT NULL COMMENT '日報ID',
+    target_type ENUM('user', 'organization') NOT NULL COMMENT '対象タイプ',
+    target_id INT NOT NULL COMMENT '対象ID',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '作成日時',
+    FOREIGN KEY (report_id) REFERENCES daily_reports(id) ON DELETE CASCADE,
+    UNIQUE KEY (report_id, target_type, target_id)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = '日報閲覧権限';
+
+-- 日報既読テーブル
+CREATE TABLE IF NOT EXISTS daily_report_reads (
+    report_id INT NOT NULL COMMENT '日報ID',
+    user_id INT NOT NULL COMMENT '既読したユーザーID',
+    read_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '既読日時',
+    PRIMARY KEY (report_id, user_id),
+    FOREIGN KEY (report_id) REFERENCES daily_reports(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = '日報既読';
+
+-- 日報テンプレートテーブル
+CREATE TABLE IF NOT EXISTS daily_report_templates (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    title VARCHAR(255) NOT NULL COMMENT 'テンプレート名',
+    content TEXT NOT NULL COMMENT 'テンプレート内容',
+    user_id INT NOT NULL COMMENT '作成者ID',
+    is_public BOOLEAN NOT NULL DEFAULT 0 COMMENT '公開フラグ',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '作成日時',
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新日時',
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = '日報テンプレート';
+
+-- 日報関連スケジュールテーブル
+CREATE TABLE IF NOT EXISTS daily_report_schedules (
+    report_id INT NOT NULL COMMENT '日報ID',
+    schedule_id INT NOT NULL COMMENT 'スケジュールID',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '作成日時',
+    PRIMARY KEY (report_id, schedule_id),
+    FOREIGN KEY (report_id) REFERENCES daily_reports(id) ON DELETE CASCADE,
+    FOREIGN KEY (schedule_id) REFERENCES schedules(id) ON DELETE CASCADE
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = '日報関連スケジュール';
+
+-- 日報関連タスクテーブル
+CREATE TABLE IF NOT EXISTS daily_report_tasks (
+    report_id INT NOT NULL COMMENT '日報ID',
+    task_id INT NOT NULL COMMENT 'タスクID',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '作成日時',
+    PRIMARY KEY (report_id, task_id),
+    FOREIGN KEY (report_id) REFERENCES daily_reports(id) ON DELETE CASCADE,
+    FOREIGN KEY (task_id) REFERENCES task_cards(id) ON DELETE CASCADE
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = '日報関連タスク';
+
 -- 初期データ挿入
 INSERT INTO organizations (name, code, level, description)
 VALUES ('本社', 'HQ', 1, 'トップレベル組織');
