@@ -1054,4 +1054,50 @@ class DailyReport
             ];
         }
     }
+
+    /**
+     * テンプレートを更新する
+     * 
+     * @param int $id テンプレートID
+     * @param array $data テンプレートデータ
+     * @return bool 成功時true、失敗時false
+     */
+    public function updateTemplate($id, $data)
+    {
+        try {
+            $sql = "UPDATE daily_report_templates SET 
+                title = ?, 
+                content = ?, 
+                is_public = ?,
+                updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?";
+
+            return $this->db->execute($sql, [
+                $data['title'],
+                $data['content'],
+                $data['is_public'] ? 1 : 0,
+                $id
+            ]);
+        } catch (\Exception $e) {
+            error_log("Error updating template: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * テンプレートを削除する
+     * 
+     * @param int $id テンプレートID
+     * @return bool 成功時true、失敗時false
+     */
+    public function deleteTemplate($id)
+    {
+        try {
+            $sql = "DELETE FROM daily_report_templates WHERE id = ?";
+            return $this->db->execute($sql, [$id]);
+        } catch (\Exception $e) {
+            error_log("Error deleting template: " . $e->getMessage());
+            return false;
+        }
+    }
 }

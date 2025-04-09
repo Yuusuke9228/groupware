@@ -1193,5 +1193,108 @@ $router->apiDelete('/task/checklist-items/:id', function ($params) {
     return $controller->apiDeleteChecklistItem($params);
 }, true);
 
+// 日報管理
+$router->get('/daily-report', function () {
+    $controller = new Controllers\DailyReportController();
+    $controller->index();
+}, true);
+
+$router->get('/daily-report/list', function () {
+    $controller = new Controllers\DailyReportController();
+    $controller->list();
+}, true);
+
+$router->get('/daily-report/create', function () {
+    $controller = new Controllers\DailyReportController();
+    $controller->create();
+}, true);
+
+$router->get('/daily-report/edit/:id', function ($params) {
+    $controller = new Controllers\DailyReportController();
+    $controller->edit($params);
+}, true);
+
+$router->get('/daily-report/view/:id', function ($params) {
+    $controller = new Controllers\DailyReportController();
+    $controller->viewDetail($params);
+}, true);
+
+$router->get('/daily-report/templates', function () {
+    $controller = new Controllers\DailyReportController();
+    $controller->templates();
+}, true);
+
+$router->get('/daily-report/template/edit/:id', function ($params) {
+    $controller = new Controllers\DailyReportController();
+    $controller->editTemplate($params);
+}, true);
+
+$router->get('/daily-report/stats', function () {
+    $controller = new Controllers\DailyReportController();
+    $controller->stats();
+}, true);
+
+// 日報機能用API
+$router->apiPost('/daily-report', function ($params, $data) {
+    $controller = new Controllers\DailyReportController();
+    return $controller->apiCreate($params, $data);
+}, true);
+
+$router->apiPost('/daily-report/:id', function ($params, $data) {
+    $controller = new Controllers\DailyReportController();
+    return $controller->apiUpdate($params, $data);
+}, true);
+
+$router->apiDelete('/daily-report/:id', function ($params) {
+    $controller = new Controllers\DailyReportController();
+    return $controller->apiDelete($params);
+}, true);
+
+$router->apiPost('/daily-report/:id/comment', function ($params, $data) {
+    $controller = new Controllers\DailyReportController();
+    return $controller->apiAddComment($params, $data);
+}, true);
+
+$router->apiPost('/daily-report/:id/like', function ($params) {
+    $controller = new Controllers\DailyReportController();
+    return $controller->apiToggleLike($params);
+}, true);
+
+$router->apiGet('/daily-report/count', function ($params) {
+    $controller = new Controllers\DailyReportController();
+    return $controller->apiGetReadableReportsCount($params);
+}, true);
+
+$router->apiPost('/daily-report/template/:id', function ($params, $data) {
+    $controller = new Controllers\DailyReportController();
+    return $controller->apiSaveTemplate($params, $data);
+}, true);
+
+$router->apiPost('/daily-report/template', function ($params, $data) {
+    $controller = new Controllers\DailyReportController();
+    return $controller->apiSaveTemplate($params, $data);
+}, true);
+
+$router->get('/daily-report/template/edit/:id', function ($params) {
+    $controller = new Controllers\DailyReportController();
+    $controller->editTemplate($params);
+}, true);
+
+$router->get('/daily-report/template/edit', function () {
+    $controller = new Controllers\DailyReportController();
+    $controller->editTemplate(['id' => null]);
+}, true);
+
+
+$router->apiDelete('/daily-report/template/:id', function ($params) {
+    $controller = new Controllers\DailyReportController();
+    return $controller->apiDeleteTemplate($params);
+}, true);
+
+$router->apiGet('/daily-report/stats', function ($params) {
+    $controller = new Controllers\DailyReportController();
+    return $controller->apiGetStats($params);
+}, true);
+
 // リクエストのディスパッチ（ルーティング処理の実行）
 $router->dispatch();

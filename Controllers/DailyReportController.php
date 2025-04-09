@@ -242,7 +242,7 @@ class DailyReportController extends Controller
     /**
      * 日報詳細を表示する
      */
-    public function view($params)
+    public function viewDetail($params)
     {
         $id = $params['id'] ?? null;
         if (!$id) {
@@ -676,6 +676,10 @@ class DailyReportController extends Controller
         $userId = $this->auth->id();
         $id = $params['id'] ?? null;
 
+        // デバッグ情報
+        error_log("API Save Template - Params: " . print_r($params, true));
+        error_log("API Save Template - Data: " . print_r($data, true));
+
         // バリデーション
         if (empty($data['title']) || empty($data['content'])) {
             return [
@@ -688,9 +692,10 @@ class DailyReportController extends Controller
             'title' => $data['title'],
             'content' => $data['content'],
             'user_id' => $userId,
-            'is_public' => isset($data['is_public']) ? 1 : 0
+            'is_public' => isset($data['is_public']) && $data['is_public'] ? 1 : 0
         ];
 
+        // テンプレートの保存処理
         if ($id) {
             // 既存テンプレートを更新
             $template = $this->reportModel->getTemplateById($id);
@@ -710,10 +715,12 @@ class DailyReportController extends Controller
             }
 
             $result = $this->reportModel->updateTemplate($id, $templateData);
+            $message = 'テンプレートを更新しました';
         } else {
             // 新規テンプレートを作成
             $id = $this->reportModel->createTemplate($templateData);
             $result = ($id !== false);
+            $message = 'テンプレートを作成しました';
         }
 
         if (!$result) {
@@ -725,7 +732,7 @@ class DailyReportController extends Controller
 
         return [
             'success' => true,
-            'message' => 'テンプレートを保存しました',
+            'message' => $message,
             'data' => [
                 'id' => $id,
                 'redirect' => BASE_PATH . '/daily-report/templates'
