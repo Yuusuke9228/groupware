@@ -34,110 +34,110 @@ const DailyReport = {
         });
 
         // フォーム送信イベント
-        $('#reportForm').on('submit', function (e) {
-            e.preventDefault();
+        // $('#reportForm').on('submit', function (e) {
+        //     e.preventDefault();
 
-            // バリデーションリセット
-            $(this).find('.is-invalid').removeClass('is-invalid');
-            $(this).find('.invalid-feedback').text('');
+        //     // バリデーションリセット
+        //     $(this).find('.is-invalid').removeClass('is-invalid');
+        //     $(this).find('.invalid-feedback').text('');
 
-            // 公開範囲設定の整形
-            const permissions = [];
+        //     // 公開範囲設定の整形
+        //     const permissions = [];
 
-            // ユーザー権限
-            $('#user_permissions option:selected').each(function () {
-                const value = $(this).val();
-                const [type, id] = value.split(':');
-                permissions.push({
-                    type: type,
-                    id: parseInt(id)
-                });
-            });
+        //     // ユーザー権限
+        //     $('#user_permissions option:selected').each(function () {
+        //         const value = $(this).val();
+        //         const [type, id] = value.split(':');
+        //         permissions.push({
+        //             type: type,
+        //             id: parseInt(id)
+        //         });
+        //     });
 
-            // 組織権限
-            $('#organization_permissions option:selected').each(function () {
-                const value = $(this).val();
-                const [type, id] = value.split(':');
-                permissions.push({
-                    type: type,
-                    id: parseInt(id)
-                });
-            });
+        //     // 組織権限
+        //     $('#organization_permissions option:selected').each(function () {
+        //         const value = $(this).val();
+        //         const [type, id] = value.split(':');
+        //         permissions.push({
+        //             type: type,
+        //             id: parseInt(id)
+        //         });
+        //     });
 
-            // タグの処理
-            let tags = $('#tags').val().trim();
-            if (tags) {
-                tags = tags.split(',').map(tag => tag.trim()).filter(tag => tag);
-            } else {
-                tags = [];
-            }
+        //     // タグの処理
+        //     let tags = $('#tags').val().trim();
+        //     if (tags) {
+        //         tags = tags.split(',').map(tag => tag.trim()).filter(tag => tag);
+        //     } else {
+        //         tags = [];
+        //     }
 
-            // スケジュールを配列に変換
-            const schedules = [];
-            $('input[name="schedules[]"]:checked').each(function () {
-                schedules.push(parseInt($(this).val()));
-            });
+        //     // スケジュールを配列に変換
+        //     const schedules = [];
+        //     $('input[name="schedules[]"]:checked').each(function () {
+        //         schedules.push(parseInt($(this).val()));
+        //     });
 
-            // タスクを配列に変換
-            const tasks = [];
-            $('input[name="tasks[]"]:checked').each(function () {
-                tasks.push(parseInt($(this).val()));
-            });
+        //     // タスクを配列に変換
+        //     const tasks = [];
+        //     $('input[name="tasks[]"]:checked').each(function () {
+        //         tasks.push(parseInt($(this).val()));
+        //     });
 
-            // 下書きフラグ
-            const isDraft = $('#is_draft').is(':checked');
+        //     // 下書きフラグ
+        //     const isDraft = $('#is_draft').is(':checked');
 
-            // フォームデータの作成
-            const formData = {
-                report_date: $('#report_date').val(),
-                title: $('#title').val(),
-                content: $('#content').val(),
-                tags: tags,
-                permissions: permissions,
-                schedules: schedules,
-                tasks: tasks,
-                status: isDraft ? 'draft' : 'published'
-            };
+        //     // フォームデータの作成
+        //     const formData = {
+        //         report_date: $('#report_date').val(),
+        //         title: $('#title').val(),
+        //         content: $('#content').val(),
+        //         tags: tags,
+        //         permissions: permissions,
+        //         schedules: schedules,
+        //         tasks: tasks,
+        //         status: isDraft ? 'draft' : 'published'
+        //     };
 
-            // API呼び出し
-            $.ajax({
-                url: $(this).attr('action'),
-                type: 'POST',
-                contentType: 'application/json',
-                data: JSON.stringify(formData),
-                dataType: 'json',
-                beforeSend: function () {
-                    // 送信ボタンを無効化
-                    $('button[type="submit"]').prop('disabled', true);
-                },
-                success: function (response) {
-                    if (response.success) {
-                        // 成功時は詳細ページにリダイレクト
-                        window.location.href = response.data.redirect;
-                    } else {
-                        // エラーメッセージを表示
-                        alert(response.error || 'エラーが発生しました');
+        //     // API呼び出し
+        //     $.ajax({
+        //         url: $(this).attr('action'),
+        //         type: 'POST',
+        //         contentType: 'application/json',
+        //         data: JSON.stringify(formData),
+        //         dataType: 'json',
+        //         beforeSend: function () {
+        //             // 送信ボタンを無効化
+        //             $('button[type="submit"]').prop('disabled', true);
+        //         },
+        //         success: function (response) {
+        //             if (response.success) {
+        //                 // 成功時は詳細ページにリダイレクト
+        //                 window.location.href = response.data.redirect;
+        //             } else {
+        //                 // エラーメッセージを表示
+        //                 alert(response.error || 'エラーが発生しました');
 
-                        // バリデーションエラーの場合
-                        if (response.validation) {
-                            for (const field in response.validation) {
-                                const errorMsg = response.validation[field];
-                                $(`#${field}`).addClass('is-invalid');
-                                $(`#${field}`).next('.invalid-feedback').text(errorMsg);
-                            }
-                        }
-                    }
-                },
-                error: function (xhr, status, error) {
-                    console.error('Error:', error);
-                    alert('ネットワークエラーが発生しました');
-                },
-                complete: function () {
-                    // 送信ボタンを有効化
-                    $('button[type="submit"]').prop('disabled', false);
-                }
-            });
-        });
+        //                 // バリデーションエラーの場合
+        //                 if (response.validation) {
+        //                     for (const field in response.validation) {
+        //                         const errorMsg = response.validation[field];
+        //                         $(`#${field}`).addClass('is-invalid');
+        //                         $(`#${field}`).next('.invalid-feedback').text(errorMsg);
+        //                     }
+        //                 }
+        //             }
+        //         },
+        //         error: function (xhr, status, error) {
+        //             console.error('Error:', error);
+        //             alert('ネットワークエラーが発生しました');
+        //         },
+        //         complete: function () {
+        //             // 送信ボタンを有効化
+        //             $('button[type="submit"]').prop('disabled', false);
+        //         }
+        //     });
+        // });
 
         // 削除ボタンの処理
         $('#deleteButton').on('click', function () {
@@ -178,104 +178,106 @@ const DailyReport = {
     // 日報詳細表示の初期化
     initView: function () {
         // いいねボタンの処理
-        $('#likeButton').on('click', function () {
-            const reportId = $(this).data('id');
+        // $('#likeButton').on('click', function () {
+        //     const reportId = $(this).data('id');
 
-            // いいねAPI呼び出し
-            $.ajax({
-                url: `${BASE_PATH}/api/daily-report/${reportId}/like`,
-                type: 'POST',
-                dataType: 'json',
-                success: function (response) {
-                    if (response.success) {
-                        // いいねボタンの見た目を更新
-                        if (response.data.has_liked) {
-                            $('#likeButton').removeClass('btn-outline-danger').addClass('btn-danger');
-                        } else {
-                            $('#likeButton').removeClass('btn-danger').addClass('btn-outline-danger');
-                        }
+        //     // いいねAPI呼び出し
+        //     $.ajax({
+        //         url: `${BASE_PATH}/api/daily-report/${reportId}/like`,
+        //         type: 'POST',
+        //         dataType: 'json',
+        //         success: function (response) {
+        //             if (response.success) {
+        //                 // いいねボタンの見た目を更新
+        //                 if (response.data.has_liked) {
+        //                     $('#likeButton').removeClass('btn-outline-danger').addClass('btn-danger');
+        //                 } else {
+        //                     $('#likeButton').removeClass('btn-danger').addClass('btn-outline-danger');
+        //                 }
 
-                        // いいね数を更新
-                        $('#likeCount').text(response.data.likes_count);
-                    } else {
-                        alert(response.error || 'エラーが発生しました');
-                    }
-                },
-                error: function (xhr, status, error) {
-                    console.error('Error:', error);
-                    alert('ネットワークエラーが発生しました');
-                }
-            });
-        });
+        //                 // いいね数を更新
+        //                 $('#likeCount').text(response.data.likes_count);
+        //             } else {
+        //                 alert(response.error || 'エラーが発生しました');
+        //             }
+        //         },
+        //         error: function (xhr, status, error) {
+        //             console.error('Error:', error);
+        //             alert('ネットワークエラーが発生しました');
+        //         }
+        //     });
+        // });
 
         // コメント送信処理
-        $('#commentForm').on('submit', function (e) {
-            e.preventDefault();
+        // $('#commentForm').off('submit').on('submit', function (e) {
+        //     e.preventDefault();
 
-            const reportId = $('[name="report_id"]').val();
-            const comment = $('[name="comment"]').val();
+        //     const reportId = $('[name="report_id"]').val();
+        //     const comment = $('[name="comment"]').val();
 
-            if (!comment.trim()) {
-                alert('コメントを入力してください');
-                return;
-            }
+        //     if (!comment.trim()) {
+        //         alert('コメントを入力してください');
+        //         return;
+        //     }
 
-            // コメント送信API呼び出し
-            $.ajax({
-                url: `${BASE_PATH}/api/daily-report/${reportId}/comment`,
-                type: 'POST',
-                contentType: 'application/json',
-                data: JSON.stringify({ comment: comment }),
-                dataType: 'json',
-                beforeSend: function () {
-                    $('button[type="submit"]').prop('disabled', true);
-                },
-                success: function (response) {
-                    if (response.success) {
-                        // コメント欄を更新
-                        const commentList = $('#commentList');
-                        commentList.empty();
+        //     // コメント送信API呼び出し
+        //     $.ajax({
+        //         url: `${BASE_PATH}/api/daily-report/${reportId}/comment`,
+        //         type: 'POST',
+        //         contentType: 'application/json',
+        //         data: JSON.stringify({ comment: comment }),
+        //         dataType: 'json',
+        //         beforeSend: function () {
+        //             $('button[type="submit"]').prop('disabled', true);
+        //         },
+        //         success: function (response) {
+        //             if (response.success) {
+        //                 // コメント欄を更新
+        //                 const commentList = $('#commentList');
+        //                 commentList.empty();
 
-                        if (response.data.comments && response.data.comments.length > 0) {
-                            response.data.comments.forEach(function (comment) {
-                                const commentHtml = `
-                                    <div class="d-flex mb-3">
-                                        <div class="flex-shrink-0">
-                                            <div class="avatar">
-                                                <span>${comment.display_name.substring(0, 1)}</span>
-                                            </div>
-                                        </div>
-                                        <div class="ms-3">
-                                            <div class="d-flex justify-content-between align-items-center">
-                                                <h6 class="mb-0">${comment.display_name}</h6>
-                                                <small class="text-muted">${new Date(comment.created_at).toLocaleString()}</small>
-                                            </div>
-                                            <p class="mb-0">${comment.comment.replace(/\n/g, '<br>')}</p>
-                                        </div>
-                                    </div>
-                                `;
-                                commentList.append(commentHtml);
-                            });
-                        } else {
-                            commentList.html('<p class="text-center">まだコメントはありません</p>');
-                        }
+        //                 if (response.data.comments && response.data.comments.length > 0) {
+        //                     response.data.comments.forEach(function (comment) {
+        //                         const commentHtml = `
+        //                             <div class="d-flex mb-3">
+        //                                 <div class="flex-shrink-0">
+        //                                     <div class="avatar">
+        //                                         <span>${comment.display_name.substring(0, 1)}</span>
+        //                                     </div>
+        //                                 </div>
+        //                                 <div class="ms-3">
+        //                                     <div class="d-flex justify-content-between align-items-center">
+        //                                         <h6 class="mb-0">${comment.display_name}</h6>
+        //                                         <small class="text-muted">${new Date(comment.created_at).toLocaleString()}</small>
+        //                                     </div>
+        //                                     <p class="mb-0">${comment.comment.replace(/\n/g, '<br>')}</p>
+        //                                 </div>
+        //                             </div>
+        //                         `;
+        //                         commentList.append(commentHtml);
+        //                     });
+        //                 } else {
+        //                     commentList.html('<p class="text-center">まだコメントはありません</p>');
+        //                 }
 
-                        // コメント入力欄をクリア
-                        $('[name="comment"]').val('');
-                    } else {
-                        alert(response.error || 'エラーが発生しました');
-                    }
-                },
-                error: function (xhr, status, error) {
-                    console.error('Error:', error);
-                    alert('ネットワークエラーが発生しました');
-                },
-                complete: function () {
-                    $('button[type="submit"]').prop('disabled', false);
-                }
-            });
-        });
-    },
+        //                 // コメント入力欄をクリア
+        //                 $('[name="comment"]').val('');
+        //             } else {
+        //                 alert(response.error || 'エラーが発生しました');
+        //             }
+        //         },
+        //         error: function (xhr, status, error) {
+        //             console.error('Error:', error);
+        //             alert('ネットワークエラーが発生しました');
+        //         },
+        //         complete: function () {
+        //             $('button[type="submit"]').prop('disabled', false);
+        //         }
+        //     });
+        // });
+
+    }
+    ,
 
     // 日報一覧の初期化
     initList: function () {

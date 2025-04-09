@@ -267,7 +267,7 @@ if ($isEdit && !empty($report['tasks'])) {
         });
 
         // フォーム送信処理
-        $('#reportForm').on('submit', function(e) {
+        $('#reportForm').off('submit').on('submit', function(e) {
             e.preventDefault();
 
             // バリデーションリセット
@@ -373,6 +373,7 @@ if ($isEdit && !empty($report['tasks'])) {
                     $('button[type="submit"]').prop('disabled', false);
                 }
             });
+            return false;
         });
 
         // 削除ボタンの処理

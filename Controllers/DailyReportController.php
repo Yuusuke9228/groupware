@@ -64,6 +64,10 @@ class DailyReportController extends Controller
         // 読んでない日報を取得（他のユーザーの最新5件）
         $unreadReports = $this->getUnreadReports($userId, 5);
 
+        // テンプレート一覧を取得
+        $templates = $this->reportModel->getTemplates($userId);
+        error_log('Templates count: ' . count($templates) . ', User ID: ' . $userId);
+
         $viewData = [
             'title' => '日報',
             'user' => $user,
@@ -71,6 +75,7 @@ class DailyReportController extends Controller
             'recent_reports' => $recentReports,
             'has_today_report' => $hasTodayReport,
             'today_report' => $todayReport,
+            'templates' => $templates,
             'tags' => $tags,
             'unread_reports' => $unreadReports,
             'jsFiles' => ['daily-report.js']
@@ -151,7 +156,7 @@ class DailyReportController extends Controller
 
         // テンプレート一覧を取得
         $templates = $this->reportModel->getTemplates($userId);
-
+       
         // テンプレートID指定があればロード
         $templateId = $_GET['template_id'] ?? null;
         $template = null;
@@ -679,6 +684,10 @@ class DailyReportController extends Controller
         // デバッグ情報
         error_log("API Save Template - Params: " . print_r($params, true));
         error_log("API Save Template - Data: " . print_r($data, true));
+        // return [
+        //     'params' => print_r($params, true),
+        //     'data' => print_r($data, true)
+        // ];
 
         // バリデーション
         if (empty($data['title']) || empty($data['content'])) {
@@ -695,8 +704,13 @@ class DailyReportController extends Controller
             'is_public' => isset($data['is_public']) && $data['is_public'] ? 1 : 0
         ];
 
+        // isEdit情報があればそれを使用
+        $isEdit = isset($data['isEdit']) ? (bool)$data['isEdit'] : ($id !== null);
+
+        error_log("API Save Template - isEdit: " . ($isEdit ? 'true' : 'false'));
+
         // テンプレートの保存処理
-        if ($id) {
+        if ($isEdit) {
             // 既存テンプレートを更新
             $template = $this->reportModel->getTemplateById($id);
             if (!$template) {
@@ -718,6 +732,7 @@ class DailyReportController extends Controller
             $message = 'テンプレートを更新しました';
         } else {
             // 新規テンプレートを作成
+            error_log("Creating new template with data: " . print_r($templateData, true));
             $id = $this->reportModel->createTemplate($templateData);
             $result = ($id !== false);
             $message = 'テンプレートを作成しました';

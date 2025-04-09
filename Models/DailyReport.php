@@ -623,7 +623,7 @@ class DailyReport
     }
 
     /**
-     * 日報のテンプレートを作成する
+     * テンプレートを作成する
      * 
      * @param array $data テンプレートデータ
      * @return int|bool 成功時はテンプレートID、失敗時はfalse
@@ -631,20 +631,36 @@ class DailyReport
     public function createTemplate($data)
     {
         try {
-            $sql = "INSERT INTO daily_report_templates (
-                   title, content, user_id, is_public
-                   ) VALUES (?, ?, ?, ?)";
+            error_log("createTemplate called with data: " . print_r($data, true));
 
-            $this->db->execute($sql, [
+            $sql = "INSERT INTO daily_report_templates (
+                title, content, user_id, is_public
+                ) VALUES (?, ?, ?, ?)";
+
+            $params = [
                 $data['title'],
                 $data['content'],
                 $data['user_id'],
-                $data['is_public'] ?? 0
-            ]);
+                $data['is_public']
+            ];
 
-            return $this->db->lastInsertId();
+            error_log("SQL: " . $sql);
+            error_log("Params: " . print_r($params, true));
+
+            $result = $this->db->execute($sql, $params);
+
+            if (!$result) {
+                error_log("Failed to execute SQL in createTemplate");
+                return false;
+            }
+
+            $lastId = $this->db->lastInsertId();
+            error_log("New template created with ID: " . $lastId);
+
+            return $lastId;
         } catch (\Exception $e) {
             error_log("Error creating template: " . $e->getMessage());
+            error_log("Stack trace: " . $e->getTraceAsString());
             return false;
         }
     }

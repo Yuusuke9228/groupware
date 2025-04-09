@@ -1240,6 +1240,16 @@ $router->apiPost('/daily-report', function ($params, $data) {
     return $controller->apiCreate($params, $data);
 }, true);
 
+$router->apiPost('/daily-report/template/:id', function ($params, $data) {
+    $controller = new Controllers\DailyReportController();
+    return $controller->apiSaveTemplate($params, $data);
+}, true);
+
+$router->apiPost('/daily-report/template', function ($params, $data) {
+    $controller = new Controllers\DailyReportController();
+    return $controller->apiSaveTemplate($params, $data);
+}, true);
+
 $router->apiPost('/daily-report/:id', function ($params, $data) {
     $controller = new Controllers\DailyReportController();
     return $controller->apiUpdate($params, $data);
@@ -1265,15 +1275,7 @@ $router->apiGet('/daily-report/count', function ($params) {
     return $controller->apiGetReadableReportsCount($params);
 }, true);
 
-$router->apiPost('/daily-report/template/:id', function ($params, $data) {
-    $controller = new Controllers\DailyReportController();
-    return $controller->apiSaveTemplate($params, $data);
-}, true);
 
-$router->apiPost('/daily-report/template', function ($params, $data) {
-    $controller = new Controllers\DailyReportController();
-    return $controller->apiSaveTemplate($params, $data);
-}, true);
 
 $router->get('/daily-report/template/edit/:id', function ($params) {
     $controller = new Controllers\DailyReportController();

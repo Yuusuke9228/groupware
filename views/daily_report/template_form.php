@@ -117,7 +117,7 @@ $submitButtonText = $isEdit ? '更新する' : '作成する';
         console.log('formAction:', '<?= $formAction ?>');
 
         // フォーム送信処理
-        $('#templateForm').off('submit').on('submit', function(e) {
+        $('#templateForm')off('submit').on('submit', function(e) {
             e.preventDefault();
 
             // デバッグログ
@@ -131,7 +131,8 @@ $submitButtonText = $isEdit ? '更新する' : '作成する';
             const formData = {
                 title: $('#title').val(),
                 content: $('#content').val(),
-                is_public: $('#is_public').is(':checked')
+                is_public: $('#is_public').is(':checked'),
+                isEdit: <?= json_encode($isEdit) ?> // isEdit情報をコントローラに渡す
             };
 
             console.log('送信データ:', formData);
