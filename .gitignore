@@ -1,7 +1,16 @@
 ._*
-composer.lock
-config/config.php
-config/database.php
 /vendor/
 /public/uploads/
 
+config/config.php
+config/database.php
+
+/node_modules/
+/.phpunit.cache/
+/.venv_playwright/
+*.log
+.DS_Store
+Thumbs.db
+/exports/*
+!/exports/workflow/
+!/exports/workflow/.gitkeep
