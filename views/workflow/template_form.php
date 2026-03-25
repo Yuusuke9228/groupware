@@ -49,6 +49,21 @@ $isEdit = isset($template);
                     </div>
                 </div>
 
+                <div class="mb-3">
+                    <label for="organization_ids" class="form-label">配布先組織</label>
+                    <select id="organization_ids" name="organization_ids[]" class="form-select select2" multiple>
+                        <?php if (!empty($organizations) && is_array($organizations)): ?>
+                            <?php foreach ($organizations as $organization): ?>
+                                <option value="<?php echo (int)$organization['id']; ?>"
+                                    <?php echo in_array((int)$organization['id'], $templateOrganizationIds ?? [], true) ? 'selected' : ''; ?>>
+                                    <?php echo htmlspecialchars($organization['name']); ?>
+                                </option>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                    </select>
+                    <div class="form-text">未選択の場合は全組織で利用可能になります。</div>
+                </div>
+
                 <div class="d-grid gap-2 d-md-flex justify-content-md-end">
                     <a href="<?php echo BASE_PATH; ?>/workflow/templates" class="btn btn-outline-secondary me-md-2">キャンセル</a>
                     <button type="submit" class="btn btn-primary">保存</button>

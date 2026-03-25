@@ -5,6 +5,7 @@ namespace Controllers;
 use Core\Controller;
 use Core\Database;
 use Core\Auth;
+use Core\Mailer;
 use Models\Setting;
 
 class SettingController extends Controller
@@ -112,6 +113,7 @@ class SettingController extends Controller
 
         $updated = [];
         $failed = [];
+        $validationErrors = [];
 
         // トランザクション開始
         $this->db->beginTransaction();
@@ -120,6 +122,14 @@ class SettingController extends Controller
             foreach ($data as $key => $value) {
                 // セキュリティ上の理由でキーをフィルタリング
                 if (preg_match('/^[a-zA-Z0-9_]+$/', $key)) {
+                    try {
+                        $value = $this->normalizeSettingValue($key, $value);
+                    } catch (\InvalidArgumentException $e) {
+                        $failed[] = $key;
+                        $validationErrors[$key] = $e->getMessage();
+                        continue;
+                    }
+
                     $success = $this->model->update($key, $value);
                     if ($success) {
                         $updated[] = $key;
@@ -144,7 +154,8 @@ class SettingController extends Controller
                     'error' => '一部の設定の更新に失敗しました',
                     'code' => 500,
                     'data' => [
-                        'failed' => $failed
+                        'failed' => $failed,
+                        'errors' => $validationErrors
                     ]
                 ];
             }
@@ -154,6 +165,67 @@ class SettingController extends Controller
                 'error' => '設定の更新中にエラーが発生しました: ' . $e->getMessage(),
                 'code' => 500
             ];
+        }
+    }
+
+    /**
+     * 設定値を正規化・検証
+     *
+     * @param string $key
+     * @param mixed $value
+     * @return string
+     */
+    private function normalizeSettingValue($key, $value)
+    {
+        $stringValue = is_string($value) ? trim($value) : (string)$value;
+
+        switch ($key) {
+            case 'mail_transport':
+                $allowed = ['smtp', 'sendmail', 'mail'];
+                if (!in_array($stringValue, $allowed, true)) {
+                    throw new \InvalidArgumentException('mail_transport は smtp/sendmail/mail のいずれかを指定してください。');
+                }
+                return $stringValue;
+
+            case 'notification_email':
+            case 'mail_reply_to_email':
+                if ($stringValue !== '' && !filter_var($stringValue, FILTER_VALIDATE_EMAIL)) {
+                    throw new \InvalidArgumentException($key . ' の形式が不正です。');
+                }
+                return $stringValue;
+
+            case 'smtp_port':
+                $port = (int)$stringValue;
+                if ($port < 1 || $port > 65535) {
+                    throw new \InvalidArgumentException('smtp_port は 1-65535 の範囲で指定してください。');
+                }
+                return (string)$port;
+
+            case 'smtp_timeout':
+                $timeout = (int)$stringValue;
+                if ($timeout < 1 || $timeout > 600) {
+                    throw new \InvalidArgumentException('smtp_timeout は 1-600 秒の範囲で指定してください。');
+                }
+                return (string)$timeout;
+
+            case 'smtp_auth':
+            case 'smtp_allow_self_signed':
+            case 'notification_enabled':
+            case 'schedule_notification':
+            case 'workflow_notification':
+            case 'message_notification':
+            case 'email_notification':
+                return ($stringValue === '1' || strtolower($stringValue) === 'true') ? '1' : '0';
+
+            case 'smtp_secure':
+                $secure = strtolower($stringValue);
+                if (!in_array($secure, ['tls', 'ssl', ''], true)) {
+                    throw new \InvalidArgumentException('smtp_secure は tls/ssl/空文字 のいずれかを指定してください。');
+                }
+                return $secure;
+
+            default:
+                return $stringValue;
         }
     }
 
@@ -174,40 +246,14 @@ class SettingController extends Controller
 
         $testEmail = $data['test_email'] ?? $this->auth->user()['email'];
 
-        require_once __DIR__ . '/../vendor/autoload.php';
-
         try {
-            // SMTPの設定を取得
-            $smtpHost = $this->model->get('smtp_host');
-            $smtpPort = $this->model->get('smtp_port');
-            $smtpSecure = $this->model->get('smtp_secure');
-            $smtpUsername = $this->model->get('smtp_username');
-            $smtpPassword = $this->model->get('smtp_password');
-            $fromEmail = $this->model->get('notification_email');
-            $appName = $this->model->get('app_name');
-
-            // PHPMailerの設定
-            $mail = new \PHPMailer\PHPMailer\PHPMailer(true);
-            $mail->isSMTP();
-            $mail->Host = $smtpHost;
-            $mail->SMTPAuth = true;
-            $mail->Username = $smtpUsername;
-            $mail->Password = $smtpPassword;
-            $mail->SMTPSecure = $smtpSecure;
-            $mail->Port = $smtpPort;
-            $mail->CharSet = 'UTF-8';
-
-            // 送信元・送信先の設定
-            $mail->setFrom($fromEmail, $appName);
-            $mail->addAddress($testEmail);
-
-            // メール内容の設定
-            $mail->isHTML(true);
-            $mail->Subject = 'SMTP接続テスト';
-            $mail->Body = '<h1>SMTP接続テスト</h1><p>このメールはSMTP接続テストとして送信されました。</p>';
-
-            // メール送信
-            $mail->send();
+            $mailer = new Mailer($this->model);
+            $mailer->send(
+                $testEmail,
+                'メール送信テスト',
+                '<h1>メール送信テスト</h1><p>このメールは通知設定のテスト送信です。</p>',
+                true
+            );
 
             return [
                 'success' => true,

@@ -5,7 +5,6 @@
                 <div class="d-flex justify-content-between align-items-center mb-4">
                     <h3 class="mb-0">日報テンプレート</h3>
                     <div>
-                        <a href="<?= BASE_PATH ?>/daily-report/template/edit/<?= $template['id'] ?>" class="btn btn-sm btn-primary">編集</a>
                         <a href="<?= BASE_PATH ?>/daily-report/template/edit" class="btn btn-primary">
                             <i class="fas fa-plus me-2"></i>新規テンプレート
                         </a>

@@ -8,6 +8,7 @@ const Task = {
     config: {
         dateFormat: 'YYYY-MM-DD'
     },
+    charts: {},
 
     // 初期化
     init: function () {
@@ -139,6 +140,7 @@ const Task = {
         // タスク状態チャート
         const statusCtx = document.getElementById('taskStatusChart');
         if (statusCtx) {
+            this.destroyChart('taskStatusChart', statusCtx);
             const statusData = JSON.parse(statusCtx.dataset.values || '[]');
             const statusLabels = JSON.parse(statusCtx.dataset.labels || '[]');
             const statusColors = [
@@ -148,7 +150,7 @@ const Task = {
                 '#ffc107'  // warning - 保留
             ];
 
-            new Chart(statusCtx, {
+            this.charts.taskStatusChart = new Chart(statusCtx, {
                 type: 'doughnut',
                 data: {
                     labels: statusLabels,
@@ -177,6 +179,7 @@ const Task = {
         // タスク優先度チャート
         const priorityCtx = document.getElementById('taskPriorityChart');
         if (priorityCtx) {
+            this.destroyChart('taskPriorityChart', priorityCtx);
             const priorityData = JSON.parse(priorityCtx.dataset.values || '[]');
             const priorityLabels = JSON.parse(priorityCtx.dataset.labels || '[]');
             const priorityColors = [
@@ -187,7 +190,7 @@ const Task = {
                 '#6c757d'  // secondary - 最低
             ];
 
-            new Chart(priorityCtx, {
+            this.charts.taskPriorityChart = new Chart(priorityCtx, {
                 type: 'doughnut',
                 data: {
                     labels: priorityLabels,
@@ -216,10 +219,11 @@ const Task = {
         // ボード別タスク数
         const boardsCtx = document.getElementById('taskBoardsChart');
         if (boardsCtx) {
+            this.destroyChart('taskBoardsChart', boardsCtx);
             const boardsData = JSON.parse(boardsCtx.dataset.values || '[]');
             const boardsLabels = JSON.parse(boardsCtx.dataset.labels || '[]');
 
-            new Chart(boardsCtx, {
+            this.charts.taskBoardsChart = new Chart(boardsCtx, {
                 type: 'bar',
                 data: {
                     labels: boardsLabels,
@@ -242,6 +246,21 @@ const Task = {
                     }
                 }
             });
+        }
+    },
+
+    destroyChart: function (key, canvasEl) {
+        if (this.charts[key] && typeof this.charts[key].destroy === 'function') {
+            this.charts[key].destroy();
+            this.charts[key] = null;
+        }
+
+        // 既存インスタンスが残っている場合の保険
+        if (typeof Chart.getChart === 'function') {
+            const existing = Chart.getChart(canvasEl) || Chart.getChart(key);
+            if (existing) {
+                existing.destroy();
+            }
         }
     },
 

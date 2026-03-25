@@ -1,6 +1,6 @@
 <?php
 // views/schedule/create.php
-$pageTitle = '新規スケジュール作成 - GroupWare';
+$pageTitle = '新規スケジュール作成 - TeamSpace';
 $isEdit = false;
 
 // パラメータから初期値を取得

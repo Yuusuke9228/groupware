@@ -40,6 +40,24 @@ class Setting
     }
 
     /**
+     * 環境変数優先で設定値を取得
+     *
+     * @param string $settingKey
+     * @param string $envKey
+     * @param mixed $default
+     * @return mixed
+     */
+    public function getWithEnv($settingKey, $envKey, $default = null)
+    {
+        $envValue = getenv($envKey);
+        if ($envValue !== false && $envValue !== '') {
+            return $envValue;
+        }
+
+        return $this->get($settingKey, $default);
+    }
+
+    /**
      * 設定を更新または追加
      * 
      * @param string $key 設定キー
@@ -83,7 +101,35 @@ class Setting
      */
     public function getAppName()
     {
-        return $this->get('app_name', 'GroupWare');
+        return $this->get('app_name', 'TeamSpace');
+    }
+
+    /**
+     * アプリケーションURLを取得
+     *
+     * 優先順:
+     * 1. 環境変数 GW_APP_URL
+     * 2. settings.app_url
+     * 3. config/config.php の app.url
+     *
+     * @return string
+     */
+    public function getAppUrl()
+    {
+        $appUrl = trim((string)$this->getWithEnv('app_url', 'GW_APP_URL', ''));
+        if ($appUrl !== '') {
+            return rtrim($appUrl, '/');
+        }
+
+        $configPath = __DIR__ . '/../config/config.php';
+        if (file_exists($configPath)) {
+            $config = require $configPath;
+            if (!empty($config['app']['url'])) {
+                return rtrim((string)$config['app']['url'], '/');
+            }
+        }
+
+        return '';
     }
 
     /**
@@ -113,21 +159,89 @@ class Setting
      */
     public function isEmailConfigured()
     {
-        $requiredSettings = [
-            'smtp_host',
-            'smtp_port',
-            'smtp_username',
-            'smtp_password',
-            'notification_email'
-        ];
+        $config = $this->getMailConfig();
 
-        foreach ($requiredSettings as $key) {
-            $value = $this->get($key);
-            if (empty($value)) {
+        if (empty($config['from_email']) || !filter_var($config['from_email'], FILTER_VALIDATE_EMAIL)) {
+            return false;
+        }
+
+        $transport = $config['transport'];
+        if ($transport === 'smtp') {
+            if (empty($config['smtp_host']) || empty($config['smtp_port'])) {
                 return false;
+            }
+
+            if (!empty($config['smtp_auth'])) {
+                if (empty($config['smtp_username']) || empty($config['smtp_password'])) {
+                    return false;
+                }
             }
         }
 
         return true;
+    }
+
+    /**
+     * メール送信設定を取得（環境変数オーバーライド対応）
+     *
+     * @return array
+     */
+    public function getMailConfig()
+    {
+        $transport = strtolower(trim((string)$this->getWithEnv('mail_transport', 'GW_MAIL_TRANSPORT', 'smtp')));
+        if (!in_array($transport, ['smtp', 'sendmail', 'mail'], true)) {
+            $transport = 'smtp';
+        }
+
+        $fromEmail = trim((string)$this->getWithEnv('notification_email', 'GW_MAIL_FROM_EMAIL', ''));
+        $fromName = trim((string)$this->getWithEnv('mail_from_name', 'GW_MAIL_FROM_NAME', $this->getAppName()));
+        $replyToEmail = trim((string)$this->getWithEnv('mail_reply_to_email', 'GW_MAIL_REPLY_TO_EMAIL', ''));
+
+        $smtpAuth = $this->toBool(
+            $this->getWithEnv('smtp_auth', 'GW_SMTP_AUTH', '1'),
+            true
+        );
+
+        $smtpAllowSelfSigned = $this->toBool(
+            $this->getWithEnv('smtp_allow_self_signed', 'GW_SMTP_ALLOW_SELF_SIGNED', '0'),
+            false
+        );
+
+        return [
+            'transport' => $transport,
+            'from_email' => $fromEmail,
+            'from_name' => $fromName,
+            'reply_to_email' => $replyToEmail,
+            'smtp_host' => trim((string)$this->getWithEnv('smtp_host', 'GW_SMTP_HOST', '')),
+            'smtp_port' => (int)$this->getWithEnv('smtp_port', 'GW_SMTP_PORT', '587'),
+            'smtp_secure' => strtolower(trim((string)$this->getWithEnv('smtp_secure', 'GW_SMTP_SECURE', 'tls'))),
+            'smtp_auth' => $smtpAuth,
+            'smtp_username' => (string)$this->getWithEnv('smtp_username', 'GW_SMTP_USERNAME', ''),
+            'smtp_password' => (string)$this->getWithEnv('smtp_password', 'GW_SMTP_PASSWORD', ''),
+            'smtp_timeout' => (int)$this->getWithEnv('smtp_timeout', 'GW_SMTP_TIMEOUT', '30'),
+            'smtp_allow_self_signed' => $smtpAllowSelfSigned,
+            'sendmail_path' => (string)$this->getWithEnv('sendmail_path', 'GW_SENDMAIL_PATH', ''),
+        ];
+    }
+
+    /**
+     * 真偽値の正規化
+     *
+     * @param mixed $value
+     * @param bool $default
+     * @return bool
+     */
+    private function toBool($value, $default = false)
+    {
+        if (is_bool($value)) {
+            return $value;
+        }
+
+        if ($value === null || $value === '') {
+            return $default;
+        }
+
+        $normalized = filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+        return $normalized === null ? $default : $normalized;
     }
 }

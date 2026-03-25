@@ -140,31 +140,31 @@ const DailyReport = {
         // });
 
         // 削除ボタンの処理
-        $('#deleteButton').on('click', function () {
-            if (confirm('本当にこの日報を削除しますか？この操作は元に戻せません。')) {
-                const reportId = $(this).data('id');
+        // $('#deleteButton').on('click', function () {
+        //     if (confirm('本当にこの日報を削除しますか？この操作は元に戻せません。')) {
+        //         const reportId = $(this).data('id');
 
-                // 削除API呼び出し
-                $.ajax({
-                    url: `${BASE_PATH}/api/daily-report/${reportId}`,
-                    type: 'DELETE',
-                    dataType: 'json',
-                    success: function (response) {
-                        if (response.success) {
-                            // 成功時は一覧ページにリダイレクト
-                            window.location.href = response.data.redirect;
-                        } else {
-                            // エラーメッセージを表示
-                            alert(response.error || 'エラーが発生しました');
-                        }
-                    },
-                    error: function (xhr, status, error) {
-                        console.error('Error:', error);
-                        alert('ネットワークエラーが発生しました');
-                    }
-                });
-            }
-        });
+        //         // 削除API呼び出し
+        //         $.ajax({
+        //             url: `${BASE_PATH}/api/daily-report/${reportId}`,
+        //             type: 'DELETE',
+        //             dataType: 'json',
+        //             success: function (response) {
+        //                 if (response.success) {
+        //                     // 成功時は一覧ページにリダイレクト
+        //                     window.location.href = response.data.redirect;
+        //                 } else {
+        //                     // エラーメッセージを表示
+        //                     alert(response.error || 'エラーが発生しました');
+        //                 }
+        //             },
+        //             error: function (xhr, status, error) {
+        //                 console.error('Error:', error);
+        //                 alert('ネットワークエラーが発生しました');
+        //             }
+        //         });
+        //     }
+        // });
 
         // テンプレート選択時
         $('#template_id').on('change', function () {
@@ -362,28 +362,28 @@ const DailyReport = {
         });
 
         // テンプレート削除
-        $('.delete-template').on('click', function () {
-            if (confirm('本当にこのテンプレートを削除しますか？')) {
-                const templateId = $(this).data('id');
+        // $('.delete-template').on('click', function () {
+        //     if (confirm('本当にこのテンプレートを削除しますか？')) {
+        //         const templateId = $(this).data('id');
 
-                $.ajax({
-                    url: `${BASE_PATH}/api/daily-report/template/${templateId}`,
-                    type: 'DELETE',
-                    dataType: 'json',
-                    success: function (response) {
-                        if (response.success) {
-                            window.location.reload();
-                        } else {
-                            alert(response.error || 'エラーが発生しました');
-                        }
-                    },
-                    error: function (xhr, status, error) {
-                        console.error('Error:', error);
-                        alert('ネットワークエラーが発生しました');
-                    }
-                });
-            }
-        });
+        //         $.ajax({
+        //             url: `${BASE_PATH}/api/daily-report/template/${templateId}`,
+        //             type: 'DELETE',
+        //             dataType: 'json',
+        //             success: function (response) {
+        //                 if (response.success) {
+        //                     window.location.reload();
+        //                 } else {
+        //                     alert(response.error || 'エラーが発生しました');
+        //                 }
+        //             },
+        //             error: function (xhr, status, error) {
+        //                 console.error('Error:', error);
+        //                 alert('ネットワークエラーが発生しました');
+        //             }
+        //         });
+        //     }
+        // });
     },
 
     // 統計情報の初期化

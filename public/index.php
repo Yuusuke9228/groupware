@@ -11,6 +11,8 @@ mb_internal_encoding('UTF-8');
 // アプリケーションのベースパスを設定
 $basePath = dirname($_SERVER["SCRIPT_NAME"]);
 if ($basePath == "/") $basePath = "";
+// /public を除去（ルートの.htaccessからリダイレクトされた場合）
+$basePath = preg_replace('#/public$#', '', $basePath);
 define("BASE_PATH", $basePath);
 
 // オートローダー設定
@@ -180,9 +182,19 @@ $router->get('/schedule/view/:id', function ($params) {
 }, true);
 
 // 組織スケジュール管理
+$router->get('/schedule/organization-day', function () {
+    $controller = new Controllers\ScheduleController();
+    $controller->organizationDay();
+}, true);
+
 $router->get('/schedule/organization-week', function () {
     $controller = new Controllers\ScheduleController();
     $controller->organizationWeek();
+}, true);
+
+$router->get('/schedule/organization-month', function () {
+    $controller = new Controllers\ScheduleController();
+    $controller->organizationMonth();
 }, true);
 
 // API ルート
@@ -303,6 +315,16 @@ $router->apiGet('/schedule/organization-week', function ($params) {
     return $controller->apiGetOrganizationWeek($params);
 }, true);
 
+$router->apiGet('/schedule/organization-day', function ($params) {
+    $controller = new Controllers\ScheduleController();
+    return $controller->apiGetOrganizationDay($params);
+}, true);
+
+$router->apiGet('/schedule/organization-month', function ($params) {
+    $controller = new Controllers\ScheduleController();
+    return $controller->apiGetOrganizationMonth($params);
+}, true);
+
 $router->apiGet('/schedule/:id', function ($params) {
     $controller = new Controllers\ScheduleController();
     return $controller->apiGetOne($params);
@@ -397,6 +419,12 @@ $router->get('/workflow/requests', function () {
     $controller->requests();
 }, true);
 
+// 新規申請テンプレート選択画面
+$router->get('/workflow/create', function () {
+    $controller = new Controllers\WorkflowController();
+    $controller->selectTemplate();
+}, true);
+
 // 承認待ち一覧画面
 $router->get('/workflow/approvals', function () {
     $controller = new Controllers\WorkflowController();
@@ -422,79 +450,6 @@ $router->get('/workflow/view/:id', function ($params) {
 }, true);
 
 // 代理承認設定画面
-$router->get('/workflow/delegates', function () {
-    $controller = new Controllers\WorkflowController();
-    $controller->delegates();
-}, true);
-
-// ワークフロー関連のルーティング
-// ワークフロー一覧
-$router->get('/workflow', function () {
-    $controller = new Controllers\WorkflowController();
-    $controller->index();
-}, true);
-
-// テンプレート一覧
-$router->get('/workflow/templates', function () {
-    $controller = new Controllers\WorkflowController();
-    $controller->templates();
-}, true);
-
-// テンプレート作成
-$router->get('/workflow/create-template', function () {
-    $controller = new Controllers\WorkflowController();
-    $controller->createTemplate();
-}, true);
-
-// テンプレート編集
-$router->get('/workflow/edit-template/:id', function ($params) {
-    $controller = new Controllers\WorkflowController();
-    $controller->editTemplate($params);
-}, true);
-
-// フォームデザイナー
-$router->get('/workflow/design-form/:id', function ($params) {
-    $controller = new Controllers\WorkflowController();
-    $controller->designForm($params);
-}, true);
-
-// 承認経路デザイナー
-$router->get('/workflow/design-route/:id', function ($params) {
-    $controller = new Controllers\WorkflowController();
-    $controller->designRoute($params);
-}, true);
-
-// 申請一覧
-$router->get('/workflow/requests', function () {
-    $controller = new Controllers\WorkflowController();
-    $controller->requests();
-}, true);
-
-// 承認待ち一覧
-$router->get('/workflow/approvals', function () {
-    $controller = new Controllers\WorkflowController();
-    $controller->approvals();
-}, true);
-
-// 新規申請作成
-$router->get('/workflow/create/:id', function ($params) {
-    $controller = new Controllers\WorkflowController();
-    $controller->create($params);
-}, true);
-
-// 申請編集
-$router->get('/workflow/edit/:id', function ($params) {
-    $controller = new Controllers\WorkflowController();
-    $controller->edit($params);
-}, true);
-
-// 申請詳細
-$router->get('/workflow/view/:id', function ($params) {
-    $controller = new Controllers\WorkflowController();
-    $controller->viewDetails($params);
-}, true);
-
-// 代理承認設定
 $router->get('/workflow/delegates', function () {
     $controller = new Controllers\WorkflowController();
     $controller->delegates();
@@ -950,6 +905,37 @@ $router->apiGet('/webdatabase/fields/:id', function ($params) {
     return $controller->apiGetField($params);
 }, true);
 
+// リレーション関連API
+$router->apiGet('/webdatabase/relation-targets/:id', function ($params) {
+    $controller = new Controllers\WebDatabaseController();
+    return $controller->apiGetRelationTargets($params);
+}, true);
+
+$router->apiGet('/webdatabase/related-records/:record_id', function ($params) {
+    $controller = new Controllers\WebDatabaseController();
+    return $controller->apiGetRelatedRecords($params);
+}, true);
+
+$router->apiPost('/webdatabase/relations/:record_id', function ($params, $data) {
+    $controller = new Controllers\WebDatabaseController();
+    return $controller->apiSaveRelations($params, $data);
+}, true);
+
+$router->apiGet('/webdatabase/lookup/:record_id', function ($params) {
+    $controller = new Controllers\WebDatabaseController();
+    return $controller->apiGetLookupValue($params);
+}, true);
+
+$router->apiGet('/webdatabase/reverse-relations/:record_id', function ($params) {
+    $controller = new Controllers\WebDatabaseController();
+    return $controller->apiGetReverseRelations($params);
+}, true);
+
+$router->apiGet('/webdatabase/all-databases', function () {
+    $controller = new Controllers\WebDatabaseController();
+    return $controller->apiGetAllDatabases();
+}, true);
+
 // タスク管理ルーティング
 // タスク管理ダッシュボード
 $router->get('/task', function () {
@@ -1297,6 +1283,349 @@ $router->apiGet('/daily-report/stats', function ($params) {
     $controller = new Controllers\DailyReportController();
     return $controller->apiGetStats($params);
 }, true);
+
+// 全文検索
+$router->get('/search', function () {
+    $controller = new Controllers\SearchController();
+    $controller->index();
+}, true);
+
+$router->apiGet('/search', function ($params) {
+    $controller = new Controllers\SearchController();
+    return $controller->apiSearch($params);
+}, true);
+
+// 外部連携
+$router->get('/integrations', function () {
+    $controller = new Controllers\IntegrationController();
+    $controller->index();
+}, true);
+
+$router->get('/integrations/calendar.ics', function () {
+    $controller = new Controllers\IntegrationController();
+    $controller->calendarIcs();
+}, true);
+
+$router->get('/integrations/calendar/subscription/:token', function ($params) {
+    $controller = new Controllers\IntegrationController(false);
+    $controller->publicCalendarIcs($params);
+});
+
+$router->get('/integrations/export-csv', function () {
+    $controller = new Controllers\IntegrationController();
+    $controller->exportCsv();
+}, true);
+
+$router->post('/integrations/calendar-subscriptions', function () {
+    $controller = new Controllers\IntegrationController();
+    $controller->storeSubscription();
+}, true);
+
+$router->post('/integrations/calendar-subscriptions/:id/update', function ($params) {
+    $controller = new Controllers\IntegrationController();
+    $controller->updateSubscription($params);
+}, true);
+
+$router->post('/integrations/calendar-subscriptions/:id/delete', function ($params) {
+    $controller = new Controllers\IntegrationController();
+    $controller->deleteSubscription($params);
+}, true);
+
+$router->post('/integrations/calendar-subscriptions/:id/sync', function ($params) {
+    $controller = new Controllers\IntegrationController();
+    $controller->syncSubscription($params);
+}, true);
+
+$router->apiPost('/integrations/settings', function ($params, $data) {
+    $controller = new Controllers\IntegrationController();
+    return $controller->apiSaveSettings($params, $data);
+}, true);
+
+$router->apiPost('/integrations/regenerate-token', function ($params, $data) {
+    $controller = new Controllers\IntegrationController();
+    return $controller->apiRegenerateToken();
+}, true);
+
+$router->apiPost('/integrations/import-ics', function ($params, $data) {
+    $controller = new Controllers\IntegrationController();
+    return $controller->apiImportIcs($params, $data);
+}, true);
+
+$router->apiGet('/integrations/data', function ($params) {
+    $controller = new Controllers\IntegrationController();
+    return $controller->apiData($params);
+}, true);
+
+// アドレス帳
+$router->get('/address-book', function () {
+    $controller = new Controllers\AddressBookController();
+    $controller->index();
+}, true);
+
+$router->get('/address-book/create', function () {
+    $controller = new Controllers\AddressBookController();
+    $controller->create();
+}, true);
+
+$router->post('/address-book/store', function () {
+    $controller = new Controllers\AddressBookController();
+    $controller->store();
+}, true);
+
+$router->get('/address-book/view/{id}', function ($params) {
+    $controller = new Controllers\AddressBookController();
+    $controller->show($params);
+}, true);
+
+$router->get('/address-book/edit/{id}', function ($params) {
+    $controller = new Controllers\AddressBookController();
+    $controller->edit($params);
+}, true);
+
+$router->post('/address-book/update/{id}', function ($params) {
+    $controller = new Controllers\AddressBookController();
+    $controller->update($params);
+}, true);
+
+$router->get('/address-book/delete/{id}', function ($params) {
+    $controller = new Controllers\AddressBookController();
+    $controller->delete($params);
+}, true);
+
+// 施設予約
+$router->get('/facility', function () {
+    $controller = new Controllers\FacilityController();
+    $controller->index();
+}, true);
+
+$router->get('/facility/create', function () {
+    $controller = new Controllers\FacilityController();
+    $controller->create();
+}, true);
+
+$router->post('/facility/store', function () {
+    $controller = new Controllers\FacilityController();
+    $controller->store();
+}, true);
+
+$router->get('/facility/delete/{id}', function ($params) {
+    $controller = new Controllers\FacilityController();
+    $controller->delete($params);
+}, true);
+
+$router->get('/facility/manage', function () {
+    $controller = new Controllers\FacilityController();
+    $controller->manage();
+}, true);
+
+$router->post('/facility/add-facility', function () {
+    $controller = new Controllers\FacilityController();
+    $controller->addFacility();
+}, true);
+
+$router->get('/facility/delete-facility/{id}', function ($params) {
+    $controller = new Controllers\FacilityController();
+    $controller->deleteFacility($params);
+}, true);
+
+// ヘルプ・利用規約
+$router->get('/help', function () {
+    $controller = new Controllers\HelpController();
+    $controller->index();
+}, true);
+
+$router->get('/terms', function () {
+    $controller = new Controllers\HelpController();
+    $controller->terms();
+}, true);
+
+// CSVインポート
+$router->get('/admin/csv-import', function () {
+    $controller = new Controllers\CsvImportController();
+    $controller->index();
+}, true);
+
+$router->post('/admin/csv-import/users', function () {
+    $controller = new Controllers\CsvImportController();
+    $controller->importUsers();
+}, true);
+
+$router->post('/admin/csv-import/organizations', function () {
+    $controller = new Controllers\CsvImportController();
+    $controller->importOrganizations();
+}, true);
+
+$router->post('/admin/csv-import/address-book', function () {
+    $controller = new Controllers\CsvImportController();
+    $controller->importAddressBook();
+}, true);
+
+$router->get('/admin/csv-import/sample/:type', function ($params) {
+    $controller = new Controllers\CsvImportController();
+    $controller->downloadSample($params['type']);
+}, true);
+
+// ファイル管理
+$router->get('/files', function () {
+    $controller = new Controllers\FileManagerController();
+    $controller->index();
+});
+
+$router->get('/files/folder/create', function () {
+    $controller = new Controllers\FileManagerController();
+    $controller->createFolder();
+});
+
+$router->post('/files/folder', function () {
+    $controller = new Controllers\FileManagerController();
+    $controller->storeFolder();
+});
+
+$router->get('/files/folder/:id', function ($params) {
+    $controller = new Controllers\FileManagerController();
+    $controller->folder($params);
+});
+
+$router->get('/files/folder/:id/edit', function ($params) {
+    $controller = new Controllers\FileManagerController();
+    $controller->editFolder($params);
+});
+
+$router->post('/files/folder/:id/update', function ($params) {
+    $controller = new Controllers\FileManagerController();
+    $controller->updateFolder($params);
+});
+
+$router->post('/files/folder/:id/delete', function ($params) {
+    $controller = new Controllers\FileManagerController();
+    $controller->deleteFolder($params);
+});
+
+$router->get('/files/upload', function () {
+    $controller = new Controllers\FileManagerController();
+    $controller->upload();
+});
+
+$router->post('/files/upload', function () {
+    $controller = new Controllers\FileManagerController();
+    $controller->storeFile();
+});
+
+$router->get('/files/file/:id', function ($params) {
+    $controller = new Controllers\FileManagerController();
+    $controller->showFile($params);
+});
+
+$router->get('/files/download/:id', function ($params) {
+    $controller = new Controllers\FileManagerController();
+    $controller->download($params);
+});
+
+$router->post('/files/file/:id/update', function ($params) {
+    $controller = new Controllers\FileManagerController();
+    $controller->updateFile($params);
+});
+
+$router->post('/files/file/:id/permissions', function ($params) {
+    $controller = new Controllers\FileManagerController();
+    $controller->updatePermissions($params);
+});
+
+$router->post('/files/file/:id/checkout', function ($params) {
+    $controller = new Controllers\FileManagerController();
+    $controller->checkoutFile($params);
+});
+
+$router->post('/files/file/:id/checkin', function ($params) {
+    $controller = new Controllers\FileManagerController();
+    $controller->releaseCheckout($params);
+});
+
+$router->post('/files/file/:id/request-approval', function ($params) {
+    $controller = new Controllers\FileManagerController();
+    $controller->requestApproval($params);
+});
+
+$router->post('/files/approval/:request_id/approve', function ($params) {
+    $controller = new Controllers\FileManagerController();
+    $controller->approveRequest($params);
+});
+
+$router->post('/files/approval/:request_id/reject', function ($params) {
+    $controller = new Controllers\FileManagerController();
+    $controller->rejectRequest($params);
+});
+
+$router->post('/files/file/:id/delete', function ($params) {
+    $controller = new Controllers\FileManagerController();
+    $controller->deleteFile($params);
+});
+
+// 掲示板
+$router->get('/bulletin', function () {
+    $controller = new Controllers\BulletinController();
+    $controller->index();
+});
+
+$router->get('/bulletin/create', function () {
+    $controller = new Controllers\BulletinController();
+    $controller->create();
+});
+
+$router->post('/bulletin', function () {
+    $controller = new Controllers\BulletinController();
+    $controller->store();
+});
+
+$router->get('/bulletin/categories', function () {
+    $controller = new Controllers\BulletinController();
+    $controller->categories();
+});
+
+$router->post('/bulletin/categories', function () {
+    $controller = new Controllers\BulletinController();
+    $controller->addCategory();
+});
+
+$router->post('/bulletin/categories/:id/update', function ($params) {
+    $controller = new Controllers\BulletinController();
+    $controller->updateCategory($params);
+});
+
+$router->post('/bulletin/categories/:id/delete', function ($params) {
+    $controller = new Controllers\BulletinController();
+    $controller->deleteCategory($params);
+});
+
+$router->get('/bulletin/:id', function ($params) {
+    $controller = new Controllers\BulletinController();
+    $controller->show($params);
+});
+
+$router->get('/bulletin/:id/edit', function ($params) {
+    $controller = new Controllers\BulletinController();
+    $controller->edit($params);
+});
+
+$router->post('/bulletin/:id/update', function ($params) {
+    $controller = new Controllers\BulletinController();
+    $controller->update($params);
+});
+
+$router->post('/bulletin/:id/delete', function ($params) {
+    $controller = new Controllers\BulletinController();
+    $controller->delete($params);
+});
+
+$router->post('/bulletin/:id/comment', function ($params) {
+    $controller = new Controllers\BulletinController();
+    $controller->addComment($params);
+});
+
+$router->post('/bulletin/comment/:id/delete', function ($params) {
+    $controller = new Controllers\BulletinController();
+    $controller->deleteComment($params);
+});
 
 // リクエストのディスパッチ（ルーティング処理の実行）
 $router->dispatch();

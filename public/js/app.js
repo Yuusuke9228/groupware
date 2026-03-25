@@ -63,7 +63,7 @@ const App = {
         });
 
         // 通常のフォーム送信
-        $(document).on('submit', 'form:not(.modal-form)', function (e) {
+        $(document).on('submit', 'form:not(.modal-form):not(.no-ajax)', function (e) {
             e.preventDefault();
             const form = $(this);
             const url = form.attr('action');

@@ -54,6 +54,22 @@
                             <div class="form-text">通知と連動してメールも受け取ります。</div>
                         </div>
 
+                        <hr>
+
+                        <h5>スケジュール表示時間</h5>
+                        <p class="text-muted">日表示・週表示で表示する時間帯を設定します。終了時刻はその時刻の枠まで表示します。</p>
+
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label" for="schedule_view_start_time">開始時刻</label>
+                                <input class="form-control" type="time" id="schedule_view_start_time" name="schedule_view_start_time" step="3600" value="<?= htmlspecialchars(substr((string)($settings['schedule_view_start_time'] ?? '00:00'), 0, 5)) ?>">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label" for="schedule_view_end_time">終了時刻</label>
+                                <input class="form-control" type="time" id="schedule_view_end_time" name="schedule_view_end_time" step="3600" value="<?= htmlspecialchars(substr((string)($settings['schedule_view_end_time'] ?? '23:00'), 0, 5)) ?>">
+                            </div>
+                        </div>
+
                         <div class="d-grid">
                             <button type="submit" class="btn btn-primary">設定を保存</button>
                         </div>

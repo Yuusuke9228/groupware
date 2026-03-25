@@ -196,21 +196,27 @@ class WebDatabaseField
         $sortOrder = ($result && isset($result['max_sort'])) ? $result['max_sort'] + 1 : 1;
 
         $sql = "INSERT INTO web_database_fields (
-                    database_id, 
-                    name, 
-                    description, 
-                    type, 
-                    options, 
-                    required, 
-                    unique_value, 
-                    default_value, 
-                    validation, 
+                    database_id,
+                    name,
+                    description,
+                    type,
+                    options,
+                    required,
+                    unique_value,
+                    default_value,
+                    validation,
                     sort_order,
                     is_title_field,
                     is_filterable,
                     is_sortable,
+                    relation_database_id,
+                    relation_field_id,
+                    relation_type,
+                    lookup_relation_field_id,
+                    lookup_target_field_id,
+                    calc_formula,
                     created_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
 
         $this->db->execute($sql, [
             $data['database_id'],
@@ -225,7 +231,13 @@ class WebDatabaseField
             $sortOrder,
             $data['is_title_field'] ?? 0,
             $data['is_filterable'] ?? 0,
-            $data['is_sortable'] ?? 0
+            $data['is_sortable'] ?? 0,
+            $data['relation_database_id'] ?? null,
+            $data['relation_field_id'] ?? null,
+            $data['relation_type'] ?? null,
+            $data['lookup_relation_field_id'] ?? null,
+            $data['lookup_target_field_id'] ?? null,
+            $data['calc_formula'] ?? null
         ]);
 
         return $this->db->lastInsertId();
@@ -252,7 +264,13 @@ class WebDatabaseField
             'sort_order',
             'is_title_field',
             'is_filterable',
-            'is_sortable'
+            'is_sortable',
+            'relation_database_id',
+            'relation_field_id',
+            'relation_type',
+            'lookup_relation_field_id',
+            'lookup_target_field_id',
+            'calc_formula'
         ];
 
         foreach ($updateableFields as $field) {
@@ -312,8 +330,6 @@ class WebDatabaseRecord
      */
     public function getByDatabaseId($databaseId, $page = 1, $limit = 20, $search = null, $filters = [], $sort = null, $order = 'asc')
     {
-        error_log("page: " . $page . ", limit: " . $limit . ", search: " . $search . ", filters: " . json_encode($filters) . ", sort: " . $sort . ", order: " . $order);
-        
         $offset = ($page - 1) * $limit;
         $params = [$databaseId];
 
@@ -622,5 +638,137 @@ class WebDatabaseRecord
         }
 
         return $records;
+    }
+
+    // ========================================
+    // リレーション関連メソッド
+    // ========================================
+
+    /**
+     * リレーションを保存（多対多）
+     */
+    public function saveRelations($sourceRecordId, $sourceFieldId, $targetRecordIds, $targetDatabaseId)
+    {
+        // 既存のリレーションを削除
+        $this->db->execute(
+            "DELETE FROM web_database_relations WHERE source_record_id = ? AND source_field_id = ?",
+            [$sourceRecordId, $sourceFieldId]
+        );
+
+        // 新しいリレーションを挿入
+        if (!empty($targetRecordIds)) {
+            $sql = "INSERT INTO web_database_relations (source_record_id, source_field_id, target_record_id, target_database_id, sort_order) VALUES (?, ?, ?, ?, ?)";
+            foreach ($targetRecordIds as $order => $targetId) {
+                if (!empty($targetId)) {
+                    $this->db->execute($sql, [
+                        $sourceRecordId,
+                        $sourceFieldId,
+                        (int)$targetId,
+                        (int)$targetDatabaseId,
+                        $order
+                    ]);
+                }
+            }
+        }
+    }
+
+    /**
+     * リレーション先レコードを取得
+     */
+    public function getRelatedRecords($sourceRecordId, $sourceFieldId)
+    {
+        $sql = "SELECT rel.target_record_id, rel.target_database_id, rel.sort_order,
+                       r.database_id, r.created_at as record_created_at
+                FROM web_database_relations rel
+                JOIN web_database_records r ON r.id = rel.target_record_id
+                WHERE rel.source_record_id = ? AND rel.source_field_id = ?
+                ORDER BY rel.sort_order";
+        $relations = $this->db->fetchAll($sql, [$sourceRecordId, $sourceFieldId]);
+
+        // 各リレーション先レコードのタイトルを取得
+        foreach ($relations as &$rel) {
+            $rel['title'] = $this->getRecordTitle($rel['target_record_id'], $rel['target_database_id']);
+        }
+
+        return $relations;
+    }
+
+    /**
+     * リレーション先データベースのレコード一覧を取得（選択用）
+     */
+    public function getRelationTargetRecords($targetDatabaseId, $search = null, $limit = 50)
+    {
+        $params = [$targetDatabaseId];
+        $sql = "SELECT r.id, r.database_id FROM web_database_records r WHERE r.database_id = ?";
+
+        if ($search) {
+            // タイトルフィールドで検索
+            $titleFieldSql = "SELECT id FROM web_database_fields WHERE database_id = ? AND is_title_field = 1 LIMIT 1";
+            $titleField = $this->db->fetch($titleFieldSql, [$targetDatabaseId]);
+            if ($titleField) {
+                $sql .= " AND r.id IN (SELECT record_id FROM web_database_record_data WHERE field_id = ? AND value LIKE ?)";
+                $params[] = $titleField['id'];
+                $params[] = "%" . $search . "%";
+            }
+        }
+
+        $sql .= " ORDER BY r.created_at DESC LIMIT ?";
+        $params[] = $limit;
+
+        $records = $this->db->fetchAll($sql, $params);
+
+        foreach ($records as &$record) {
+            $record['title'] = $this->getRecordTitle($record['id'], $targetDatabaseId);
+        }
+
+        return $records;
+    }
+
+    /**
+     * ルックアップフィールドの値を取得
+     */
+    public function getLookupValue($sourceRecordId, $relationFieldId, $targetFieldId)
+    {
+        // リレーション先レコードを取得
+        $relations = $this->getRelatedRecords($sourceRecordId, $relationFieldId);
+
+        if (empty($relations)) {
+            return null;
+        }
+
+        // 最初のリレーション先レコードのフィールド値を取得
+        $values = [];
+        foreach ($relations as $rel) {
+            $sql = "SELECT value FROM web_database_record_data WHERE record_id = ? AND field_id = ? LIMIT 1";
+            $data = $this->db->fetch($sql, [$rel['target_record_id'], $targetFieldId]);
+            if ($data) {
+                $values[] = $data['value'];
+            }
+        }
+
+        return implode(', ', $values);
+    }
+
+    /**
+     * 逆リレーション（このレコードを参照しているレコード）を取得
+     */
+    public function getReverseRelations($targetRecordId)
+    {
+        $sql = "SELECT rel.source_record_id, rel.source_field_id,
+                       r.database_id, f.name as field_name,
+                       d.name as database_name
+                FROM web_database_relations rel
+                JOIN web_database_records r ON r.id = rel.source_record_id
+                JOIN web_database_fields f ON f.id = rel.source_field_id
+                JOIN web_databases d ON d.id = r.database_id
+                WHERE rel.target_record_id = ?
+                ORDER BY d.name, f.name";
+        $relations = $this->db->fetchAll($sql, [$targetRecordId]);
+
+        foreach ($relations as &$rel) {
+            $rel['title'] = $this->getRecordTitle($rel['source_record_id'], $rel['database_id']);
+        }
+
+        return $relations;
     }
 }

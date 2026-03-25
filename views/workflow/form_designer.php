@@ -71,6 +71,11 @@ $pageTitle = 'フォームデザイン - ' . $template['name'];
                             <i class="fas fa-heading me-2"></i> 見出し
                         </div>
                     </div>
+                    <div class="form-item card mb-2" data-type="calc">
+                        <div class="card-body">
+                            <i class="fas fa-superscript me-2"></i> 計算フィールド
+                        </div>
+                    </div>
                     <div class="form-item card mb-2" data-type="hidden">
                         <div class="card-body">
                             <i class="fas fa-eye-slash me-2"></i> 隠しフィールド
@@ -128,6 +133,7 @@ $pageTitle = 'フォームデザイン - ' . $template['name'];
                                 <option value="date">日付</option>
                                 <option value="number">数値</option>
                                 <option value="file">ファイル</option>
+                                <option value="calc">計算フィールド</option>
                                 <option value="heading">見出し</option>
                                 <option value="hidden">隠しフィールド</option>
                             </select>
@@ -215,6 +221,32 @@ $pageTitle = 'フォームデザイン - ' . $template['name'];
                         <div class="mb-3">
                             <label for="validation-max-size" class="form-label">最大ファイルサイズ (MB)</label>
                             <input type="number" class="form-control" id="validation-max-size" name="validation-max-size">
+                        </div>
+                    </div>
+
+                    <div id="calc-options" class="field-type-options mb-3">
+                        <hr>
+                        <h6>計算フィールドオプション</h6>
+                        <div class="mb-3">
+                            <label for="calc-formula" class="form-label">計算式 <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="calc-formula" name="calc-formula" placeholder="例: {field1} + {field2} * {field3}">
+                            <small class="form-text text-muted">
+                                フィールドIDを <code>{フィールドID}</code> で囲んで参照します。<br>
+                                演算子: <code>+</code> <code>-</code> <code>*</code> <code>/</code> が使えます。<br>
+                                例: <code>{unit_price} * {quantity}</code>、<code>{subtotal} * 1.1</code>
+                            </small>
+                        </div>
+                        <div class="mb-3">
+                            <label for="calc-format" class="form-label">表示形式</label>
+                            <select class="form-select" id="calc-format" name="calc-format">
+                                <option value="number">数値</option>
+                                <option value="currency">通貨（¥）</option>
+                                <option value="percent">パーセント（%）</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="calc-decimals" class="form-label">小数点桁数</label>
+                            <input type="number" class="form-control" id="calc-decimals" name="calc-decimals" value="0" min="0" max="10">
                         </div>
                     </div>
 

@@ -3,6 +3,7 @@
 namespace Models;
 
 use Core\Database;
+use Services\DateRangeHelper;
 
 class Schedule
 {
@@ -16,6 +17,9 @@ class Schedule
     // 特定の期間のスケジュールを取得
     public function getByDateRange($startDate, $endDate, $userId = null, $organizationId = null)
     {
+        $startDate = DateRangeHelper::normalizeBoundary($startDate, true);
+        $endDate = DateRangeHelper::normalizeBoundary($endDate, false);
+
         error_log("getByDateRange: startDate=$startDate, endDate=$endDate, userId=$userId");
 
         // シンプルなクエリに変更

@@ -50,8 +50,20 @@ mysql -u username -p < db/schema.sql
 
 ### 5. システムメールの設定
 
+- 管理画面 `設定 > メール設定` で送信方式を設定（`SMTP / sendmail / PHP mail()`）
+- 通知送信用の送信元アドレスは管理画面で変更可能
 - `scripts/process_email_queue.php`を`cron`に設定
 - <設定例> `* * * * * php /path/to/process_email_queue.php`
+
+環境変数による上書きにも対応:
+
+- `GW_MAIL_TRANSPORT` (`smtp|sendmail|mail`)
+- `GW_MAIL_FROM_EMAIL`, `GW_MAIL_FROM_NAME`, `GW_MAIL_REPLY_TO_EMAIL`
+- `GW_SMTP_HOST`, `GW_SMTP_PORT`, `GW_SMTP_SECURE`, `GW_SMTP_AUTH`
+- `GW_SMTP_USERNAME`, `GW_SMTP_PASSWORD`
+- `GW_SMTP_TIMEOUT`, `GW_SMTP_ALLOW_SELF_SIGNED`
+- `GW_SENDMAIL_PATH`
+- `GW_APP_URL`
 
 ### 初期ログイン情報
 

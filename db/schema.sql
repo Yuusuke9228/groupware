@@ -127,7 +127,7 @@ CREATE TABLE IF NOT EXISTS workflow_form_definitions (
     id INT AUTO_INCREMENT PRIMARY KEY,
     template_id INT NOT NULL COMMENT 'テンプレートID',
     field_id VARCHAR(50) NOT NULL COMMENT 'フィールドID',
-    field_type ENUM('text', 'textarea', 'select', 'radio', 'checkbox', 'date', 'number', 'file', 'heading', 'hidden') NOT NULL COMMENT 'フィールドタイプ',
+    field_type ENUM('text', 'textarea', 'select', 'radio', 'checkbox', 'date', 'number', 'file', 'heading', 'hidden', 'calc') NOT NULL COMMENT 'フィールドタイプ',
     label VARCHAR(100) NOT NULL COMMENT 'ラベル',
     placeholder VARCHAR(100) COMMENT 'プレースホルダー',
     help_text TEXT COMMENT 'ヘルプテキスト',
@@ -318,7 +318,7 @@ CREATE TABLE IF NOT EXISTS notification_settings (
 CREATE TABLE IF NOT EXISTS notifications (
     id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT NOT NULL COMMENT '通知対象ユーザーID',
-    type ENUM('schedule', 'workflow', 'message', 'system') NOT NULL COMMENT '通知タイプ',
+    type ENUM('schedule', 'workflow', 'message', 'system', 'daily_report') NOT NULL COMMENT '通知タイプ',
     title VARCHAR(255) NOT NULL COMMENT '通知タイトル',
     content TEXT NOT NULL COMMENT '通知内容',
     link VARCHAR(255) COMMENT '関連リンク',
@@ -378,7 +378,16 @@ CREATE TABLE IF NOT EXISTS web_database_fields (
         'checkbox',
         'file',
         'user',
-        'organization'
+        'organization',
+        'relation',
+        'lookup',
+        'calc',
+        'url',
+        'email',
+        'phone',
+        'currency',
+        'percent',
+        'auto_number'
     ) NOT NULL COMMENT 'フィールドタイプ',
     options TEXT COMMENT 'オプション（JSON形式）',
     required BOOLEAN NOT NULL DEFAULT 0 COMMENT '必須フラグ',
@@ -743,6 +752,55 @@ CREATE TABLE IF NOT EXISTS daily_report_tasks (
     FOREIGN KEY (task_id) REFERENCES task_cards(id) ON DELETE CASCADE
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = '日報関連タスク';
 
+-- ワークフローテンプレートの組織配布
+CREATE TABLE IF NOT EXISTS workflow_template_organizations (
+    template_id INT NOT NULL,
+    organization_id INT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (template_id, organization_id),
+    FOREIGN KEY (template_id) REFERENCES workflow_templates(id) ON DELETE CASCADE,
+    FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = 'ワークフローテンプレート配布先組織';
+
+-- 日報テンプレートの組織配布
+CREATE TABLE IF NOT EXISTS daily_report_template_organizations (
+    template_id INT NOT NULL,
+    organization_id INT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (template_id, organization_id),
+    FOREIGN KEY (template_id) REFERENCES daily_report_templates(id) ON DELETE CASCADE,
+    FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = '日報テンプレート配布先組織';
+
+-- 繰り返し業務の自動化ジョブ
+CREATE TABLE IF NOT EXISTS automation_jobs (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(150) NOT NULL,
+    job_type ENUM('periodic_request', 'periodic_report', 'deadline_reminder') NOT NULL,
+    frequency ENUM('daily', 'weekly', 'monthly') NOT NULL DEFAULT 'daily',
+    run_at TIME NOT NULL DEFAULT '09:00:00',
+    weekday TINYINT NULL COMMENT 'weekly: 1(Mon)-7(Sun)',
+    day_of_month TINYINT NULL COMMENT 'monthly: 1-28',
+    config_json JSON NULL,
+    is_active BOOLEAN NOT NULL DEFAULT 1,
+    created_by INT NOT NULL,
+    last_run_at DATETIME NULL,
+    next_run_at DATETIME NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = '自動化ジョブ';
+
+CREATE TABLE IF NOT EXISTS automation_job_runs (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    job_id INT NOT NULL,
+    status ENUM('success', 'failed') NOT NULL,
+    message TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (job_id) REFERENCES automation_jobs(id) ON DELETE CASCADE,
+    INDEX idx_automation_job_runs_job_id (job_id)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = '自動化ジョブ実行履歴';
+
 -- 初期データ挿入
 INSERT INTO organizations (name, code, level, description)
 VALUES ('本社', 'HQ', 1, 'トップレベル組織');
@@ -758,6 +816,10 @@ INSERT INTO
 VALUES
     ('app_name', 'GroupWare', 'アプリケーション名'),
     ('company_name', '株式会社サンプル', '会社名'),
+    ('app_url', '', 'アプリケーション公開URL'),
+    ('mail_transport', 'smtp', 'メール送信方式(smtp/sendmail/mail)'),
+    ('mail_from_name', 'GroupWare', '通知メール送信者名'),
+    ('mail_reply_to_email', '', '通知メール返信先アドレス'),
     (
         'notification_email',
         'notification@example.com',
@@ -772,7 +834,21 @@ VALUES
         'SMTPユーザー名'
     ),
     ('smtp_password', 'password', 'SMTPパスワード'),
-    ('notification_enabled', '1', '通知機能の有効化') ON DUPLICATE KEY
+    ('smtp_auth', '1', 'SMTP認証を使用するか'),
+    ('smtp_timeout', '30', 'SMTPタイムアウト秒'),
+    ('smtp_allow_self_signed', '0', '自己署名証明書許可'),
+    ('sendmail_path', '', 'sendmailコマンドパス'),
+    ('notification_enabled', '1', '通知機能の有効化'),
+    (
+        'workflow_reminder_pending_hours',
+        '24',
+        'ワークフロー催促開始時間（時間）'
+    ),
+    (
+        'workflow_reminder_repeat_hours',
+        '24',
+        'ワークフロー再催促間隔（時間）'
+    ) ON DUPLICATE KEY
 UPDATE
     setting_value =
 VALUES

@@ -165,8 +165,8 @@ $pageTitle = 'ワークフロー管理';
                             </a>
                         </div>
                         <div class="col-md-3 mb-3">
-                            <a href="<?php echo BASE_PATH; ?>/workflow/templates" class="btn btn-success w-100">
-                                <i class="fas fa-file-alt"></i> 申請テンプレート選択
+                            <a href="<?php echo BASE_PATH; ?>/workflow/create" class="btn btn-success w-100">
+                                <i class="fas fa-file-signature"></i> 新規申請
                             </a>
                         </div>
                     </div>

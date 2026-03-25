@@ -1,6 +1,6 @@
 <?php
 // views/organization/edit.php
-$pageTitle = '組織編集 - GroupWare';
+$pageTitle = '組織編集 - TeamSpace';
 ?>
 <div class="container-fluid" data-page-type="edit">
     <div class="row mb-4">

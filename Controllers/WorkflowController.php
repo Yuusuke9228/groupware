@@ -60,8 +60,13 @@ class WorkflowController extends Controller
         $search = $_GET['search'] ?? null;
 
         // テンプレートリストを取得
-        $templates = $this->model->getAllTemplates($page, $limit, $search);
-        $totalTemplates = $this->model->getTemplateCount($search);
+        if ($this->auth->isAdmin()) {
+            $templates = $this->model->getAllTemplates($page, $limit, $search);
+            $totalTemplates = $this->model->getTemplateCount($search);
+        } else {
+            $templates = $this->model->getAvailableTemplates($this->auth->id(), $page, $limit, $search);
+            $totalTemplates = $this->model->getAvailableTemplateCount($this->auth->id(), $search);
+        }
         $totalPages = ceil($totalTemplates / $limit);
 
         $viewData = [
@@ -89,6 +94,8 @@ class WorkflowController extends Controller
 
         $viewData = [
             'title' => '新規テンプレート作成',
+            'organizations' => $this->organizationModel->getAll(),
+            'templateOrganizationIds' => [],
             'jsFiles' => ['workflow.js']
         ];
 
@@ -127,6 +134,8 @@ class WorkflowController extends Controller
             'template' => $template,
             'formDefinitions' => $formDefinitions,
             'routeDefinitions' => $routeDefinitions,
+            'organizations' => $this->organizationModel->getAll(),
+            'templateOrganizationIds' => $this->model->getTemplateOrganizationIds($id),
             'jsFiles' => ['workflow.js']
         ];
 
@@ -241,7 +250,9 @@ class WorkflowController extends Controller
         $totalPages = ceil($totalRequests / $limit);
 
         // テンプレート一覧を取得（フィルター用）
-        $templates = $this->model->getAllTemplates(1, 100);
+        $templates = $this->auth->isAdmin()
+            ? $this->model->getAllTemplates(1, 100)
+            : $this->model->getAvailableTemplates($userId, 1, 100);
 
         $viewData = [
             'title' => '申請一覧',
@@ -256,6 +267,35 @@ class WorkflowController extends Controller
         ];
 
         $this->view('workflow/requests', $viewData);
+    }
+
+    /**
+     * 新規申請のテンプレート選択ページ
+     */
+    public function selectTemplate()
+    {
+        $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
+        $page = max(1, $page);
+        $limit = 20;
+        $search = $_GET['search'] ?? null;
+
+        if ($this->auth->isAdmin()) {
+            $templates = $this->model->getAllTemplates($page, $limit, $search);
+            $totalTemplates = $this->model->getTemplateCount($search);
+        } else {
+            $templates = $this->model->getAvailableTemplates($this->auth->id(), $page, $limit, $search);
+            $totalTemplates = $this->model->getAvailableTemplateCount($this->auth->id(), $search);
+        }
+
+        $this->view('workflow/template_selector', [
+            'title' => '申請テンプレート選択',
+            'templates' => $templates,
+            'search' => $search,
+            'page' => $page,
+            'totalPages' => (int)ceil($totalTemplates / $limit),
+            'totalTemplates' => $totalTemplates,
+            'jsFiles' => ['workflow.js']
+        ]);
     }
 
     /**
@@ -284,7 +324,9 @@ class WorkflowController extends Controller
         $totalPages = ceil($totalRequests / $limit);
 
         // テンプレート一覧を取得（フィルター用）
-        $templates = $this->model->getAllTemplates(1, 100);
+        $templates = $this->auth->isAdmin()
+            ? $this->model->getAllTemplates(1, 100)
+            : $this->model->getAvailableTemplates($userId, 1, 100);
 
         $viewData = [
             'title' => '承認待ち一覧',
@@ -307,13 +349,16 @@ class WorkflowController extends Controller
     {
         $templateId = $params['id'] ?? null;
         if (!$templateId) {
-            $this->redirect(BASE_PATH . '/workflow/templates');
+            $this->redirect(BASE_PATH . '/workflow/create');
         }
 
         // テンプレート情報を取得
         $template = $this->model->getTemplateById($templateId);
         if (!$template) {
-            $this->redirect(BASE_PATH . '/workflow/templates');
+            $this->redirect(BASE_PATH . '/workflow/create');
+        }
+        if (!$this->auth->isAdmin() && !$this->model->isTemplateAvailableForUser($templateId, $this->auth->id())) {
+            $this->redirect(BASE_PATH . '/workflow/create');
         }
 
         // フォーム定義を取得
@@ -466,7 +511,9 @@ class WorkflowController extends Controller
         $users = $this->userModel->getActiveUsers();
 
         // テンプレート一覧を取得
-        $templates = $this->model->getAllTemplates(1, 100);
+        $templates = $this->auth->isAdmin()
+            ? $this->model->getAllTemplates(1, 100)
+            : $this->model->getAvailableTemplates($userId, 1, 100);
 
         $viewData = [
             'title' => '代理承認設定',
@@ -498,8 +545,13 @@ class WorkflowController extends Controller
         // 検索条件
         $search = $params['search'] ?? null;
 
-        $templates = $this->model->getAllTemplates($page, $limit, $search);
-        $totalTemplates = $this->model->getTemplateCount($search);
+        if ($this->auth->isAdmin()) {
+            $templates = $this->model->getAllTemplates($page, $limit, $search);
+            $totalTemplates = $this->model->getTemplateCount($search);
+        } else {
+            $templates = $this->model->getAvailableTemplates($this->auth->id(), $page, $limit, $search);
+            $totalTemplates = $this->model->getAvailableTemplateCount($this->auth->id(), $search);
+        }
         $totalPages = ceil($totalTemplates / $limit);
 
         return [
@@ -547,7 +599,8 @@ class WorkflowController extends Controller
             'data' => [
                 'template' => $template,
                 'form_definitions' => $formDefinitions,
-                'route_definitions' => $routeDefinitions
+                'route_definitions' => $routeDefinitions,
+                'organization_ids' => $this->model->getTemplateOrganizationIds($id)
             ]
         ];
     }
@@ -579,6 +632,7 @@ class WorkflowController extends Controller
         if (!$id) {
             return ['error' => 'Failed to create template', 'code' => 500];
         }
+        $this->model->updateTemplateOrganizations($id, $this->normalizeOrganizationIds($data['organization_ids'] ?? []));
 
         $template = $this->model->getTemplateById($id);
 
@@ -625,6 +679,7 @@ class WorkflowController extends Controller
         if (!$success) {
             return ['error' => 'Failed to update template', 'code' => 500];
         }
+        $this->model->updateTemplateOrganizations($id, $this->normalizeOrganizationIds($data['organization_ids'] ?? []));
 
         $template = $this->model->getTemplateById($id);
 
@@ -941,15 +996,13 @@ class WorkflowController extends Controller
         $data['requester_id'] = $this->auth->id();
 
         // アップロードディレクトリを確認・作成（public配下に指定）
-        $uploadDir = realpath(__DIR__ . '/../public/uploads/workflow/');
+        $uploadDir = __DIR__ . '/../public/uploads/workflow/';
         if (!file_exists($uploadDir)) {
             if (!mkdir($uploadDir, 0777, true)) {
-                error_log("Failed to create upload directory: {$uploadDir}");
             } else {
                 chmod($uploadDir, 0777); // 書き込み権限を確保
             }
         }
-        error_log("Upload directory: {$uploadDir} exists: " . (file_exists($uploadDir) ? 'Yes' : 'No') . " writable: " . (is_writable($uploadDir) ? 'Yes' : 'No'));
 
         // ファイル処理
         if (isset($_FILES) && !empty($_FILES)) {
@@ -977,7 +1030,6 @@ class WorkflowController extends Controller
                 'redirect' => BASE_PATH . '/workflow/requests'
             ];
         } catch (\Exception $e) {
-            error_log("Exception in apiCreateRequest: " . $e->getMessage());
             return ['error' => $e->getMessage(), 'code' => 500];
         }
     }
@@ -1003,6 +1055,9 @@ class WorkflowController extends Controller
             return ['error' => 'Request not found', 'code' => 404];
         }
 
+        // 更新前ステータスを保持（通知判定に利用）
+        $originalStatus = $request['status'];
+
         // 権限チェック（申請者のみ編集可能、ただしドラフト状態の場合のみ）
         if ($request['requester_id'] != $this->auth->id() || $request['status'] !== 'draft') {
             return ['error' => 'Permission denied', 'code' => 403];
@@ -1014,15 +1069,13 @@ class WorkflowController extends Controller
         }
 
         // アップロードディレクトリを確認・作成（public配下に指定）
-        $uploadDir = realpath(__DIR__ . '/../public/uploads/workflow/');
+        $uploadDir = __DIR__ . '/../public/uploads/workflow/';
         if (!file_exists($uploadDir)) {
             if (!mkdir($uploadDir, 0777, true)) {
-                error_log("Failed to create upload directory: {$uploadDir}");
             } else {
                 chmod($uploadDir, 0777); // 書き込み権限を確保
             }
         }
-        error_log("Upload directory: {$uploadDir} exists: " . (file_exists($uploadDir) ? 'Yes' : 'No') . " writable: " . (is_writable($uploadDir) ? 'Yes' : 'No'));
 
         // ファイル処理
         if (isset($_FILES) && !empty($_FILES)) {
@@ -1036,10 +1089,8 @@ class WorkflowController extends Controller
                 return ['error' => 'Failed to update request', 'code' => 500];
             }
 
-            $request = $this->model->getRequestById($id);
-
             // 申請が下書きから申請中に変更された場合、通知を送信
-            if ($data['status'] === 'pending' && $request['status'] === 'draft') {
+            if (($data['status'] ?? null) === 'pending' && $originalStatus === 'draft') {
                 $this->sendWorkflowRequestNotifications($id, 'submit', $data);
             }
 
@@ -1050,7 +1101,6 @@ class WorkflowController extends Controller
                 'redirect' => BASE_PATH . '/workflow/requests'
             ];
         } catch (\Exception $e) {
-            error_log("Exception in apiUpdateRequest: " . $e->getMessage());
             return ['error' => $e->getMessage(), 'code' => 500];
         }
     }
@@ -1097,13 +1147,15 @@ class WorkflowController extends Controller
             // 現在のステップを保存（後で比較するため）
             $currentStep = $request['current_step'];
 
-            // 現在の承認タスクを取得（通知のため）
+            // 承認/却下した承認タスクを取得（通知のため）
             $sql = "SELECT * FROM workflow_approvals 
-                WHERE request_id = ? AND approver_id = ? AND status = 'pending' 
-                AND step_number = ? LIMIT 1";
+                WHERE request_id = ? AND approver_id = ? AND status = ? 
+                AND step_number = ? 
+                ORDER BY acted_at DESC, id DESC LIMIT 1";
             $approval = $this->db->fetch($sql, [
                 $requestId,
                 $userId,
+                $action,
                 $currentStep
             ]);
 
@@ -1522,7 +1574,6 @@ class WorkflowController extends Controller
                 'message' => 'PDFのエクスポートが完了しました'
             ];
         } catch (\Exception $e) {
-            error_log('PDF Export Error: ' . $e->getMessage());
             return ['error' => 'PDFの生成に失敗しました', 'code' => 500];
         }
     }
@@ -1734,7 +1785,6 @@ class WorkflowController extends Controller
                 'message' => 'CSVのエクスポートが完了しました'
             ];
         } catch (\Exception $e) {
-            error_log('CSV Export Error: ' . $e->getMessage());
             return ['error' => 'CSVの生成に失敗しました', 'code' => 500];
         }
     }
@@ -1749,14 +1799,11 @@ class WorkflowController extends Controller
         // アップロードディレクトリが存在しない場合は作成
         if (!file_exists($uploadDir)) {
             if (!mkdir($uploadDir, 0777, true)) {
-                error_log("Failed to create upload directory: {$uploadDir}");
                 return $processedFiles;
             }
             chmod($uploadDir, 0777); // 書き込み権限を確保
         }
 
-        error_log("Upload directory: {$uploadDir} exists: " . (file_exists($uploadDir) ? 'Yes' : 'No') . " writable: " . (is_writable($uploadDir) ? 'Yes' : 'No'));
-        error_log("Processing attachment files: " . print_r($files, true));
 
         foreach ($files as $fieldId => $fileInfo) {
             // ファイルフィールドでない場合はスキップ
@@ -1772,7 +1819,6 @@ class WorkflowController extends Controller
                 $fileType = $fileInfo['type'];
                 $fileError = $fileInfo['error'];
 
-                error_log("Processing single file: {$fileName}, Error: {$fileError}");
 
                 // ファイルがアップロードされている場合のみ処理
                 if (!empty($fileName) && $fileError === 0 && is_uploaded_file($tmpName)) {
@@ -1783,11 +1829,9 @@ class WorkflowController extends Controller
                     $uniqueName = uniqid() . '_' . $safeName;
                     $filePath = $uploadDir . '/' . $uniqueName;
 
-                    error_log("Moving file from {$tmpName} to {$filePath}");
 
                     // ファイルを移動
                     if (move_uploaded_file($tmpName, $filePath)) {
-                        error_log("File moved successfully");
                         $processedFiles[$fieldId] = [
                             'name' => $fileName,
                             'path' => 'uploads/workflow/' . $uniqueName,
@@ -1796,7 +1840,6 @@ class WorkflowController extends Controller
                         ];
                     } else {
                         $errorMsg = error_get_last();
-                        error_log("Failed to move file: " . ($errorMsg ? $errorMsg['message'] : 'Unknown error'));
                     }
                 }
             }
@@ -1804,7 +1847,6 @@ class WorkflowController extends Controller
             elseif (is_array($fileInfo['name'])) {
                 $processedFiles[$fieldId] = [];
 
-                error_log("Processing multiple files: " . count($fileInfo['name']));
 
                 for ($i = 0; $i < count($fileInfo['name']); $i++) {
                     $fileName = $fileInfo['name'][$i];
@@ -1813,7 +1855,6 @@ class WorkflowController extends Controller
                     $fileType = $fileInfo['type'][$i];
                     $fileError = $fileInfo['error'][$i];
 
-                    error_log("Processing file #{$i}: {$fileName}, Error: {$fileError}");
 
                     // ファイルがアップロードされている場合のみ処理
                     if (!empty($fileName) && $fileError === 0 && is_uploaded_file($tmpName)) {
@@ -1824,11 +1865,9 @@ class WorkflowController extends Controller
                         $uniqueName = uniqid() . '_' . $safeName;
                         $filePath = $uploadDir . '/' . $uniqueName;
 
-                        error_log("Moving file from {$tmpName} to {$filePath}");
 
                         // ファイルを移動
                         if (move_uploaded_file($tmpName, $filePath)) {
-                            error_log("File moved successfully");
                             $processedFiles[$fieldId][] = [
                                 'name' => $fileName,
                                 'path' => 'uploads/workflow/' . $uniqueName,
@@ -1837,14 +1876,12 @@ class WorkflowController extends Controller
                             ];
                         } else {
                             $errorMsg = error_get_last();
-                            error_log("Failed to move file: " . ($errorMsg ? $errorMsg['message'] : 'Unknown error'));
                         }
                     }
                 }
             }
         }
 
-        error_log("Processed files: " . print_r($processedFiles, true));
         return $processedFiles;
     }
 
@@ -2519,5 +2556,31 @@ class WorkflowController extends Controller
 
         // 通知を送信
         $this->notification->create($notificationData);
+    }
+
+    private function normalizeOrganizationIds($organizationIds)
+    {
+        if (is_string($organizationIds)) {
+            $decoded = json_decode($organizationIds, true);
+            if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                $organizationIds = $decoded;
+            } else {
+                $organizationIds = array_filter(array_map('trim', explode(',', $organizationIds)));
+            }
+        }
+
+        if (!is_array($organizationIds)) {
+            return [];
+        }
+
+        $ids = [];
+        foreach ($organizationIds as $organizationId) {
+            $id = (int)$organizationId;
+            if ($id > 0) {
+                $ids[] = $id;
+            }
+        }
+
+        return array_values(array_unique($ids));
     }
 }

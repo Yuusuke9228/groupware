@@ -115,8 +115,63 @@
                         <?php elseif ($field['type'] === 'organization'): ?>
                             <select class="form-select organization-select" id="field-<?= $field['id'] ?>" name="fields[<?= $field['id'] ?>]" <?= $field['required'] ? 'required' : '' ?> data-selected="<?= isset($recordData[$field['id']]) ? $recordData[$field['id']] : '' ?>">
                                 <option value="">組織を選択</option>
-                                <!-- 組織リストはJSで動的に読み込まれる -->
                             </select>
+
+                        <?php elseif ($field['type'] === 'relation'): ?>
+                            <div class="relation-field-container" data-field-id="<?= $field['id'] ?>" data-relation-db="<?= $field['relation_database_id'] ?>" data-relation-type="<?= $field['relation_type'] ?>">
+                                <select class="form-select relation-select" id="field-<?= $field['id'] ?>" name="fields[<?= $field['id'] ?>][]" <?= $field['relation_type'] === 'one_to_one' ? '' : 'multiple' ?>>
+                                    <option value="">レコードを選択</option>
+                                </select>
+                                <small class="form-text text-muted">リレーション先: <?= htmlspecialchars($field['relation_database_id'] ?? '') ?></small>
+                            </div>
+
+                        <?php elseif ($field['type'] === 'lookup'): ?>
+                            <div class="lookup-field-container" data-field-id="<?= $field['id'] ?>" data-lookup-relation="<?= $field['lookup_relation_field_id'] ?>" data-lookup-target="<?= $field['lookup_target_field_id'] ?>">
+                                <input type="text" class="form-control" id="field-<?= $field['id'] ?>" readonly placeholder="リレーション先の値を自動表示"
+                                    value="<?= isset($recordData[$field['id']]) ? htmlspecialchars($recordData[$field['id']]) : '' ?>">
+                                <small class="form-text text-muted">ルックアップフィールド（自動取得）</small>
+                            </div>
+
+                        <?php elseif ($field['type'] === 'calc'): ?>
+                            <input type="text" class="form-control calc-field" id="field-<?= $field['id'] ?>" readonly placeholder="計算結果"
+                                data-formula="<?= htmlspecialchars($field['calc_formula'] ?? '') ?>"
+                                value="<?= isset($recordData[$field['id']]) ? htmlspecialchars($recordData[$field['id']]) : '' ?>">
+
+                        <?php elseif ($field['type'] === 'url'): ?>
+                            <input type="url" class="form-control" id="field-<?= $field['id'] ?>" name="fields[<?= $field['id'] ?>]"
+                                value="<?= isset($recordData[$field['id']]) ? htmlspecialchars($recordData[$field['id']]) : $field['default_value'] ?>"
+                                placeholder="https://" <?= $field['required'] ? 'required' : '' ?>>
+
+                        <?php elseif ($field['type'] === 'email'): ?>
+                            <input type="email" class="form-control" id="field-<?= $field['id'] ?>" name="fields[<?= $field['id'] ?>]"
+                                value="<?= isset($recordData[$field['id']]) ? htmlspecialchars($recordData[$field['id']]) : $field['default_value'] ?>"
+                                placeholder="example@mail.com" <?= $field['required'] ? 'required' : '' ?>>
+
+                        <?php elseif ($field['type'] === 'phone'): ?>
+                            <input type="tel" class="form-control" id="field-<?= $field['id'] ?>" name="fields[<?= $field['id'] ?>]"
+                                value="<?= isset($recordData[$field['id']]) ? htmlspecialchars($recordData[$field['id']]) : $field['default_value'] ?>"
+                                placeholder="090-1234-5678" <?= $field['required'] ? 'required' : '' ?>>
+
+                        <?php elseif ($field['type'] === 'currency'): ?>
+                            <div class="input-group">
+                                <span class="input-group-text">&yen;</span>
+                                <input type="number" class="form-control" id="field-<?= $field['id'] ?>" name="fields[<?= $field['id'] ?>]"
+                                    value="<?= isset($recordData[$field['id']]) ? htmlspecialchars($recordData[$field['id']]) : $field['default_value'] ?>"
+                                    step="1" <?= $field['required'] ? 'required' : '' ?>>
+                            </div>
+
+                        <?php elseif ($field['type'] === 'percent'): ?>
+                            <div class="input-group">
+                                <input type="number" class="form-control" id="field-<?= $field['id'] ?>" name="fields[<?= $field['id'] ?>]"
+                                    value="<?= isset($recordData[$field['id']]) ? htmlspecialchars($recordData[$field['id']]) : $field['default_value'] ?>"
+                                    step="0.1" min="0" max="100" <?= $field['required'] ? 'required' : '' ?>>
+                                <span class="input-group-text">%</span>
+                            </div>
+
+                        <?php elseif ($field['type'] === 'auto_number'): ?>
+                            <input type="text" class="form-control" id="field-<?= $field['id'] ?>" readonly placeholder="自動採番"
+                                value="<?= isset($recordData[$field['id']]) ? htmlspecialchars($recordData[$field['id']]) : '(自動)' ?>">
+
                         <?php endif; ?>
 
                         <?php if (!empty($field['description'])): ?>

@@ -1,6 +1,6 @@
 <?php
 // views/workflow/requests.php
-$pageTitle = '申請一覧 - GroupWare';
+$pageTitle = '申請一覧 - TeamSpace';
 ?>
 <div class="container-fluid" data-page-type="requests">
     <div class="row mb-4">
@@ -9,7 +9,7 @@ $pageTitle = '申請一覧 - GroupWare';
         </div>
         <div class="col-auto">
             <!-- 新規申請ボタン -->
-            <a href="<?php echo BASE_PATH; ?>/workflow/templates" class="btn btn-primary">
+            <a href="<?php echo BASE_PATH; ?>/workflow/create" class="btn btn-primary">
                 <i class="fas fa-plus"></i> 新規申請
             </a>
         </div>

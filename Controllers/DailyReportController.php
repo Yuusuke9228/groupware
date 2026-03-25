@@ -10,6 +10,7 @@ use Models\Schedule;
 use Models\Task;
 use Models\Notification;
 use Models\User;
+use Models\Organization;
 
 class DailyReportController extends Controller
 {
@@ -19,6 +20,7 @@ class DailyReportController extends Controller
     private $taskModel;
     private $userModel;
     private $notificationModel;
+    private $organizationModel;
 
     public function __construct()
     {
@@ -29,6 +31,7 @@ class DailyReportController extends Controller
         $this->taskModel = new Task();
         $this->userModel = new User();
         $this->notificationModel = new Notification();
+        $this->organizationModel = new Organization();
 
         // 認証チェック
         if (!$this->auth->check()) {
@@ -66,7 +69,6 @@ class DailyReportController extends Controller
 
         // テンプレート一覧を取得
         $templates = $this->reportModel->getTemplates($userId);
-        error_log('Templates count: ' . count($templates) . ', User ID: ' . $userId);
 
         $viewData = [
             'title' => '日報',
@@ -162,6 +164,9 @@ class DailyReportController extends Controller
         $template = null;
         if ($templateId) {
             $template = $this->reportModel->getTemplateById($templateId);
+            if ($template && !$this->reportModel->isTemplateAvailableForUser($templateId, $userId)) {
+                $template = null;
+            }
         }
 
         // その日の予定を取得
@@ -323,7 +328,7 @@ class DailyReportController extends Controller
         if ($id) {
             // テンプレートを取得
             $template = $this->reportModel->getTemplateById($id);
-            if (!$template || ($template['user_id'] != $userId && !$template['is_public'])) {
+            if (!$template || !$this->reportModel->isTemplateAvailableForUser($id, $userId)) {
                 $this->redirect(BASE_PATH . '/daily-report/templates');
             }
         }
@@ -332,6 +337,8 @@ class DailyReportController extends Controller
             'title' => $id ? 'テンプレート編集' : 'テンプレート作成',
             'user' => $user,
             'template' => $template,
+            'organizations' => $this->organizationModel->getAll(),
+            'templateOrganizationIds' => $template ? $this->reportModel->getTemplateOrganizationIds($template['id']) : [],
             'jsFiles' => ['daily-report.js']
         ];
 
@@ -682,8 +689,6 @@ class DailyReportController extends Controller
         $id = $params['id'] ?? null;
 
         // デバッグ情報
-        error_log("API Save Template - Params: " . print_r($params, true));
-        error_log("API Save Template - Data: " . print_r($data, true));
         // return [
         //     'params' => print_r($params, true),
         //     'data' => print_r($data, true)
@@ -707,7 +712,8 @@ class DailyReportController extends Controller
         // isEdit情報があればそれを使用
         $isEdit = isset($data['isEdit']) ? (bool)$data['isEdit'] : ($id !== null);
 
-        error_log("API Save Template - isEdit: " . ($isEdit ? 'true' : 'false'));
+
+        $organizationIds = $this->normalizeOrganizationIds($data['organization_ids'] ?? []);
 
         // テンプレートの保存処理
         if ($isEdit) {
@@ -729,12 +735,17 @@ class DailyReportController extends Controller
             }
 
             $result = $this->reportModel->updateTemplate($id, $templateData);
+            if ($result) {
+                $this->reportModel->updateTemplateOrganizations($id, $organizationIds);
+            }
             $message = 'テンプレートを更新しました';
         } else {
             // 新規テンプレートを作成
-            error_log("Creating new template with data: " . print_r($templateData, true));
             $id = $this->reportModel->createTemplate($templateData);
             $result = ($id !== false);
+            if ($result) {
+                $this->reportModel->updateTemplateOrganizations($id, $organizationIds);
+            }
             $message = 'テンプレートを作成しました';
         }
 
@@ -899,7 +910,6 @@ class DailyReportController extends Controller
 
             return $this->db->fetchAll($sql, [$userId]);
         } catch (\Exception $e) {
-            error_log("Error getting completed tasks: " . $e->getMessage());
             return [];
         }
     }
@@ -952,7 +962,6 @@ class DailyReportController extends Controller
 
             return $this->db->fetchAll($sql, $params);
         } catch (\Exception $e) {
-            error_log("Error getting unread reports: " . $e->getMessage());
             return [];
         }
     }
@@ -1020,7 +1029,6 @@ class DailyReportController extends Controller
                 $this->notificationModel->create($notificationData);
             }
         } catch (\Exception $e) {
-            error_log("Error sending notifications: " . $e->getMessage());
         }
     }
 
@@ -1060,7 +1068,6 @@ class DailyReportController extends Controller
 
             $this->notificationModel->create($notificationData);
         } catch (\Exception $e) {
-            error_log("Error sending comment notification: " . $e->getMessage());
         }
     }
 
@@ -1100,7 +1107,32 @@ class DailyReportController extends Controller
 
             $this->notificationModel->create($notificationData);
         } catch (\Exception $e) {
-            error_log("Error sending like notification: " . $e->getMessage());
         }
+    }
+
+    private function normalizeOrganizationIds($organizationIds)
+    {
+        if (is_string($organizationIds)) {
+            $decoded = json_decode($organizationIds, true);
+            if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                $organizationIds = $decoded;
+            } else {
+                $organizationIds = array_filter(array_map('trim', explode(',', $organizationIds)));
+            }
+        }
+
+        if (!is_array($organizationIds)) {
+            return [];
+        }
+
+        $ids = [];
+        foreach ($organizationIds as $organizationId) {
+            $id = (int)$organizationId;
+            if ($id > 0) {
+                $ids[] = $id;
+            }
+        }
+
+        return array_values(array_unique($ids));
     }
 }

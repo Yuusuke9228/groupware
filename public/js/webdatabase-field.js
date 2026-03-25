@@ -15,12 +15,29 @@ const WebDatabaseField = {
         // フィールドタイプの変更時の選択肢入力欄の表示・非表示
         $('#field-type, #edit-field-type').on('change', function() {
             const fieldType = $(this).val();
-            const optionsContainer = $(this).attr('id') === 'field-type' ? '#options-container' : '#edit-options-container';
+            const isEdit = $(this).attr('id') === 'edit-field-type';
+            const prefix = isEdit ? '#edit-' : '#';
+            const optionsContainer = isEdit ? '#edit-options-container' : '#options-container';
+
+            // すべての条件付きコンテナを非表示
+            $(optionsContainer).addClass('d-none');
+            $('#relation-container, #lookup-container, #calc-container').addClass('d-none');
+            if (isEdit) {
+                $('#edit-relation-container, #edit-lookup-container, #edit-calc-container').addClass('d-none');
+            }
 
             if (['select', 'radio', 'checkbox'].includes(fieldType)) {
                 $(optionsContainer).removeClass('d-none');
-            } else {
-                $(optionsContainer).addClass('d-none');
+            } else if (fieldType === 'relation') {
+                const container = isEdit ? '#edit-relation-container' : '#relation-container';
+                $(container).removeClass('d-none');
+                WebDatabaseField.loadDatabaseList(isEdit ? '#edit-field-relation-database' : '#field-relation-database');
+            } else if (fieldType === 'lookup') {
+                const container = isEdit ? '#edit-lookup-container' : '#lookup-container';
+                $(container).removeClass('d-none');
+            } else if (fieldType === 'calc') {
+                const container = isEdit ? '#edit-calc-container' : '#calc-container';
+                $(container).removeClass('d-none');
             }
         });
 
@@ -283,6 +300,53 @@ const WebDatabaseField = {
                 value: 'option_' + (index + 1),
                 label: line.trim()
             };
+        });
+    },
+
+    // リレーション用: データベース一覧を読み込む
+    loadDatabaseList: function(selectId) {
+        $.ajax({
+            url: BASE_PATH + '/api/webdatabase/all-databases',
+            type: 'GET',
+            success: function(response) {
+                if (response.success && response.data) {
+                    const $select = $(selectId);
+                    $select.find('option:gt(0)').remove();
+                    response.data.forEach(function(db) {
+                        $select.append('<option value="' + db.id + '">' + $('<span>').text(db.name).html() + '</option>');
+                    });
+                }
+            }
+        });
+    },
+
+    // ルックアップ用: リレーション先のフィールド一覧を読み込む
+    loadRelationFields: function(relationFieldId, targetSelectId) {
+        // まずリレーションフィールドの設定を取得
+        $.ajax({
+            url: BASE_PATH + '/api/webdatabase/fields/' + relationFieldId,
+            type: 'GET',
+            success: function(response) {
+                if (response.success && response.data) {
+                    const relDbId = response.data.relation_database_id;
+                    if (relDbId) {
+                        // リレーション先DBのフィールド一覧を取得
+                        $.ajax({
+                            url: BASE_PATH + '/api/webdatabase/' + relDbId + '/fields',
+                            type: 'GET',
+                            success: function(resp) {
+                                if (resp.success && resp.data) {
+                                    const $select = $(targetSelectId);
+                                    $select.find('option:gt(0)').remove();
+                                    resp.data.forEach(function(f) {
+                                        $select.append('<option value="' + f.id + '">' + $('<span>').text(f.name).html() + ' (' + f.type + ')</option>');
+                                    });
+                                }
+                            }
+                        });
+                    }
+                }
+            }
         });
     }
 };

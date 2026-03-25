@@ -780,7 +780,6 @@ class TaskController extends Controller
         $userId = $this->auth->id();
 
         // リクエストデータのデバッグ
-        error_log("API Create Board - Request Data: " . print_r($data, true));
 
         // バリデーション
         if (empty($data['name'])) {

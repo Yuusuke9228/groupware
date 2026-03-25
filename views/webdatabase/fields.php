@@ -52,7 +52,16 @@
                                             'checkbox' => 'チェックボックス',
                                             'file' => 'ファイル',
                                             'user' => 'ユーザー',
-                                            'organization' => '組織'
+                                            'organization' => '組織',
+                                            'relation' => 'リレーション',
+                                            'lookup' => 'ルックアップ',
+                                            'calc' => '計算',
+                                            'url' => 'URL',
+                                            'email' => 'メール',
+                                            'phone' => '電話番号',
+                                            'currency' => '通貨',
+                                            'percent' => 'パーセント',
+                                            'auto_number' => '自動採番'
                                         ];
                                         echo $fieldTypes[$field['type']] ?? $field['type'];
                                         ?>
@@ -125,6 +134,19 @@
                             <option value="file">ファイル</option>
                             <option value="user">ユーザー</option>
                             <option value="organization">組織</option>
+                            <optgroup label="リレーション">
+                                <option value="relation">リレーション（他DB参照）</option>
+                                <option value="lookup">ルックアップ（参照先の値表示）</option>
+                            </optgroup>
+                            <optgroup label="高度なフィールド">
+                                <option value="calc">計算フィールド</option>
+                                <option value="url">URL</option>
+                                <option value="email">メールアドレス</option>
+                                <option value="phone">電話番号</option>
+                                <option value="currency">通貨</option>
+                                <option value="percent">パーセント</option>
+                                <option value="auto_number">自動採番</option>
+                            </optgroup>
                         </select>
                         <div class="invalid-feedback"></div>
                     </div>
@@ -146,6 +168,70 @@
                         </div>
                         <textarea class="form-control" id="field-options" name="options" rows="5"></textarea>
                         <div class="invalid-feedback"></div>
+                    </div>
+
+                    <!-- リレーション設定（relation型用） -->
+                    <div class="mb-3 d-none" id="relation-container">
+                        <div class="card bg-light">
+                            <div class="card-body">
+                                <h6 class="card-title"><i class="fas fa-link"></i> リレーション設定</h6>
+                                <div class="mb-2">
+                                    <label class="form-label">参照先データベース <span class="text-danger">*</span></label>
+                                    <select class="form-select" id="field-relation-database" name="relation_database_id">
+                                        <option value="">データベースを選択</option>
+                                    </select>
+                                </div>
+                                <div class="mb-2">
+                                    <label class="form-label">リレーションタイプ</label>
+                                    <select class="form-select" id="field-relation-type" name="relation_type">
+                                        <option value="one_to_many">1対多</option>
+                                        <option value="many_to_many">多対多</option>
+                                        <option value="one_to_one">1対1</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ルックアップ設定（lookup型用） -->
+                    <div class="mb-3 d-none" id="lookup-container">
+                        <div class="card bg-light">
+                            <div class="card-body">
+                                <h6 class="card-title"><i class="fas fa-eye"></i> ルックアップ設定</h6>
+                                <div class="mb-2">
+                                    <label class="form-label">リレーションフィールド <span class="text-danger">*</span></label>
+                                    <select class="form-select" id="field-lookup-relation" name="lookup_relation_field_id">
+                                        <option value="">リレーションフィールドを選択</option>
+                                        <?php foreach ($fields as $f): ?>
+                                            <?php if ($f['type'] === 'relation'): ?>
+                                                <option value="<?= $f['id'] ?>"><?= htmlspecialchars($f['name']) ?></option>
+                                            <?php endif; ?>
+                                        <?php endforeach; ?>
+                                    </select>
+                                    <small class="text-muted">先にリレーションフィールドを作成してください</small>
+                                </div>
+                                <div class="mb-2">
+                                    <label class="form-label">参照先フィールド <span class="text-danger">*</span></label>
+                                    <select class="form-select" id="field-lookup-target" name="lookup_target_field_id">
+                                        <option value="">フィールドを選択</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 計算式設定（calc型用） -->
+                    <div class="mb-3 d-none" id="calc-container">
+                        <div class="card bg-light">
+                            <div class="card-body">
+                                <h6 class="card-title"><i class="fas fa-calculator"></i> 計算式設定</h6>
+                                <div class="mb-2">
+                                    <label class="form-label">計算式</label>
+                                    <input type="text" class="form-control" id="field-calc-formula" name="calc_formula" placeholder="例: {フィールド1} * {フィールド2}">
+                                    <small class="text-muted">フィールド名を {} で囲んで参照。演算子: +, -, *, /</small>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     <div class="mb-3">
@@ -243,6 +329,19 @@
                             <option value="file">ファイル</option>
                             <option value="user">ユーザー</option>
                             <option value="organization">組織</option>
+                            <optgroup label="リレーション">
+                                <option value="relation">リレーション（他DB参照）</option>
+                                <option value="lookup">ルックアップ（参照先の値表示）</option>
+                            </optgroup>
+                            <optgroup label="高度なフィールド">
+                                <option value="calc">計算フィールド</option>
+                                <option value="url">URL</option>
+                                <option value="email">メールアドレス</option>
+                                <option value="phone">電話番号</option>
+                                <option value="currency">通貨</option>
+                                <option value="percent">パーセント</option>
+                                <option value="auto_number">自動採番</option>
+                            </optgroup>
                         </select>
                         <div class="invalid-feedback"></div>
                     </div>

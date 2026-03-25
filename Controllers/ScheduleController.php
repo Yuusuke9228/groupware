@@ -10,6 +10,7 @@ use Models\Schedule;
 use Models\User;
 use Models\Organization;
 use Models\Notification;
+use Services\ScheduleDisplaySettings;
 
 class ScheduleController extends Controller
 {
@@ -73,6 +74,7 @@ class ScheduleController extends Controller
             'userId' => $userId,
             'user' => $user,
             'users' => $users,
+            'displaySettings' => $this->getScheduleDisplaySettings(),
             'jsFiles' => ['schedule.js']
         ];
 
@@ -129,6 +131,7 @@ class ScheduleController extends Controller
             'userId' => $userId,
             'user' => $user,
             'users' => $users,
+            'displaySettings' => $this->getScheduleDisplaySettings(),
             'jsFiles' => ['schedule.js']
         ];
 
@@ -437,7 +440,6 @@ class ScheduleController extends Controller
         // パラメータが欠落している場合は直接$_GETから取得
         $date = isset($params['date']) ? $params['date'] : (isset($_GET['date']) ? $_GET['date'] : date('Y-m-d'));
         $userId = isset($params['user_id']) ? $params['user_id'] : (isset($_GET['user_id']) ? $_GET['user_id'] : $this->auth->id());
-        error_log("API Get Week called with date: " . $date . ", user_id: " . $userId);
 
         // 日付の妥当性をチェック
         if (!$this->isValidDate($date)) {
@@ -530,12 +532,9 @@ class ScheduleController extends Controller
         $db = \Core\Database::getInstance();
         $participantsSql = "SELECT * FROM schedule_participants";
         $participantsResults = $db->fetchAll($participantsSql);
-        error_log("participants table data: " . json_encode($participantsResults));
 
         $orgsSql = "SELECT * FROM schedule_organizations";
         $orgsResults = $db->fetchAll($orgsSql);
-        error_log("organizations table data: " . json_encode($orgsResults));
-        error_log(json_encode(['schedules' => $schedules]));
 
         // 閲覧権限でフィルタリング
         $filteredSchedules = array_filter($schedules, [$this, 'canViewSchedule']);
@@ -556,7 +555,6 @@ class ScheduleController extends Controller
         $startDate = $params['start_date'] ?? date('Y-m-d');
         $endDate = $params['end_date'] ?? date('Y-m-d', strtotime('+30 days'));
         $userId = $params['user_id'] ?? $this->auth->id();
-        error_log("getByDateRange called: startDate=$startDate, endDate=$endDate, userId=$userId");
         // 日付の妥当性をチェック
         if (!$this->isValidDate($startDate)) {
             $startDate = date('Y-m-d');
@@ -704,7 +702,6 @@ class ScheduleController extends Controller
             // 参加者追加
             $result = $this->schedule->addParticipant($scheduleId, $participantId, $status);
             if (!$result) {
-                error_log("Failed to add participant: $participantId");
             }
         }
 
@@ -801,20 +798,35 @@ class ScheduleController extends Controller
         // 参加者を更新
         $participants = isset($data['participants']) ? $data['participants'] : [];
         if (!is_array($participants)) {
-            $participants = [];
+            if (is_string($participants) && !empty($participants)) {
+                $participants = explode(',', $participants);
+            } else {
+                $participants = [];
+            }
         }
 
         // 作成者を参加者に追加
         $participants[] = $schedule['creator_id'];
+        $participants = array_filter($participants, function ($id) {
+            return !empty($id) && is_numeric($id);
+        });
+        $participants = array_map('intval', $participants);
         $participants = array_unique($participants);
+
+        // 削除前に既存ステータスを保持
+        $existingParticipants = $this->schedule->getParticipants($id);
+        $existingStatuses = [];
+        foreach ($existingParticipants as $participant) {
+            $existingStatuses[(int)$participant['id']] = $participant['participation_status'];
+        }
 
         // 現在の参加者を削除
         $this->schedule->removeAllParticipants($id);
 
         // 参加者を追加
         foreach ($participants as $participantId) {
-            // 既存の参加者のステータスを取得
-            $status = $this->schedule->getUserParticipationStatus($id, $participantId);
+            // 既存の参加者ステータスを復元
+            $status = $existingStatuses[$participantId] ?? null;
 
             // ステータスがない場合は、作成者なら「参加」、それ以外は「未回答」
             if (!$status) {
@@ -875,6 +887,12 @@ class ScheduleController extends Controller
             ];
         }
 
+        // 削除前に通知対象参加者を保持
+        $participantsBeforeDelete = $this->schedule->getParticipants($id);
+        $participantIds = array_map(function ($participant) {
+            return (int)$participant['id'];
+        }, $participantsBeforeDelete);
+
         // スケジュールを削除
         $result = $this->schedule->delete($id);
 
@@ -886,6 +904,7 @@ class ScheduleController extends Controller
         }
 
         // 通知を送信
+        $schedule['participants'] = $participantIds;
         $this->sendScheduleNotifications($id, 'delete', $schedule);
 
         return [
@@ -954,9 +973,9 @@ class ScheduleController extends Controller
         }
 
         // 作成者に通知
-        // if ($request['creator_id'] != $userId) {
-        //     $this->sendScheduleStatusNotification($id, $userId, $status);
-        // }
+        if ($schedule['creator_id'] != $userId) {
+            $this->sendScheduleStatusNotification($id, $userId, $status);
+        }
 
         return [
             'success' => true,
@@ -1280,6 +1299,22 @@ class ScheduleController extends Controller
         return false;
     }
 
+    private function getScheduleDisplaySettings()
+    {
+        $settings = $this->db->fetch(
+            "SELECT schedule_view_start_time, schedule_view_end_time
+             FROM notification_settings
+             WHERE user_id = ?
+             LIMIT 1",
+            [$this->auth->id()]
+        );
+
+        return ScheduleDisplaySettings::normalize(
+            $settings['schedule_view_start_time'] ?? null,
+            $settings['schedule_view_end_time'] ?? null
+        );
+    }
+
     // スケジュールの編集権限チェック
     private function canEditSchedule($schedule)
     {
@@ -1326,10 +1361,13 @@ class ScheduleController extends Controller
         $participants = [];
         if ($action !== 'delete') {
             $participants = $this->schedule->getParticipants($scheduleId);
-        } elseif (isset($data['participants']) && is_array($data['participants'])) {
-            $participants = array_map(function ($id) {
-                return ['id' => $id];
-            }, $data['participants']);
+        } else {
+            $participants = $this->schedule->getParticipants($scheduleId);
+            if (empty($participants) && isset($data['participants']) && is_array($data['participants'])) {
+                $participants = array_map(function ($id) {
+                    return ['id' => $id];
+                }, $data['participants']);
+            }
         }
 
         // 通知タイトルと内容を準備
@@ -1376,12 +1414,12 @@ class ScheduleController extends Controller
         }
 
         // 作成者自身には通知しない
-        $currentUserId = $this->auth->id();
+        $actorUserId = $schedule['creator_id'];
 
         // 参加者に通知を送信
         foreach ($participants as $participant) {
-            // 自分自身には通知しない
-            if ($participant['id'] == $currentUserId) {
+            // 実行者（通常は作成者）には通知しない
+            if ((int)$participant['id'] === (int)$actorUserId) {
                 continue;
             }
 
@@ -1460,8 +1498,8 @@ class ScheduleController extends Controller
         // 日付パラメータの取得（指定がなければ今日）
         $date = $_GET['date'] ?? date('Y-m-d');
 
-        // 組織IDパラメータの取得
-        $organizationId = $_GET['organization_id'] ?? null;
+        // 組織IDパラメータの取得（未指定時は所属組織をデフォルト）
+        $organizationId = $this->resolveDefaultOrganizationId($_GET['organization_id'] ?? null);
 
         // 日付の妥当性をチェック
         if (!$this->isValidDate($date)) {
@@ -1509,14 +1547,138 @@ class ScheduleController extends Controller
         $this->view('schedule/organization_week', $viewData);
     }
 
+    // 組織の日間スケジュール表示
+    public function organizationDay()
+    {
+        $date = $_GET['date'] ?? date('Y-m-d');
+        $organizationId = $this->resolveDefaultOrganizationId($_GET['organization_id'] ?? null);
+
+        if (!$this->isValidDate($date)) {
+            $date = date('Y-m-d');
+        }
+
+        $prevDay = date('Y-m-d', strtotime($date . ' -1 day'));
+        $nextDay = date('Y-m-d', strtotime($date . ' +1 day'));
+
+        $organizations = $this->organization->getAll();
+        $selectedOrganization = null;
+        if ($organizationId) {
+            $selectedOrganization = $this->organization->getById($organizationId);
+        }
+
+        $viewData = [
+            'title' => date('Y年m月d日', strtotime($date)) . 'の組織スケジュール',
+            'date' => $date,
+            'prevDay' => $prevDay,
+            'nextDay' => $nextDay,
+            'organizationId' => $organizationId,
+            'organizations' => $organizations,
+            'selectedOrganization' => $selectedOrganization,
+            'jsFiles' => ['schedule.js']
+        ];
+
+        $this->view('schedule/organization_day', $viewData);
+    }
+
+    // 組織の月間スケジュール表示
+    public function organizationMonth()
+    {
+        $year = isset($_GET['year']) ? (int)$_GET['year'] : (int)date('Y');
+        $month = isset($_GET['month']) ? (int)$_GET['month'] : (int)date('m');
+        $organizationId = $this->resolveDefaultOrganizationId($_GET['organization_id'] ?? null);
+
+        if ($year < 1970 || $year > 2099 || $month < 1 || $month > 12) {
+            $year = (int)date('Y');
+            $month = (int)date('m');
+        }
+
+        $prevMonth = $month - 1;
+        $prevYear = $year;
+        if ($prevMonth < 1) {
+            $prevMonth = 12;
+            $prevYear--;
+        }
+
+        $nextMonth = $month + 1;
+        $nextYear = $year;
+        if ($nextMonth > 12) {
+            $nextMonth = 1;
+            $nextYear++;
+        }
+
+        // 当月なら今日の日付、他月なら1日
+        if ($year == (int)date('Y') && $month == (int)date('m')) {
+            $date = date('Y-m-d');
+        } else {
+            $date = sprintf('%04d-%02d-01', $year, $month);
+        }
+        $organizations = $this->organization->getAll();
+        $selectedOrganization = null;
+        if ($organizationId) {
+            $selectedOrganization = $this->organization->getById($organizationId);
+        }
+
+        $viewData = [
+            'title' => $year . '年' . $month . '月の組織スケジュール',
+            'year' => $year,
+            'month' => $month,
+            'date' => $date,
+            'prevYear' => $prevYear,
+            'prevMonth' => $prevMonth,
+            'nextYear' => $nextYear,
+            'nextMonth' => $nextMonth,
+            'organizationId' => $organizationId,
+            'organizations' => $organizations,
+            'selectedOrganization' => $selectedOrganization,
+            'jsFiles' => ['schedule.js']
+        ];
+
+        $this->view('schedule/organization_month', $viewData);
+    }
+
+    // 組織の日間スケジュールデータ取得API
+    public function apiGetOrganizationDay($params)
+    {
+        $date = isset($params['date']) ? $params['date'] : (isset($_GET['date']) ? $_GET['date'] : date('Y-m-d'));
+        $organizationId = isset($params['organization_id']) ? $params['organization_id'] : (isset($_GET['organization_id']) ? $_GET['organization_id'] : null);
+
+        if (!$organizationId) {
+            return [
+                'success' => false,
+                'error' => '組織IDが指定されていません'
+            ];
+        }
+
+        if (!$this->isValidDate($date)) {
+            $date = date('Y-m-d');
+        }
+
+        $organization = $this->organization->getById($organizationId);
+        if (!$organization) {
+            return [
+                'success' => false,
+                'error' => '指定された組織が見つかりません'
+            ];
+        }
+
+        $data = $this->collectOrganizationSchedulesByRange($organizationId, $date, $date, false);
+
+        return [
+            'success' => true,
+            'data' => [
+                'date' => $date,
+                'schedules' => $data['schedules'],
+                'users' => $data['users']
+            ]
+        ];
+    }
+
     // 組織の週間スケジュールデータ取得API
     public function apiGetOrganizationWeek($params)
     {
         // パラメータが欠落している場合は直接$_GETから取得
         $date = isset($params['date']) ? $params['date'] : (isset($_GET['date']) ? $_GET['date'] : date('Y-m-d'));
         $organizationId = isset($params['organization_id']) ? $params['organization_id'] : (isset($_GET['organization_id']) ? $_GET['organization_id'] : null);
-
-        error_log("API Get Organization Week called with date: " . $date . ", organization_id: " . $organizationId);
 
         // 組織IDがない場合はエラー
         if (!$organizationId) {
@@ -1564,76 +1726,198 @@ class ScheduleController extends Controller
             $currentDate->modify('+1 day');
         }
 
-        // デバッグ情報を記録
-        error_log("週の期間: " . $startDate . " から " . $endDate);
-
-        // 組織に所属するユーザー一覧を取得（子組織のユーザーも含む）
-        $userModel = new \Models\User();
-        $users = $userModel->getUsersByOrganization($organizationId, true);
-
-        // ユーザーが取得できない場合、ダミーデータを作成（テスト/デバッグ目的）
-        if (empty($users)) {
-            error_log("警告: 組織(" . $organizationId . ")に所属するユーザーが見つからないためフォールバック機能を使用します");
-
-            // 管理者やアクティブユーザーを代わりに取得
-            $allUsers = $userModel->getActiveUsers();
-
-            if (!empty($allUsers)) {
-                error_log("フォールバック: アクティブユーザー " . count($allUsers) . " 名を使用します");
-                $users = $allUsers;
-            } else {
-                // 最終手段：現在のユーザーを使用
-                $currentUser = $this->auth->user();
-                if ($currentUser) {
-                    error_log("フォールバック: 現在のユーザーを使用します - " . $currentUser['id']);
-                    $users = [$currentUser];
-                }
-            }
-        }
-
-        // デバッグ: ユーザー情報を記録
-        error_log("組織スケジュール用ユーザー数: " . count($users));
-        if (!empty($users)) {
-            error_log("ユーザーID: " . implode(', ', array_column($users, 'id')));
-        }
-
-        // 各ユーザーのスケジュールを取得
-        $allSchedules = [];
-        $processedScheduleIds = []; // 重複排除のため、既に取得したスケジュールのIDを保存
-
-        foreach ($users as $user) {
-            // ユーザーのスケジュールを取得
-            $userSchedules = $this->schedule->getByDateRange($startDate, $endDate, $user['id']);
-            error_log("ユーザーID: " . $user['id'] . " のスケジュール数: " . count($userSchedules));
-
-            foreach ($userSchedules as $schedule) {
-                // 重複チェック（共有スケジュールの場合に重複する可能性がある）
-                if (!in_array($schedule['id'], $processedScheduleIds)) {
-                    // スケジュールにユーザー情報を追加
-                    $schedule['user_id'] = $user['id'];
-                    $schedule['user_name'] = $user['display_name'];
-                    $allSchedules[] = $schedule;
-
-                    // 処理済みIDに追加
-                    $processedScheduleIds[] = $schedule['id'];
-                }
-            }
-        }
-
-        // デバッグ: スケジュール数を記録
-        error_log("取得した全スケジュール数: " . count($allSchedules));
-
-        // 閲覧権限でフィルタリング
-        $filteredSchedules = array_filter($allSchedules, [$this, 'canViewSchedule']);
-        error_log("フィルタリング後のスケジュール数: " . count($filteredSchedules));
+        $data = $this->collectOrganizationSchedulesByRange($organizationId, $startDate, $endDate, false);
 
         return [
             'success' => true,
             'data' => [
                 'week_dates' => $weekDates,
-                'schedules' => array_values($filteredSchedules),
-                'users' => $users
+                'schedules' => $data['schedules'],
+                'users' => $data['users']
             ]
+        ];
+    }
+
+    // 組織の月間スケジュールデータ取得API
+    public function apiGetOrganizationMonth($params)
+    {
+        $year = isset($params['year']) ? (int)$params['year'] : (isset($_GET['year']) ? (int)$_GET['year'] : (int)date('Y'));
+        $month = isset($params['month']) ? (int)$params['month'] : (isset($_GET['month']) ? (int)$_GET['month'] : (int)date('m'));
+        $organizationId = isset($params['organization_id']) ? $params['organization_id'] : (isset($_GET['organization_id']) ? $_GET['organization_id'] : null);
+
+        if (!$organizationId) {
+            return [
+                'success' => false,
+                'error' => '組織IDが指定されていません'
+            ];
+        }
+
+        if ($year < 1970 || $year > 2099 || $month < 1 || $month > 12) {
+            $year = (int)date('Y');
+            $month = (int)date('m');
+        }
+
+        $organization = $this->organization->getById($organizationId);
+        if (!$organization) {
+            return [
+                'success' => false,
+                'error' => '指定された組織が見つかりません'
+            ];
+        }
+
+        $startDate = sprintf('%04d-%02d-01', $year, $month);
+        $endDate = date('Y-m-t', strtotime($startDate));
+        $daysInMonth = (int)date('t', strtotime($startDate));
+        $firstDayOfWeek = (int)date('w', strtotime($startDate));
+
+        $data = $this->collectOrganizationSchedulesByRange($organizationId, $startDate, $endDate, true);
+
+        return [
+            'success' => true,
+            'data' => [
+                'days_in_month' => $daysInMonth,
+                'first_day_of_week' => $firstDayOfWeek,
+                'schedules' => $data['schedules'],
+                'users' => $data['users']
+            ]
+        ];
+    }
+
+    // 組織IDの解決（指定値 > 自分の主所属組織 > users.organization_id > 先頭組織）
+    private function resolveDefaultOrganizationId($requestedOrganizationId)
+    {
+        if (!empty($requestedOrganizationId)) {
+            $organization = $this->organization->getById((int)$requestedOrganizationId);
+            if ($organization) {
+                return (int)$requestedOrganizationId;
+            }
+        }
+
+        $currentUserId = $this->auth->id();
+        if ($currentUserId) {
+            $userOrganizations = $this->user->getUserOrganizations($currentUserId);
+            if (!empty($userOrganizations)) {
+                return (int)$userOrganizations[0]['id'];
+            }
+
+            $currentUser = $this->user->getById($currentUserId);
+            if (!empty($currentUser['organization_id'])) {
+                return (int)$currentUser['organization_id'];
+            }
+        }
+
+        $organizations = $this->organization->getAll();
+        if (!empty($organizations)) {
+            return (int)$organizations[0]['id'];
+        }
+
+        return null;
+    }
+
+    // 組織内ユーザーのスケジュールを範囲取得
+    // $deduplicateByScheduleId=true の場合は同一スケジュールIDを1件に集約
+    private function collectOrganizationSchedulesByRange($organizationId, $startDate, $endDate, $deduplicateByScheduleId = false)
+    {
+        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)$startDate)) {
+            $startDate .= ' 00:00:00';
+        }
+        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)$endDate)) {
+            $endDate .= ' 23:59:59';
+        }
+
+        $users = $this->user->getUsersByOrganization($organizationId, true);
+
+        if (empty($users)) {
+            return [
+                'users' => [],
+                'schedules' => []
+            ];
+        }
+
+        $userMap = [];
+        foreach ($users as $u) {
+            $userMap[(int)$u['id']] = $u;
+        }
+
+        $organizationIds = [(int)$organizationId];
+        $descendants = $this->organization->getDescendants($organizationId);
+        foreach ($descendants as $descendant) {
+            $organizationIds[] = (int)$descendant['id'];
+        }
+        $organizationIds = array_values(array_unique(array_filter($organizationIds)));
+
+        $placeholders = implode(',', array_fill(0, count($organizationIds), '?'));
+        $viewerUserId = (int)$this->auth->id();
+
+        $sql = "SELECT DISTINCT s.*, uc.display_name as creator_name
+                FROM schedules s
+                LEFT JOIN users uc ON s.creator_id = uc.id
+                LEFT JOIN user_organizations uo_creator ON uo_creator.user_id = s.creator_id
+                LEFT JOIN schedule_participants sp_member ON sp_member.schedule_id = s.id
+                LEFT JOIN users um ON um.id = sp_member.user_id
+                LEFT JOIN user_organizations uo_member ON uo_member.user_id = sp_member.user_id
+                LEFT JOIN schedule_organizations so ON so.schedule_id = s.id
+                WHERE s.start_time <= ? AND s.end_time >= ?
+                  AND (
+                        uo_creator.organization_id IN ({$placeholders})
+                     OR uc.organization_id IN ({$placeholders})
+                     OR uo_member.organization_id IN ({$placeholders})
+                     OR um.organization_id IN ({$placeholders})
+                     OR so.organization_id IN ({$placeholders})
+                  )
+                  AND (
+                        s.visibility = 'public'
+                     OR s.creator_id = ?
+                     OR EXISTS (
+                        SELECT 1 FROM schedule_participants spv
+                        WHERE spv.schedule_id = s.id AND spv.user_id = ?
+                     )
+                     OR EXISTS (
+                        SELECT 1
+                        FROM schedule_organizations sov
+                        JOIN user_organizations uov ON sov.organization_id = uov.organization_id
+                        WHERE sov.schedule_id = s.id AND uov.user_id = ?
+                     )
+                  )
+                ORDER BY s.start_time";
+
+        $params = array_merge(
+            [$endDate, $startDate],
+            $organizationIds,
+            $organizationIds,
+            $organizationIds,
+            $organizationIds,
+            $organizationIds,
+            [$viewerUserId, $viewerUserId, $viewerUserId]
+        );
+
+        $rawSchedules = $this->db->fetchAll($sql, $params);
+        $schedules = [];
+        $dedupMap = [];
+
+        foreach ($rawSchedules as $schedule) {
+            $creatorId = (int)$schedule['creator_id'];
+            if (isset($userMap[$creatorId])) {
+                $schedule['user_id'] = $creatorId;
+                $schedule['user_name'] = $userMap[$creatorId]['display_name'];
+            } else {
+                continue;
+            }
+
+            if ($deduplicateByScheduleId) {
+                $dedupMap[(int)$schedule['id']] = $schedule;
+            } else {
+                $schedules[] = $schedule;
+            }
+        }
+
+        if ($deduplicateByScheduleId) {
+            $schedules = array_values($dedupMap);
+        }
+
+        return [
+            'users' => $users,
+            'schedules' => array_values($schedules)
         ];
     }
 }

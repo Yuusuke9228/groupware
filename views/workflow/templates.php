@@ -1,6 +1,6 @@
 <?php
 // views/workflow/templates.php
-$pageTitle = 'ワークフローテンプレート - GroupWare';
+$pageTitle = 'ワークフローテンプレート - TeamSpace';
 ?>
 <div class="container-fluid" data-page-type="templates">
     <div class="row mb-4">

@@ -1,6 +1,6 @@
 <?php
 // views/organization/index.php
-$pageTitle = '組織管理 - GroupWare';
+$pageTitle = '組織管理 - TeamSpace';
 ?>
 <div class="container-fluid" data-page-type="index">
     <div class="row mb-4">

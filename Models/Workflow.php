@@ -41,6 +41,79 @@ class Workflow
         return $this->db->fetchAll($sql, $params);
     }
 
+    public function getAvailableTemplates($userId, $page = 1, $limit = 20, $search = null)
+    {
+        $offset = ($page - 1) * $limit;
+        $orgIds = (new User())->getUserOrganizationIds($userId);
+        $params = [$userId];
+        $orgClause = '0';
+
+        if (!empty($orgIds)) {
+            $orgClause = implode(',', array_fill(0, count($orgIds), '?'));
+            $params = array_merge($params, $orgIds);
+        }
+
+        $sql = "SELECT DISTINCT t.*, u.display_name as creator_name
+                FROM workflow_templates t
+                JOIN users u ON t.creator_id = u.id
+                LEFT JOIN workflow_template_organizations wto ON wto.template_id = t.id
+                WHERE t.status = 'active'
+                  AND (
+                        t.creator_id = ?
+                     OR wto.organization_id IN ({$orgClause})
+                     OR NOT EXISTS (
+                        SELECT 1 FROM workflow_template_organizations x WHERE x.template_id = t.id
+                     )
+                  )";
+
+        if ($search) {
+            $sql .= " AND (t.name LIKE ? OR t.description LIKE ?)";
+            $searchTerm = "%" . $search . "%";
+            $params[] = $searchTerm;
+            $params[] = $searchTerm;
+        }
+
+        $sql .= " ORDER BY t.name LIMIT ? OFFSET ?";
+        $params[] = $limit;
+        $params[] = $offset;
+
+        return $this->db->fetchAll($sql, $params);
+    }
+
+    public function getAvailableTemplateCount($userId, $search = null)
+    {
+        $orgIds = (new User())->getUserOrganizationIds($userId);
+        $params = [$userId];
+        $orgClause = '0';
+
+        if (!empty($orgIds)) {
+            $orgClause = implode(',', array_fill(0, count($orgIds), '?'));
+            $params = array_merge($params, $orgIds);
+        }
+
+        $sql = "SELECT COUNT(DISTINCT t.id) AS count
+                FROM workflow_templates t
+                LEFT JOIN workflow_template_organizations wto ON wto.template_id = t.id
+                WHERE t.status = 'active'
+                  AND (
+                        t.creator_id = ?
+                     OR wto.organization_id IN ({$orgClause})
+                     OR NOT EXISTS (
+                        SELECT 1 FROM workflow_template_organizations x WHERE x.template_id = t.id
+                     )
+                  )";
+
+        if ($search) {
+            $sql .= " AND (t.name LIKE ? OR t.description LIKE ?)";
+            $searchTerm = "%" . $search . "%";
+            $params[] = $searchTerm;
+            $params[] = $searchTerm;
+        }
+
+        $row = $this->db->fetch($sql, $params);
+        return (int)($row['count'] ?? 0);
+    }
+
     /**
      * テンプレート数を取得
      */
@@ -70,6 +143,26 @@ class Workflow
                 JOIN users u ON t.creator_id = u.id 
                 WHERE t.id = ? LIMIT 1";
         return $this->db->fetch($sql, [$id]);
+    }
+
+    public function isTemplateAvailableForUser($templateId, $userId)
+    {
+        $template = $this->getTemplateById($templateId);
+        if (!$template) {
+            return false;
+        }
+
+        if ((int)$template['creator_id'] === (int)$userId) {
+            return true;
+        }
+
+        $targetOrgs = $this->getTemplateOrganizationIds($templateId);
+        if (empty($targetOrgs)) {
+            return true;
+        }
+
+        $userOrgIds = (new User())->getUserOrganizationIds($userId);
+        return count(array_intersect($targetOrgs, $userOrgIds)) > 0;
     }
 
     /**
@@ -111,6 +204,33 @@ class Workflow
             $data['status'] ?? 'active',
             $id
         ]);
+    }
+
+    public function getTemplateOrganizationIds($templateId)
+    {
+        $rows = $this->db->fetchAll(
+            "SELECT organization_id FROM workflow_template_organizations WHERE template_id = ?",
+            [$templateId]
+        );
+        return array_map('intval', array_column($rows, 'organization_id'));
+    }
+
+    public function updateTemplateOrganizations($templateId, $organizationIds = [])
+    {
+        $this->db->execute("DELETE FROM workflow_template_organizations WHERE template_id = ?", [$templateId]);
+
+        foreach ($organizationIds as $organizationId) {
+            $id = (int)$organizationId;
+            if ($id <= 0) {
+                continue;
+            }
+            $this->db->execute(
+                "INSERT INTO workflow_template_organizations (template_id, organization_id) VALUES (?, ?)",
+                [$templateId, $id]
+            );
+        }
+
+        return true;
     }
 
     /**
@@ -419,6 +539,12 @@ class Workflow
         $this->db->beginTransaction();
 
         try {
+            // 更新前のステータスを保持
+            $originalRequest = $this->getRequestById($id);
+            if (!$originalRequest) {
+                throw new \Exception('申請が見つかりません');
+            }
+
             // 申請データを更新
             $sql = "UPDATE workflow_requests SET 
                     title = ?, 
@@ -445,10 +571,9 @@ class Workflow
                 }
             }
 
-            // 申請を提出する場合、最初のステップの承認者を設定
-            $request = $this->getRequestById($id);
-            if ($data['status'] === 'pending' && $request['status'] === 'draft') {
-                $this->setupInitialApprovalStep($id, $request['template_id'], $request['requester_id']);
+            // 下書き -> 申請中 へ遷移したときのみ初期承認ステップを作成
+            if (($data['status'] ?? null) === 'pending' && $originalRequest['status'] === 'draft') {
+                $this->setupInitialApprovalStep($id, $originalRequest['template_id'], $originalRequest['requester_id']);
             }
 
             $this->db->commit();

@@ -1,6 +1,6 @@
 <?php
 // views/workflow/delegates.php
-$pageTitle = '代理承認設定 - GroupWare';
+$pageTitle = '代理承認設定 - TeamSpace';
 ?>
 <div class="container-fluid" data-page-type="delegates">
     <div class="row mb-4">

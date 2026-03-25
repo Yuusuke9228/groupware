@@ -3,16 +3,20 @@
 namespace Models;
 
 use Core\Database;
+use Core\Mailer;
+use Services\ScheduleDisplaySettings;
 
 class Notification
 {
     private $db;
     private $setting;
+    private $mailer;
 
     public function __construct()
     {
         $this->db = Database::getInstance();
         $this->setting = new Setting();
+        $this->mailer = new Mailer($this->setting);
     }
 
     /**
@@ -68,7 +72,7 @@ class Notification
             $notificationId = $this->db->lastInsertId();
 
             // ユーザーのメール通知設定を確認
-            $sendEmail = $this->shouldSendEmail($data['user_id'], $data['type']);
+            $sendEmail = empty($data['suppress_email']) && $this->shouldSendEmail($data['user_id'], $data['type']);
 
             if ($sendEmail) {
                 // メール送信キューに追加
@@ -118,8 +122,7 @@ class Notification
         $htmlBody .= "<p>{$data['content']}</p>";
 
         if (!empty($data['link'])) {
-            $fullLink = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http") .
-                "://{$_SERVER['HTTP_HOST']}" . BASE_PATH . $data['link'];
+            $fullLink = $this->buildAbsoluteLink($data['link']);
             $htmlBody .= "<p><a href='{$fullLink}'>詳細を確認</a></p>";
         }
 
@@ -199,8 +202,10 @@ class Notification
             notify_schedule, 
             notify_workflow, 
             notify_message, 
-            email_notify
-        ) VALUES (?, 1, 1, 1, 1)";
+            email_notify,
+            schedule_view_start_time,
+            schedule_view_end_time
+        ) VALUES (?, 1, 1, 1, 1, '00:00:00', '23:00:00')";
 
         return $this->db->execute($sql, [$userId]);
     }
@@ -361,13 +366,22 @@ class Notification
         // 既存の設定を確認
         $sql = "SELECT id FROM notification_settings WHERE user_id = ? LIMIT 1";
         $existing = $this->db->fetch($sql, [$userId]);
+        $toBool = function ($value) {
+            return filter_var($value, FILTER_VALIDATE_BOOLEAN) ? 1 : 0;
+        };
+        $displaySettings = ScheduleDisplaySettings::normalize(
+            $data['schedule_view_start_time'] ?? null,
+            $data['schedule_view_end_time'] ?? null
+        );
 
         // パラメータの準備
         $params = [
-            isset($data['notify_schedule']) ? 1 : 0,
-            isset($data['notify_workflow']) ? 1 : 0,
-            isset($data['notify_message']) ? 1 : 0,
-            isset($data['email_notify']) ? 1 : 0,
+            $toBool($data['notify_schedule'] ?? false),
+            $toBool($data['notify_workflow'] ?? false),
+            $toBool($data['notify_message'] ?? false),
+            $toBool($data['email_notify'] ?? false),
+            $displaySettings['start_time'] . ':00',
+            $displaySettings['end_time'] . ':00',
             $userId
         ];
 
@@ -377,7 +391,9 @@ class Notification
                     SET notify_schedule = ?, 
                         notify_workflow = ?, 
                         notify_message = ?,
-                        email_notify = ?
+                        email_notify = ?,
+                        schedule_view_start_time = ?,
+                        schedule_view_end_time = ?
                     WHERE user_id = ?";
 
             return $this->db->execute($sql, $params);
@@ -388,8 +404,10 @@ class Notification
                 notify_workflow, 
                 notify_message, 
                 email_notify, 
+                schedule_view_start_time,
+                schedule_view_end_time,
                 user_id
-            ) VALUES (?, ?, ?, ?, ?)";
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)";
 
             return $this->db->execute($sql, $params);
         }
@@ -432,44 +450,17 @@ class Notification
             ];
         }
 
-        require_once __DIR__ . '/../vendor/autoload.php';
-
-        // SMTPの設定を取得
-        $smtpHost = $this->setting->get('smtp_host');
-        $smtpPort = $this->setting->get('smtp_port');
-        $smtpSecure = $this->setting->get('smtp_secure');
-        $smtpUsername = $this->setting->get('smtp_username');
-        $smtpPassword = $this->setting->get('smtp_password');
-        $fromEmail = $this->setting->get('notification_email');
-        $appName = $this->setting->getAppName();
-
         $successCount = 0;
         $failedCount = 0;
 
         foreach ($emails as $email) {
             try {
-                // PHPMailerの設定
-                $mail = new \PHPMailer\PHPMailer\PHPMailer(true);
-                $mail->isSMTP();
-                $mail->Host = $smtpHost;
-                $mail->SMTPAuth = true;
-                $mail->Username = $smtpUsername;
-                $mail->Password = $smtpPassword;
-                $mail->SMTPSecure = $smtpSecure;
-                $mail->Port = $smtpPort;
-                $mail->CharSet = 'UTF-8';
-
-                // 送信元・送信先の設定
-                $mail->setFrom($fromEmail, $appName);
-                $mail->addAddress($email['to_email']);
-
-                // メール内容の設定
-                $mail->isHTML($email['is_html']);
-                $mail->Subject = $email['subject'];
-                $mail->Body = $email['body'];
-
-                // メール送信
-                $mail->send();
+                $this->mailer->send(
+                    $email['to_email'],
+                    $email['subject'],
+                    $email['body'],
+                    (bool)$email['is_html']
+                );
 
                 // 成功時の処理
                 $this->updateEmailStatus($email['id'], 'sent');
@@ -544,5 +535,221 @@ class Notification
                 WHERE id = ?";
 
         return $this->db->execute($sql, [$notificationId]);
+    }
+
+    /**
+     * スケジュール開始前リマインダー通知をキューに追加
+     *
+     * @param int $minutesAhead 何分先までを通知対象にするか
+     * @param int $limit 一度に処理する上限件数
+     * @return array
+     */
+    public function queueUpcomingScheduleReminders($minutesAhead = 30, $limit = 100)
+    {
+        if (!$this->setting->isNotificationEnabled()) {
+            return [
+                'success' => false,
+                'queued' => 0,
+                'message' => '通知機能が無効です'
+            ];
+        }
+
+        $sql = "SELECT 
+                    sp.schedule_id,
+                    sp.user_id,
+                    s.title,
+                    s.start_time
+                FROM schedule_participants sp
+                INNER JOIN schedules s ON s.id = sp.schedule_id
+                WHERE sp.notification_sent = 0
+                  AND sp.status IN ('pending', 'accepted', 'tentative')
+                  AND s.status = 'scheduled'
+                  AND s.start_time >= NOW()
+                  AND s.start_time <= DATE_ADD(NOW(), INTERVAL ? MINUTE)
+                ORDER BY s.start_time ASC
+                LIMIT ?";
+
+        $targets = $this->db->fetchAll($sql, [(int)$minutesAhead, (int)$limit]);
+        if (empty($targets)) {
+            return [
+                'success' => true,
+                'queued' => 0,
+                'message' => '対象のスケジュールはありません'
+            ];
+        }
+
+        $queued = 0;
+        foreach ($targets as $target) {
+            $notificationId = $this->create([
+                'user_id' => (int)$target['user_id'],
+                'type' => 'schedule',
+                'title' => 'スケジュール開始リマインダー',
+                'content' => "「{$target['title']}」がまもなく開始されます。\n開始時刻: " .
+                    date('Y年m月d日 H:i', strtotime($target['start_time'])),
+                'link' => '/schedule/view/' . (int)$target['schedule_id'],
+                'reference_id' => (int)$target['schedule_id'],
+                'reference_type' => 'schedule_reminder'
+            ]);
+
+            if ($notificationId) {
+                $this->db->execute(
+                    "UPDATE schedule_participants SET notification_sent = 1, updated_at = CURRENT_TIMESTAMP 
+                     WHERE schedule_id = ? AND user_id = ?",
+                    [(int)$target['schedule_id'], (int)$target['user_id']]
+                );
+                $queued++;
+            }
+        }
+
+        return [
+            'success' => true,
+            'queued' => $queued,
+            'message' => 'スケジュールリマインダーをキューに追加しました'
+        ];
+    }
+
+    /**
+     * ワークフロー未承認の催促通知をキューに追加
+     *
+     * @param int $pendingHours 未承認のまま経過した場合に催促開始する時間
+     * @param int $repeatHours 同一承認タスクへの再催促間隔
+     * @param int $limit 一度に処理する上限件数
+     * @return array
+     */
+    public function queueWorkflowApprovalReminders($pendingHours = 24, $repeatHours = 24, $limit = 100)
+    {
+        if (!$this->setting->isNotificationEnabled()) {
+            return [
+                'success' => false,
+                'queued' => 0,
+                'message' => '通知機能が無効です'
+            ];
+        }
+
+        $pendingHours = max(1, (int)$pendingHours);
+        $repeatHours = max(1, (int)$repeatHours);
+        $limit = max(1, (int)$limit);
+
+        $sql = "SELECT
+                    wa.id AS approval_id,
+                    wa.request_id,
+                    wa.step_number,
+                    wa.approver_id,
+                    wa.created_at AS assigned_at,
+                    wr.title AS request_title,
+                    wr.request_number,
+                    wt.name AS template_name,
+                    req.display_name AS requester_name
+                FROM workflow_approvals wa
+                INNER JOIN workflow_requests wr ON wr.id = wa.request_id
+                INNER JOIN workflow_templates wt ON wt.id = wr.template_id
+                INNER JOIN users req ON req.id = wr.requester_id
+                WHERE wa.status = 'pending'
+                  AND wr.status = 'pending'
+                  AND wa.created_at <= DATE_SUB(NOW(), INTERVAL ? HOUR)
+                ORDER BY wa.created_at ASC
+                LIMIT ?";
+
+        $targets = $this->db->fetchAll($sql, [$pendingHours, $limit]);
+        if (empty($targets)) {
+            return [
+                'success' => true,
+                'queued' => 0,
+                'message' => '対象の承認催促はありません'
+            ];
+        }
+
+        $queued = 0;
+        foreach ($targets as $target) {
+            $canNotify = $this->canSendWorkflowApprovalReminder(
+                (int)$target['approver_id'],
+                (int)$target['approval_id'],
+                $repeatHours
+            );
+
+            if (!$canNotify) {
+                continue;
+            }
+
+            $content = "未承認の申請があります。確認をお願いします。\n" .
+                "申請番号: {$target['request_number']}\n" .
+                "申請タイトル: {$target['request_title']}\n" .
+                "申請種別: {$target['template_name']}\n" .
+                "申請者: {$target['requester_name']}\n" .
+                "承認ステップ: {$target['step_number']}\n" .
+                "承認待ち開始: " . date('Y年m月d日 H:i', strtotime($target['assigned_at']));
+
+            $notificationId = $this->create([
+                'user_id' => (int)$target['approver_id'],
+                'type' => 'workflow',
+                'title' => '【催促】承認待ちのワークフロー申請があります',
+                'content' => $content,
+                'link' => '/workflow/view/' . (int)$target['request_id'],
+                'reference_id' => (int)$target['approval_id'],
+                'reference_type' => 'workflow_approval_reminder'
+            ]);
+
+            if ($notificationId) {
+                $queued++;
+            }
+        }
+
+        return [
+            'success' => true,
+            'queued' => $queued,
+            'message' => 'ワークフロー催促通知をキューに追加しました'
+        ];
+    }
+
+    /**
+     * 相対リンクを絶対URLへ変換
+     *
+     * @param string $link
+     * @return string
+     */
+    private function buildAbsoluteLink($link)
+    {
+        if (preg_match('#^https?://#i', $link)) {
+            return $link;
+        }
+
+        $appUrl = $this->setting->getAppUrl();
+        if (!empty($appUrl)) {
+            return rtrim($appUrl, '/') . '/' . ltrim($link, '/');
+        }
+
+        $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+        $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+        $basePath = defined('BASE_PATH') ? BASE_PATH : '';
+
+        return rtrim($scheme . '://' . $host . $basePath, '/') . '/' . ltrim($link, '/');
+    }
+
+    /**
+     * 同一承認タスクへの催促送信可否を判定
+     *
+     * @param int $userId
+     * @param int $approvalId
+     * @param int $repeatHours
+     * @return bool
+     */
+    private function canSendWorkflowApprovalReminder($userId, $approvalId, $repeatHours)
+    {
+        $sql = "SELECT created_at
+                FROM notifications
+                WHERE user_id = ?
+                  AND reference_id = ?
+                  AND reference_type = 'workflow_approval_reminder'
+                  AND type = 'workflow'
+                ORDER BY created_at DESC
+                LIMIT 1";
+
+        $latest = $this->db->fetch($sql, [(int)$userId, (int)$approvalId]);
+        if (!$latest) {
+            return true;
+        }
+
+        $lastSent = strtotime($latest['created_at']);
+        return $lastSent <= strtotime('-' . (int)$repeatHours . ' hours');
     }
 }

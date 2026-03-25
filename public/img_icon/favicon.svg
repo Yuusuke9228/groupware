@@ -1,0 +1,70 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4a9af5"/>
+      <stop offset="50%" stop-color="#2b7de9"/>
+      <stop offset="100%" stop-color="#1b5fc2"/>
+    </linearGradient>
+    <linearGradient id="shine" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#fff" stop-opacity="0.25"/>
+      <stop offset="50%" stop-color="#fff" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="node1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#e0ecfc"/>
+    </linearGradient>
+    <linearGradient id="node2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.95"/>
+      <stop offset="100%" stop-color="#d0e4fa" stop-opacity="0.9"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Rounded square background -->
+  <rect width="64" height="64" rx="14" fill="url(#bg)"/>
+
+  <!-- Subtle top shine overlay -->
+  <rect width="64" height="64" rx="14" fill="url(#shine)"/>
+
+  <!-- Connection lines (behind nodes) -->
+  <g stroke="#fff" stroke-opacity="0.4" stroke-width="1.8" stroke-linecap="round">
+    <!-- Top to bottom-left -->
+    <line x1="32" y1="16" x2="18" y2="38"/>
+    <!-- Top to bottom-right -->
+    <line x1="32" y1="16" x2="46" y2="38"/>
+    <!-- Bottom-left to bottom-right -->
+    <line x1="18" y1="38" x2="46" y2="38"/>
+    <!-- Top to center -->
+    <line x1="32" y1="16" x2="32" y2="30"/>
+    <!-- Center to bottom-left -->
+    <line x1="32" y1="30" x2="18" y2="38"/>
+    <!-- Center to bottom-right -->
+    <line x1="32" y1="30" x2="46" y2="38"/>
+    <!-- Bottom-left to bottom-center -->
+    <line x1="18" y1="38" x2="32" y2="48"/>
+    <!-- Bottom-right to bottom-center -->
+    <line x1="46" y1="38" x2="32" y2="48"/>
+    <!-- Center to bottom-center -->
+    <line x1="32" y1="30" x2="32" y2="48"/>
+  </g>
+
+  <!-- Nodes representing team members / collaboration points -->
+  <!-- Top node (leader/hub) -->
+  <circle cx="32" cy="16" r="5.5" fill="url(#node1)"/>
+  <circle cx="32" cy="16" r="3" fill="#2b7de9" opacity="0.3"/>
+
+  <!-- Center node -->
+  <circle cx="32" cy="30" r="4.5" fill="url(#node2)"/>
+  <circle cx="32" cy="30" r="2.5" fill="#2b7de9" opacity="0.25"/>
+
+  <!-- Bottom-left node -->
+  <circle cx="18" cy="38" r="5" fill="url(#node1)"/>
+  <circle cx="18" cy="38" r="2.8" fill="#2b7de9" opacity="0.3"/>
+
+  <!-- Bottom-right node -->
+  <circle cx="46" cy="38" r="5" fill="url(#node1)"/>
+  <circle cx="46" cy="38" r="2.8" fill="#2b7de9" opacity="0.3"/>
+
+  <!-- Bottom-center node -->
+  <circle cx="32" cy="48" r="4.5" fill="url(#node2)"/>
+  <circle cx="32" cy="48" r="2.5" fill="#2b7de9" opacity="0.25"/>
+</svg>

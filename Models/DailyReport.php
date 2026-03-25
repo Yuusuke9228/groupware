@@ -611,11 +611,21 @@ class DailyReport
     public function getTemplates($userId)
     {
         try {
-            $sql = "SELECT * FROM daily_report_templates 
-                   WHERE user_id = ? OR is_public = 1
-                   ORDER BY title";
+            $orgIds = (new User())->getUserOrganizationIds($userId);
+            $params = [$userId];
+            $orgClause = '0';
+            if (!empty($orgIds)) {
+                $orgClause = implode(',', array_fill(0, count($orgIds), '?'));
+                $params = array_merge($params, $orgIds);
+            }
 
-            return $this->db->fetchAll($sql, [$userId]);
+            $sql = "SELECT DISTINCT t.*
+                    FROM daily_report_templates t
+                    LEFT JOIN daily_report_template_organizations dto ON dto.template_id = t.id
+                    WHERE t.user_id = ? OR t.is_public = 1 OR dto.organization_id IN ({$orgClause})
+                    ORDER BY t.title";
+
+            return $this->db->fetchAll($sql, $params);
         } catch (\Exception $e) {
             error_log("Error getting templates: " . $e->getMessage());
             return [];
@@ -680,6 +690,22 @@ class DailyReport
             error_log("Error getting template: " . $e->getMessage());
             return null;
         }
+    }
+
+    public function isTemplateAvailableForUser($templateId, $userId)
+    {
+        $template = $this->getTemplateById($templateId);
+        if (!$template) {
+            return false;
+        }
+
+        if ((int)$template['user_id'] === (int)$userId || (int)$template['is_public'] === 1) {
+            return true;
+        }
+
+        $userOrgIds = (new User())->getUserOrganizationIds($userId);
+        $targetOrgIds = $this->getTemplateOrganizationIds($templateId);
+        return count(array_intersect($userOrgIds, $targetOrgIds)) > 0;
     }
 
     /**
@@ -1115,5 +1141,32 @@ class DailyReport
             error_log("Error deleting template: " . $e->getMessage());
             return false;
         }
+    }
+
+    public function getTemplateOrganizationIds($templateId)
+    {
+        $rows = $this->db->fetchAll(
+            "SELECT organization_id FROM daily_report_template_organizations WHERE template_id = ?",
+            [$templateId]
+        );
+        return array_map('intval', array_column($rows, 'organization_id'));
+    }
+
+    public function updateTemplateOrganizations($templateId, $organizationIds = [])
+    {
+        $this->db->execute("DELETE FROM daily_report_template_organizations WHERE template_id = ?", [$templateId]);
+
+        foreach ($organizationIds as $organizationId) {
+            $id = (int)$organizationId;
+            if ($id <= 0) {
+                continue;
+            }
+            $this->db->execute(
+                "INSERT INTO daily_report_template_organizations (template_id, organization_id) VALUES (?, ?)",
+                [$templateId, $id]
+            );
+        }
+
+        return true;
     }
 }

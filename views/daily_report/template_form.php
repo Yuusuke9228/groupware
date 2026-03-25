@@ -19,7 +19,7 @@ $submitButtonText = $isEdit ? '更新する' : '作成する';
                     </div>
                 </div>
 
-                <form id="templateForm" method="POST" action="<?= $formAction ?>">
+                <form id="templateForm" class="no-ajax" method="POST" action="<?= $formAction ?>">
                     <!-- タイトル -->
                     <div class="mb-3">
                         <label for="title" class="form-label">テンプレート名 <span class="text-danger">*</span></label>
@@ -49,6 +49,19 @@ $submitButtonText = $isEdit ? '更新する' : '作成する';
                         <div class="form-text">
                             公開テンプレートは全ユーザーが使用できます。チェックしない場合は自分だけが使用できます。
                         </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="organization_ids" class="form-label">配布先組織</label>
+                        <select class="form-select select2" id="organization_ids" name="organization_ids[]" multiple>
+                            <?php foreach (($organizations ?? []) as $org): ?>
+                                <option value="<?= (int)$org['id'] ?>"
+                                    <?= in_array((int)$org['id'], $templateOrganizationIds ?? [], true) ? 'selected' : '' ?>>
+                                    <?= htmlspecialchars($org['name']) ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                        <div class="form-text">未選択時は公開設定に従います。</div>
                     </div>
 
                     <!-- ボタン -->
@@ -117,7 +130,7 @@ $submitButtonText = $isEdit ? '更新する' : '作成する';
         console.log('formAction:', '<?= $formAction ?>');
 
         // フォーム送信処理
-        $('#templateForm')off('submit').on('submit', function(e) {
+        $('#templateForm').off('submit').on('submit', function(e) {
             e.preventDefault();
 
             // デバッグログ
@@ -132,6 +145,7 @@ $submitButtonText = $isEdit ? '更新する' : '作成する';
                 title: $('#title').val(),
                 content: $('#content').val(),
                 is_public: $('#is_public').is(':checked'),
+                organization_ids: $('#organization_ids').val() || [],
                 isEdit: <?= json_encode($isEdit) ?> // isEdit情報をコントローラに渡す
             };
 

@@ -1,0 +1,15 @@
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteBase /groupware/
+
+    # public内の静的ファイル（CSS, JS, 画像等）へのアクセスを許可
+    RewriteRule ^(css|js|img_icon|images|uploads|fonts)/(.*)$ public/$1/$2 [L]
+
+    # すべてのリクエストをpublic/index.phpにルーティング
+    # （publicディレクトリ自体は除外）
+    RewriteCond %{REQUEST_URI} !^/groupware/public/
+    RewriteRule ^(.*)$ public/index.php [QSA,L]
+</IfModule>
+
+# ディレクトリ一覧を無効化
+Options -Indexes

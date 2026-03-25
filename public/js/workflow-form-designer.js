@@ -187,7 +187,7 @@ const FormDesigner = {
             label: label,
             placeholder: '',
             help_text: '',
-            options: fieldType === 'select' || fieldType === 'radio' || fieldType === 'checkbox' ? '[]' : null,
+            options: fieldType === 'select' || fieldType === 'radio' || fieldType === 'checkbox' ? '[]' : (fieldType === 'calc' ? '{"formula":"","format":"number","decimals":0}' : null),
             validation: '{}',
             is_required: false,
             sort_order: this.fieldDefinitions.length
@@ -221,6 +221,8 @@ const FormDesigner = {
                 return 'ファイル';
             case 'heading':
                 return '見出し';
+            case 'calc':
+                return '計算フィールド';
             case 'hidden':
                 return '隠しフィールド';
             default:
@@ -338,6 +340,20 @@ const FormDesigner = {
                 `;
                 break;
 
+            case 'calc':
+                const formula = field.options ? (typeof field.options === 'string' ? field.options : JSON.stringify(field.options)) : '';
+                fieldHtml = `
+                    <div class="mb-3">
+                        <label class="form-label">${field.label} ${isRequired}</label>
+                        <div class="form-control bg-light" readonly>
+                            <i class="fas fa-superscript me-1"></i> 計算結果（自動計算）
+                        </div>
+                        <small class="form-text text-muted">計算式: ${formula || '未設定'}</small>
+                        ${helpText}
+                    </div>
+                `;
+                break;
+
             case 'hidden':
                 fieldHtml = `
                     <div class="mb-3">
@@ -405,6 +421,17 @@ const FormDesigner = {
             }
         }
 
+        // 計算フィールドの設定
+        if (field.field_type === 'calc') {
+            let calcData = {};
+            try {
+                calcData = field.options ? JSON.parse(field.options) : {};
+            } catch(e) { calcData = {}; }
+            $('#calc-formula').val(calcData.formula || '');
+            $('#calc-format').val(calcData.format || 'number');
+            $('#calc-decimals').val(calcData.decimals !== undefined ? calcData.decimals : 0);
+        }
+
         // バリデーションの設定
         if (field.validation) {
             const validation = JSON.parse(field.validation);
@@ -450,6 +477,10 @@ const FormDesigner = {
 
             case 'file':
                 $('#file-options').show();
+                break;
+
+            case 'calc':
+                $('#calc-options').show();
                 break;
         }
     },
@@ -640,6 +671,13 @@ $(document).ready(function () {
 
             if (fieldType === 'select' || fieldType === 'radio' || fieldType === 'checkbox') {
                 field.options = JSON.stringify(options);
+            } else if (fieldType === 'calc') {
+                const calcData = {
+                    formula: $('#calc-formula').val() || '',
+                    format: $('#calc-format').val() || 'number',
+                    decimals: parseInt($('#calc-decimals').val()) || 0
+                };
+                field.options = JSON.stringify(calcData);
             }
 
             // APIに保存

@@ -1,6 +1,6 @@
 <?php
 // views/workflow/approvals.php
-$pageTitle = '承認待ち一覧 - GroupWare';
+$pageTitle = '承認待ち一覧 - TeamSpace';
 ?>
 <div class="container-fluid" data-page-type="approvals">
     <div class="row mb-4">

@@ -1,6 +1,6 @@
 <?php
 // views/user/create.php
-$pageTitle = '新規ユーザー作成 - GroupWare';
+$pageTitle = '新規ユーザー作成 - TeamSpace';
 $isEdit = false;
 ?>
 <div class="container-fluid" data-page-type="create">

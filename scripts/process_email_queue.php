@@ -55,6 +55,23 @@ echo "Email Queue Processing Started: " . date('Y-m-d H:i:s') . PHP_EOL;
 
 // 通知モデルのインスタンス作成
 $notification = new Models\Notification();
+$setting = new Models\Setting();
+$calendarImportService = new Services\CalendarImportService();
+
+// 催促通知設定（未設定時は24時間）
+$workflowReminderPendingHours = (int)$setting->get('workflow_reminder_pending_hours', 24);
+$workflowReminderRepeatHours = (int)$setting->get('workflow_reminder_repeat_hours', 24);
+
+// スケジュール開始前リマインダーを通知キューへ投入
+$reminderResult = $notification->queueUpcomingScheduleReminders(30, 100);
+// 外部カレンダー定期取り込みを先に実行
+$calendarImportResults = $calendarImportService->syncDueSubscriptions(50);
+// ワークフロー未承認の催促通知をキューへ投入
+$workflowReminderResult = $notification->queueWorkflowApprovalReminders(
+    $workflowReminderPendingHours,
+    $workflowReminderRepeatHours,
+    100
+);
 
 // 一度に処理するメール数
 $limit = 20;
@@ -64,6 +81,9 @@ $result = $notification->processEmailQueue($limit);
 
 // 処理結果の出力
 echo "Processing completed: " . PHP_EOL;
+echo "Reminder queued: " . ($reminderResult['queued'] ?? 0) . PHP_EOL;
+echo "Calendar imports processed: " . count($calendarImportResults) . PHP_EOL;
+echo "Workflow reminder queued: " . ($workflowReminderResult['queued'] ?? 0) . PHP_EOL;
 echo "Success: " . ($result['success'] ? 'Yes' : 'No') . PHP_EOL;
 echo "Message: " . $result['message'] . PHP_EOL;
 echo "Processed: " . $result['processed'] . PHP_EOL;

@@ -10,7 +10,8 @@ class Database {
         $dbConfig = require_once __DIR__ . '/../config/database.php';
         
         try {
-            $dsn = "mysql:host={$dbConfig['host']};dbname={$dbConfig['dbname']};port={$dbConfig['port']}";
+            $charset = $dbConfig['charset'] ?? 'utf8mb4';
+            $dsn = "mysql:host={$dbConfig['host']};dbname={$dbConfig['dbname']};port={$dbConfig['port']};charset={$charset}";
             $options = [
                 \PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION,
                 \PDO::ATTR_DEFAULT_FETCH_MODE => \PDO::FETCH_ASSOC,

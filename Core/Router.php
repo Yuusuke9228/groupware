@@ -134,9 +134,20 @@ class Router
         $path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
         $baseDir = dirname($_SERVER['SCRIPT_NAME']);
 
+        // /public を除去（ルートの.htaccessからリダイレクトされた場合）
+        $baseDir = preg_replace('#/public$#', '', $baseDir);
+
         // ベースディレクトリの調整
         if ($baseDir !== '/' && strpos($path, $baseDir) === 0) {
             $path = substr($path, strlen($baseDir));
+        }
+
+        // /index.php 配下のURLでも通常ルートとして扱う
+        if (strpos($path, '/index.php') === 0) {
+            $path = substr($path, strlen('/index.php'));
+            if ($path === '') {
+                $path = '/';
+            }
         }
 
         // 特別なケース: 組織コードの重複チェックAPI

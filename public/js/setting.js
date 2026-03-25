@@ -61,6 +61,38 @@ document.addEventListener('DOMContentLoaded', function () {
     // SMTP設定フォーム
     const smtpSettingsForm = document.getElementById('smtpSettingsForm');
     if (smtpSettingsForm) {
+        const transportSelect = document.getElementById('mail_transport');
+        const smtpFields = document.getElementById('smtpFields');
+        const sendmailFields = document.getElementById('sendmailFields');
+        const smtpAuthCheckbox = document.getElementById('smtp_auth');
+
+        const toggleMailTransportFields = () => {
+            const transport = transportSelect ? transportSelect.value : 'smtp';
+
+            if (smtpFields) {
+                smtpFields.classList.toggle('d-none', transport !== 'smtp');
+            }
+            if (sendmailFields) {
+                sendmailFields.classList.toggle('d-none', transport !== 'sendmail');
+            }
+        };
+
+        const toggleSmtpAuthFields = () => {
+            const useAuth = smtpAuthCheckbox ? smtpAuthCheckbox.checked : true;
+            document.querySelectorAll('.smtp-auth-field').forEach(el => {
+                el.classList.toggle('d-none', !useAuth);
+            });
+        };
+
+        if (transportSelect) {
+            transportSelect.addEventListener('change', toggleMailTransportFields);
+        }
+        if (smtpAuthCheckbox) {
+            smtpAuthCheckbox.addEventListener('change', toggleSmtpAuthFields);
+        }
+        toggleMailTransportFields();
+        toggleSmtpAuthFields();
+
         smtpSettingsForm.addEventListener('submit', function (e) {
             e.preventDefault();
 
@@ -70,7 +102,11 @@ document.addEventListener('DOMContentLoaded', function () {
             for (let i = 0; i < formElements.length; i++) {
                 const element = formElements[i];
                 if (element.name && element.name !== '') {
-                    formData[element.name] = element.value;
+                    if (element.type === 'checkbox') {
+                        formData[element.name] = element.checked ? '1' : '0';
+                    } else {
+                        formData[element.name] = element.value;
+                    }
                 }
             }
 

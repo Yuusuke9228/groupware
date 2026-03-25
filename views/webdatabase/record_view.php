@@ -24,6 +24,7 @@
         <div class="card-body">
             <div class="row mb-4">
                 <div class="col-md-6">
+                    <div class="table-responsive">
                     <table class="table table-sm">
                         <tr>
                             <th width="30%">作成者</th>
@@ -44,6 +45,7 @@
                             </tr>
                         <?php endif; ?>
                     </table>
+                    </div>
                 </div>
             </div>
 
@@ -127,8 +129,36 @@
                                                 echo '<span class="organization-display" data-org-id="' . htmlspecialchars($value) . '">' . htmlspecialchars($value) . '</span>';
                                                 break;
 
+                                            case 'relation':
+                                                echo '<span class="relation-display" data-record-id="' . $record['id'] . '" data-field-id="' . $field['id'] . '"><i class="fas fa-spinner fa-spin"></i> 読み込み中...</span>';
+                                                break;
+
+                                            case 'lookup':
+                                                echo '<span class="text-info"><i class="fas fa-eye me-1"></i>' . htmlspecialchars($value) . '</span>';
+                                                break;
+
+                                            case 'url':
+                                                echo '<a href="' . htmlspecialchars($value) . '" target="_blank" rel="noopener">' . htmlspecialchars($value) . ' <i class="fas fa-external-link-alt"></i></a>';
+                                                break;
+
+                                            case 'email':
+                                                echo '<a href="mailto:' . htmlspecialchars($value) . '">' . htmlspecialchars($value) . '</a>';
+                                                break;
+
+                                            case 'phone':
+                                                echo '<a href="tel:' . htmlspecialchars($value) . '">' . htmlspecialchars($value) . '</a>';
+                                                break;
+
+                                            case 'currency':
+                                                echo '&yen;' . number_format((float)$value);
+                                                break;
+
+                                            case 'percent':
+                                                echo htmlspecialchars($value) . '%';
+                                                break;
+
                                             default:
-                                                echo htmlspecialchars($value);
+                                                echo htmlspecialchars(is_array($value) ? json_encode($value) : $value);
                                         }
                                     }
                                     ?>
@@ -200,6 +230,28 @@
                     });
             } else {
                 element.textContent = '未選択';
+            }
+        });
+
+        // リレーションフィールドの表示
+        document.querySelectorAll('.relation-display').forEach(function(element) {
+            const recordId = element.dataset.recordId;
+            const fieldId = element.dataset.fieldId;
+            if (recordId && fieldId) {
+                fetch(`${BASE_PATH}/api/webdatabase/related-records/${recordId}?field_id=${fieldId}`)
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data.success && data.data.length > 0) {
+                            element.innerHTML = data.data.map(r =>
+                                `<a href="${BASE_PATH}/webdatabase/view/${r.target_database_id}/${r.target_record_id}" class="badge bg-primary text-decoration-none me-1">${r.title || 'ID:' + r.target_record_id}</a>`
+                            ).join('');
+                        } else {
+                            element.innerHTML = '<span class="text-muted">リレーションなし</span>';
+                        }
+                    })
+                    .catch(() => {
+                        element.innerHTML = '<span class="text-muted">取得失敗</span>';
+                    });
             }
         });
 

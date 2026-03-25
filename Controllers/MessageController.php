@@ -501,7 +501,6 @@ class MessageController extends Controller
             chmod($uploadDir, 0777); // 確実に書き込み権限を付与
         }
 
-        error_log("Upload directory: {$uploadDir} exists: " . (file_exists($uploadDir) ? 'Yes' : 'No') . " writable: " . (is_writable($uploadDir) ? 'Yes' : 'No'));
 
         // ファイル処理
         if (isset($_FILES) && !empty($_FILES)) {
@@ -549,7 +548,6 @@ class MessageController extends Controller
                 'redirect' => BASE_PATH . '/messages/sent'
             ];
         } catch (\Exception $e) {
-            error_log("Exception in apiSend: " . $e->getMessage());
             return ['error' => $e->getMessage(), 'code' => 500];
         }
     }
@@ -709,14 +707,11 @@ class MessageController extends Controller
         // アップロードディレクトリが存在しない場合は作成し、権限を設定
         if (!file_exists($uploadDir)) {
             if (!mkdir($uploadDir, 0777, true)) {
-                error_log("Failed to create directory: {$uploadDir}");
                 return $processedFiles;
             }
             chmod($uploadDir, 0777); // 確実に書き込み権限を付与
         }
 
-        error_log("Upload directory: {$uploadDir} exists: " . (file_exists($uploadDir) ? 'Yes' : 'No') . " writable: " . (is_writable($uploadDir) ? 'Yes' : 'No'));
-        error_log("Processing attachments: " . print_r($files, true));
 
         // ファイル情報の配列構造に応じた処理
         foreach ($files as $fieldName => $fileInfo) {
@@ -728,7 +723,6 @@ class MessageController extends Controller
                 $fileType = $fileInfo['type'];
                 $fileError = $fileInfo['error'];
 
-                error_log("Processing single file: {$fileName}, Error: {$fileError}");
 
                 // ファイルがアップロードされている場合のみ処理
                 if (!empty($fileName) && $fileError === 0 && is_uploaded_file($tmpName)) {
@@ -739,11 +733,9 @@ class MessageController extends Controller
                     $uniqueName = uniqid() . '_' . $safeName;
                     $filePath = $uploadDir . $uniqueName;
 
-                    error_log("Moving file from {$tmpName} to {$filePath}");
 
                     // ファイルを移動
                     if (move_uploaded_file($tmpName, $filePath)) {
-                        error_log("File moved successfully");
                         $processedFiles[] = [
                             'name' => $fileName,  // 元のファイル名を保持（表示用）
                             'path' => 'uploads/messages/' . $uniqueName,
@@ -752,15 +744,12 @@ class MessageController extends Controller
                         ];
                     } else {
                         $errorMsg = error_get_last();
-                        error_log("Failed to move file: " . ($errorMsg ? $errorMsg['message'] : 'Unknown error'));
                         // ファイルのパーミッション確認
-                        error_log("Upload dir permissions: " . substr(sprintf('%o', fileperms($uploadDir)), -4));
                     }
                 }
             }
             // 複数ファイルの場合
             elseif (is_array($fileInfo['name'])) {
-                error_log("Processing multiple files: " . count($fileInfo['name']));
 
                 for ($i = 0; $i < count($fileInfo['name']); $i++) {
                     $fileName = $fileInfo['name'][$i];
@@ -769,7 +758,6 @@ class MessageController extends Controller
                     $fileType = $fileInfo['type'][$i];
                     $fileError = $fileInfo['error'][$i];
 
-                    error_log("Processing file #{$i}: {$fileName}, Error: {$fileError}");
 
                     // ファイルがアップロードされている場合のみ処理
                     if (!empty($fileName) && $fileError === 0 && is_uploaded_file($tmpName)) {
@@ -780,11 +768,9 @@ class MessageController extends Controller
                         $uniqueName = uniqid() . '_' . $safeName;
                         $filePath = $uploadDir . $uniqueName;
 
-                        error_log("Moving file from {$tmpName} to {$filePath}");
 
                         // ファイルを移動
                         if (move_uploaded_file($tmpName, $filePath)) {
-                            error_log("File moved successfully");
                             $processedFiles[] = [
                                 'name' => $fileName,  // 元のファイル名を保持（表示用）
                                 'path' => 'uploads/messages/' . $uniqueName,
@@ -793,15 +779,12 @@ class MessageController extends Controller
                             ];
                         } else {
                             $errorMsg = error_get_last();
-                            error_log("Failed to move file: " . ($errorMsg ? $errorMsg['message'] : 'Unknown error'));
-                            error_log("Upload dir permissions: " . substr(sprintf('%o', fileperms($uploadDir)), -4));
                         }
                     }
                 }
             }
         }
 
-        error_log("Processed files: " . count($processedFiles));
         return $processedFiles;
     }
 

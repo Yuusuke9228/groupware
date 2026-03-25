@@ -1,6 +1,6 @@
 <?php
 // views/user/index.php
-$pageTitle = 'ユーザー管理 - GroupWare';
+$pageTitle = 'ユーザー管理 - TeamSpace';
 ?>
 <div class="container-fluid" data-page-type="index">
     <div class="row mb-4">

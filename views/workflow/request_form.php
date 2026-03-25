@@ -149,6 +149,23 @@ $isEdit = isset($request);
                                 <p class="text-muted mb-3"><?php echo htmlspecialchars($field['help_text']); ?></p>
                             <?php endif; ?>
                         <?php break;
+                        case 'calc':
+                            $calcOptions = json_decode($field['options'] ?? '{}', true);
+                            $calcFormula = $calcOptions['formula'] ?? '';
+                            $calcFormat = $calcOptions['format'] ?? 'number';
+                            $calcDecimals = $calcOptions['decimals'] ?? 0;
+                            ?>
+                            <div class="mb-3">
+                                <label class="form-label"><?php echo htmlspecialchars($field['label']); ?></label>
+                                <input type="text" class="form-control bg-light calc-field" id="<?php echo $fieldId; ?>" name="form_data[<?php echo $fieldId; ?>]" value="<?php echo htmlspecialchars($fieldValue); ?>" readonly
+                                    data-formula="<?php echo htmlspecialchars($calcFormula); ?>"
+                                    data-format="<?php echo htmlspecialchars($calcFormat); ?>"
+                                    data-decimals="<?php echo (int)$calcDecimals; ?>">
+                                <?php if (!empty($field['help_text'])): ?>
+                                    <small class="form-text text-muted"><?php echo htmlspecialchars($field['help_text']); ?></small>
+                                <?php endif; ?>
+                            </div>
+                        <?php break;
                         case 'hidden': ?>
                             <input type="hidden" id="<?php echo $fieldId; ?>" name="form_data[<?php echo $fieldId; ?>]" value="<?php echo htmlspecialchars($fieldValue); ?>">
                     <?php break;
@@ -167,3 +184,68 @@ $isEdit = isset($request);
         </div>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    function formatCalcValue(result, format, decimals) {
+        if (format === 'currency') {
+            return '¥' + result.toLocaleString('ja-JP', {
+                minimumFractionDigits: decimals,
+                maximumFractionDigits: decimals
+            });
+        }
+
+        if (format === 'percent') {
+            return result.toLocaleString('ja-JP', {
+                minimumFractionDigits: decimals,
+                maximumFractionDigits: decimals
+            }) + '%';
+        }
+
+        return result.toLocaleString('ja-JP', {
+            minimumFractionDigits: decimals,
+            maximumFractionDigits: decimals
+        });
+    }
+
+    function recalcAll() {
+        document.querySelectorAll('.calc-field').forEach(function(field) {
+            var formula = field.dataset.formula || '';
+            var format = field.dataset.format || 'number';
+            var decimals = parseInt(field.dataset.decimals || '0', 10) || 0;
+
+            if (!formula) {
+                field.value = '';
+                return;
+            }
+
+            var expr = formula.replace(/\{([^}]+)\}/g, function(match, fieldId) {
+                var sourceField = document.querySelector('[name="form_data[' + fieldId + ']"]') || document.getElementById(fieldId);
+                var rawValue = sourceField ? sourceField.value : '';
+                var numericValue = parseFloat(String(rawValue).replace(/,/g, '').replace(/[^\d.-]/g, ''));
+                return isNaN(numericValue) ? 0 : numericValue;
+            });
+
+            try {
+                expr = expr.replace(/[^0-9+\-*/(). ]/g, '');
+                var result = Function('"use strict"; return (' + expr + ')')();
+                if (isNaN(result) || !isFinite(result)) {
+                    result = 0;
+                }
+
+                result = parseFloat(result.toFixed(decimals));
+                field.value = formatCalcValue(result, format, decimals);
+            } catch (e) {
+                field.value = '計算エラー';
+            }
+        });
+    }
+
+    document.querySelectorAll('input[type="number"], input[type="text"]:not(.calc-field), textarea, select').forEach(function(field) {
+        field.addEventListener('input', recalcAll);
+        field.addEventListener('change', recalcAll);
+    });
+
+    recalcAll();
+});
+</script>

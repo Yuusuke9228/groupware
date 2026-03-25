@@ -7,6 +7,7 @@ use Core\Database;
 use Core\Auth;
 use Models\Notification;
 use Models\Setting;
+use Services\ScheduleDisplaySettings;
 
 class NotificationController extends Controller
 {
@@ -89,8 +90,17 @@ class NotificationController extends Controller
                 'notify_workflow' => 1,
                 'notify_message' => 1,
                 'email_notify' => 1,
+                'schedule_view_start_time' => '00:00:00',
+                'schedule_view_end_time' => '23:00:00',
             ];
         }
+
+        $displaySettings = ScheduleDisplaySettings::normalize(
+            $settings['schedule_view_start_time'] ?? null,
+            $settings['schedule_view_end_time'] ?? null
+        );
+        $settings['schedule_view_start_time'] = $displaySettings['start_time'];
+        $settings['schedule_view_end_time'] = $displaySettings['end_time'];
 
         $viewData = [
             'title' => '通知設定',

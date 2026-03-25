@@ -1,6 +1,6 @@
 <?php
 // views/schedule/edit.php
-$pageTitle = 'スケジュール編集 - GroupWare';
+$pageTitle = 'スケジュール編集 - TeamSpace';
 $isEdit = true;
 
 // スケジュールの開始日時と終了日時を分解

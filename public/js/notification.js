@@ -83,7 +83,9 @@ document.addEventListener('DOMContentLoaded', function () {
                 notify_schedule: document.getElementById('notify_schedule').checked,
                 notify_workflow: document.getElementById('notify_workflow').checked,
                 notify_message: document.getElementById('notify_message').checked,
-                email_notify: document.getElementById('email_notify').checked
+                email_notify: document.getElementById('email_notify').checked,
+                schedule_view_start_time: document.getElementById('schedule_view_start_time') ? document.getElementById('schedule_view_start_time').value : '00:00',
+                schedule_view_end_time: document.getElementById('schedule_view_end_time') ? document.getElementById('schedule_view_end_time').value : '23:00'
             };
 
             // API呼び出し

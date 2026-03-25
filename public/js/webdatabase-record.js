@@ -345,6 +345,7 @@ const WebDatabaseRecord = {
         // ユーザーフィールドとオーガニゼーションフィールドの初期化
         this.initUserFieldOptions();
         this.initOrganizationFieldOptions();
+        this.initRelationFields();
 
         // フォーム送信処理
         $('#record-form').on('submit', function (e) {
@@ -588,6 +589,44 @@ const WebDatabaseRecord = {
         const minutes = String(date.getMinutes()).padStart(2, '0');
 
         return `${year}/${month}/${day} ${hours}:${minutes}`;
+    },
+
+    // リレーションフィールドの初期化
+    initRelationFields: function () {
+        $('.relation-field-container').each(function () {
+            const $container = $(this);
+            const fieldId = $container.data('field-id');
+            const relationDb = $container.data('relation-db');
+            const $select = $container.find('.relation-select');
+
+            if (!relationDb) return;
+
+            // リレーション先レコードを取得
+            $.ajax({
+                url: BASE_PATH + '/api/webdatabase/relation-targets/' + relationDb,
+                type: 'GET',
+                success: function (response) {
+                    if (response.success && response.data) {
+                        response.data.forEach(function (record) {
+                            $select.append(
+                                '<option value="' + record.id + '">' +
+                                $('<span>').text(record.title || 'ID:' + record.id).html() +
+                                '</option>'
+                            );
+                        });
+
+                        // Select2で検索可能にする
+                        if ($.fn.select2) {
+                            $select.select2({
+                                placeholder: 'レコードを選択',
+                                allowClear: true,
+                                width: '100%'
+                            });
+                        }
+                    }
+                }
+            });
+        });
     }
 };
 

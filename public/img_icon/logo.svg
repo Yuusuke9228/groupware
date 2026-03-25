@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 48">
+  <defs>
+    <linearGradient id="logobg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#2b7de9"/>
+      <stop offset="100%" style="stop-color:#1a5dc0"/>
+    </linearGradient>
+  </defs>
+  <rect width="40" height="40" rx="9" y="4" fill="url(#logobg)"/>
+  <text x="20" y="33" font-family="Arial,sans-serif" font-size="26" font-weight="bold" fill="white" text-anchor="middle">T</text>
+  <text x="50" y="33" font-family="-apple-system,BlinkMacSystemFont,sans-serif" font-size="22" font-weight="700" fill="#202124">Team</text>
+  <text x="117" y="33" font-family="-apple-system,BlinkMacSystemFont,sans-serif" font-size="22" font-weight="400" fill="#2b7de9">Space</text>
+</svg>

@@ -36,7 +36,7 @@
                         <!-- アプリケーション名 -->
                         <div class="mb-3">
                             <label for="app_name" class="form-label">アプリケーション名</label>
-                            <input type="text" class="form-control" id="app_name" name="app_name" value="<?= htmlspecialchars($settings['app_name'] ?? 'GroupWare') ?>">
+                            <input type="text" class="form-control" id="app_name" name="app_name" value="<?= htmlspecialchars($settings['app_name'] ?? 'TeamSpace') ?>">
                             <div class="form-text">サイト全体に表示されるアプリケーション名です。</div>
                         </div>
 

@@ -168,6 +168,7 @@ class WebDatabaseController extends Controller
             'title' => '新規レコード作成',
             'database' => $database,
             'fields' => $fields,
+            'recordData' => [],
             'jsFiles' => ['webdatabase.js', 'webdatabase-record.js']
         ];
 
@@ -554,8 +555,6 @@ class WebDatabaseController extends Controller
         }
 
         // RAWリクエストのデバッグ
-        error_log('Raw $_GET: ' . json_encode($_GET));
-        error_log('Raw $_REQUEST: ' . json_encode($_REQUEST));
 
         // ページネーション
         $page = isset($_GET['page']) ? intval($_GET['page']) : 1;
@@ -580,7 +579,6 @@ class WebDatabaseController extends Controller
                     }
                 }
             }
-            error_log('Decoded filter_json: ' . json_encode($decodedFilters));
         }
 
         // 個別のfilter_N形式も確認
@@ -594,8 +592,6 @@ class WebDatabaseController extends Controller
         }
 
         // デバッグ用
-        error_log('GET params: ' . json_encode($_GET));
-        error_log('Processed filters: ' . json_encode($filters));
 
         // ソート条件
         $sort = isset($_GET['sort']) ? $_GET['sort'] : null;
@@ -604,7 +600,6 @@ class WebDatabaseController extends Controller
             $order = 'asc';
         }
 
-        error_log('page: ' . $page . ', limit: ' . $limit . ', search: ' . $search . ', filters: ' . json_encode($filters) . ', sort: ' . $sort . ', order: ' . $order);
 
         // データベースからレコードを取得
         $records = $this->recordModel->getByDatabaseId($databaseId, $page, $limit, $search, $filters, $sort, $order);
@@ -1198,5 +1193,157 @@ class WebDatabaseController extends Controller
         }
 
         return $basename . $extension;
+    }
+
+    // ========================================
+    // リレーション API
+    // ========================================
+
+    /**
+     * API: リレーション先レコード一覧を取得（選択用）
+     */
+    public function apiGetRelationTargets($params)
+    {
+        if (!$this->auth->check()) {
+            return ['error' => 'Unauthorized', 'code' => 401];
+        }
+
+        $targetDbId = $params['id'] ?? $_GET['database_id'] ?? null;
+        $search = $_GET['search'] ?? null;
+
+        if (!$targetDbId) {
+            return ['error' => 'Target database ID is required', 'code' => 400];
+        }
+
+        $records = $this->recordModel->getRelationTargetRecords((int)$targetDbId, $search);
+
+        return [
+            'success' => true,
+            'data' => $records
+        ];
+    }
+
+    /**
+     * API: レコードのリレーション先を取得
+     */
+    public function apiGetRelatedRecords($params)
+    {
+        if (!$this->auth->check()) {
+            return ['error' => 'Unauthorized', 'code' => 401];
+        }
+
+        $recordId = $params['record_id'] ?? null;
+        $fieldId = $params['field_id'] ?? $_GET['field_id'] ?? null;
+
+        if (!$recordId || !$fieldId) {
+            return ['error' => 'Record ID and Field ID are required', 'code' => 400];
+        }
+
+        $related = $this->recordModel->getRelatedRecords((int)$recordId, (int)$fieldId);
+
+        return [
+            'success' => true,
+            'data' => $related
+        ];
+    }
+
+    /**
+     * API: リレーションを保存
+     */
+    public function apiSaveRelations($params, $data)
+    {
+        if (!$this->auth->check()) {
+            return ['error' => 'Unauthorized', 'code' => 401];
+        }
+
+        $recordId = $params['record_id'] ?? $data['record_id'] ?? null;
+        $fieldId = $data['field_id'] ?? null;
+        $targetIds = $data['target_record_ids'] ?? [];
+        $targetDbId = $data['target_database_id'] ?? null;
+
+        if (!$recordId || !$fieldId || !$targetDbId) {
+            return ['error' => 'Missing required parameters', 'code' => 400];
+        }
+
+        $this->recordModel->saveRelations(
+            (int)$recordId,
+            (int)$fieldId,
+            array_map('intval', (array)$targetIds),
+            (int)$targetDbId
+        );
+
+        return [
+            'success' => true,
+            'message' => 'リレーションを保存しました'
+        ];
+    }
+
+    /**
+     * API: ルックアップ値を取得
+     */
+    public function apiGetLookupValue($params)
+    {
+        if (!$this->auth->check()) {
+            return ['error' => 'Unauthorized', 'code' => 401];
+        }
+
+        $recordId = $params['record_id'] ?? $_GET['record_id'] ?? null;
+        $relationFieldId = $_GET['relation_field_id'] ?? null;
+        $targetFieldId = $_GET['target_field_id'] ?? null;
+
+        if (!$recordId || !$relationFieldId || !$targetFieldId) {
+            return ['error' => 'Missing required parameters', 'code' => 400];
+        }
+
+        $value = $this->recordModel->getLookupValue(
+            (int)$recordId,
+            (int)$relationFieldId,
+            (int)$targetFieldId
+        );
+
+        return [
+            'success' => true,
+            'data' => ['value' => $value]
+        ];
+    }
+
+    /**
+     * API: 逆リレーションを取得
+     */
+    public function apiGetReverseRelations($params)
+    {
+        if (!$this->auth->check()) {
+            return ['error' => 'Unauthorized', 'code' => 401];
+        }
+
+        $recordId = $params['record_id'] ?? null;
+
+        if (!$recordId) {
+            return ['error' => 'Record ID is required', 'code' => 400];
+        }
+
+        $relations = $this->recordModel->getReverseRelations((int)$recordId);
+
+        return [
+            'success' => true,
+            'data' => $relations
+        ];
+    }
+
+    /**
+     * API: 全データベース一覧取得（リレーション設定用）
+     */
+    public function apiGetAllDatabases()
+    {
+        if (!$this->auth->check()) {
+            return ['error' => 'Unauthorized', 'code' => 401];
+        }
+
+        $databases = $this->dbModel->getAll(1, 100);
+
+        return [
+            'success' => true,
+            'data' => $databases
+        ];
     }
 }

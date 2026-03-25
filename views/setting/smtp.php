@@ -21,10 +21,10 @@
         </div>
 
         <div class="col-md-9">
-            <!-- SMTP設定フォーム -->
+            <!-- メール設定フォーム -->
             <div class="card">
                 <div class="card-header">
-                    <h5 class="card-title mb-0">SMTP設定</h5>
+                    <h5 class="card-title mb-0">メール送信設定</h5>
                 </div>
                 <div class="card-body">
                     <form id="smtpSettingsForm">
@@ -33,6 +33,16 @@
                         </div>
                         <div class="alert alert-danger d-none" id="smtpErrorAlert"></div>
 
+                        <div class="mb-3">
+                            <label for="mail_transport" class="form-label">送信方式</label>
+                            <select class="form-select" id="mail_transport" name="mail_transport">
+                                <option value="smtp" <?= ($settings['mail_transport'] ?? 'smtp') === 'smtp' ? 'selected' : '' ?>>SMTP</option>
+                                <option value="sendmail" <?= ($settings['mail_transport'] ?? '') === 'sendmail' ? 'selected' : '' ?>>sendmail</option>
+                                <option value="mail" <?= ($settings['mail_transport'] ?? '') === 'mail' ? 'selected' : '' ?>>PHP mail()</option>
+                            </select>
+                            <div class="form-text">環境に合わせて送信方式を選択してください。</div>
+                        </div>
+
                         <!-- 送信元メールアドレス -->
                         <div class="mb-3">
                             <label for="notification_email" class="form-label">送信元メールアドレス</label>
@@ -40,6 +50,24 @@
                             <div class="form-text">通知メールの送信元アドレスです。</div>
                         </div>
 
+                        <div class="mb-3">
+                            <label for="mail_from_name" class="form-label">送信者名</label>
+                            <input type="text" class="form-control" id="mail_from_name" name="mail_from_name" value="<?= htmlspecialchars($settings['mail_from_name'] ?? ($settings['app_name'] ?? 'TeamSpace')) ?>">
+                            <div class="form-text">メールに表示する送信者名です。</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="mail_reply_to_email" class="form-label">返信先メールアドレス（任意）</label>
+                            <input type="email" class="form-control" id="mail_reply_to_email" name="mail_reply_to_email" value="<?= htmlspecialchars($settings['mail_reply_to_email'] ?? '') ?>">
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="app_url" class="form-label">アプリURL</label>
+                            <input type="text" class="form-control" id="app_url" name="app_url" value="<?= htmlspecialchars($settings['app_url'] ?? '') ?>" placeholder="例: https://groupware.example.com/groupware/public">
+                            <div class="form-text">通知メール内リンク生成に使用します。未設定時はアクセスURLを使用します。</div>
+                        </div>
+
+                        <div id="smtpFields">
                         <!-- SMTPサーバー -->
                         <div class="mb-3">
                             <label for="smtp_host" class="form-label">SMTPサーバー</label>
@@ -65,18 +93,42 @@
                             <div class="form-text">SMTP接続の暗号化方式です。</div>
                         </div>
 
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="checkbox" id="smtp_auth" name="smtp_auth" <?= ($settings['smtp_auth'] ?? '1') == '1' ? 'checked' : '' ?>>
+                            <label class="form-check-label" for="smtp_auth">SMTP認証を使用する</label>
+                        </div>
+
                         <!-- SMTPユーザー名 -->
-                        <div class="mb-3">
+                        <div class="mb-3 smtp-auth-field">
                             <label for="smtp_username" class="form-label">SMTPユーザー名</label>
                             <input type="text" class="form-control" id="smtp_username" name="smtp_username" value="<?= htmlspecialchars($settings['smtp_username'] ?? '') ?>">
                             <div class="form-text">SMTPサーバーの認証ユーザー名です。</div>
                         </div>
 
                         <!-- SMTPパスワード -->
-                        <div class="mb-3">
+                        <div class="mb-3 smtp-auth-field">
                             <label for="smtp_password" class="form-label">SMTPパスワード</label>
                             <input type="password" class="form-control" id="smtp_password" name="smtp_password" value="<?= htmlspecialchars($settings['smtp_password'] ?? '') ?>">
                             <div class="form-text">SMTPサーバーの認証パスワードです。</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="smtp_timeout" class="form-label">SMTPタイムアウト（秒）</label>
+                            <input type="number" class="form-control" id="smtp_timeout" name="smtp_timeout" min="1" value="<?= htmlspecialchars($settings['smtp_timeout'] ?? '30') ?>">
+                        </div>
+
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="checkbox" id="smtp_allow_self_signed" name="smtp_allow_self_signed" <?= ($settings['smtp_allow_self_signed'] ?? '0') == '1' ? 'checked' : '' ?>>
+                            <label class="form-check-label" for="smtp_allow_self_signed">自己署名証明書を許可する（検証無効）</label>
+                        </div>
+                        </div>
+
+                        <div id="sendmailFields" class="d-none">
+                            <div class="mb-3">
+                                <label for="sendmail_path" class="form-label">sendmailコマンド（任意）</label>
+                                <input type="text" class="form-control" id="sendmail_path" name="sendmail_path" value="<?= htmlspecialchars($settings['sendmail_path'] ?? '') ?>" placeholder="/usr/sbin/sendmail -bs">
+                                <div class="form-text">未設定時はPHPMailerの既定値を使用します。</div>
+                            </div>
                         </div>
 
                         <!-- メール送信テスト -->
