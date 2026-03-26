@@ -1,6 +1,6 @@
 <?php
 // views/workflow/delegates.php
-$pageTitle = '代理承認設定 - TeamSpace';
+$pageTitle = '代理承認設定';
 ?>
 <div class="container-fluid" data-page-type="delegates">
     <div class="row mb-4">
@@ -56,7 +56,11 @@ $pageTitle = '代理承認設定 - TeamSpace';
                                     <?php endforeach; ?>
                                 <?php else: ?>
                                     <tr>
-                                        <td colspan="5" class="text-center">代理承認設定はありません</td>
+                                        <td class="text-center text-muted">代理承認設定はありません</td>
+                                        <td></td>
+                                        <td></td>
+                                        <td></td>
+                                        <td></td>
                                     </tr>
                                 <?php endif; ?>
                             </tbody>

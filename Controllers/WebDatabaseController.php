@@ -464,7 +464,22 @@ class WebDatabaseController extends Controller
             return ['error' => 'Field name and type are required', 'code' => 400];
         }
 
-        $id = $this->fieldModel->create($data);
+        if (empty($data['database_id'])) {
+            return ['error' => 'Database ID is required', 'code' => 400];
+        }
+
+        $database = $this->model->getById($data['database_id']);
+        if (!$database) {
+            return ['error' => 'Database not found', 'code' => 404];
+        }
+
+        try {
+            $id = $this->fieldModel->create($data);
+        } catch (\Throwable $e) {
+            error_log('Failed to create web database field via API: ' . $e->getMessage());
+            return ['error' => 'Failed to create field', 'code' => 500];
+        }
+
         if (!$id) {
             return ['error' => 'Failed to create field', 'code' => 500];
         }
@@ -498,7 +513,13 @@ class WebDatabaseController extends Controller
             return ['error' => 'Field name and type are required', 'code' => 400];
         }
 
-        $success = $this->fieldModel->update($id, $data);
+        try {
+            $success = $this->fieldModel->update($id, $data);
+        } catch (\Throwable $e) {
+            error_log('Failed to update web database field via API: ' . $e->getMessage());
+            return ['error' => 'Failed to update field', 'code' => 500];
+        }
+
         if (!$success) {
             return ['error' => 'Failed to update field', 'code' => 500];
         }
@@ -527,7 +548,13 @@ class WebDatabaseController extends Controller
             return ['error' => 'Invalid ID', 'code' => 400];
         }
 
-        $success = $this->fieldModel->delete($id);
+        try {
+            $success = $this->fieldModel->delete($id);
+        } catch (\Throwable $e) {
+            error_log('Failed to delete web database field via API: ' . $e->getMessage());
+            return ['error' => 'Failed to delete field', 'code' => 500];
+        }
+
         if (!$success) {
             return ['error' => 'Failed to delete field', 'code' => 500];
         }

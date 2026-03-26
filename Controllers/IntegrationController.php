@@ -42,7 +42,8 @@ class IntegrationController extends Controller
         $tokenFeedUrl = BASE_PATH . '/integrations/calendar/subscription/' . $settings['ics_token'];
         $absoluteTokenFeedUrl = $this->absoluteUrl($tokenFeedUrl);
         $googleUrl = 'https://calendar.google.com/calendar/r?cid=' . rawurlencode($absoluteTokenFeedUrl);
-        $outlookUrl = 'https://outlook.live.com/calendar/0/addfromweb?url=' . rawurlencode($absoluteTokenFeedUrl) . '&name=' . rawurlencode('TeamSpace Schedule');
+        $appName = $this->settingModel->getAppName();
+        $outlookUrl = 'https://outlook.live.com/calendar/0/addfromweb?url=' . rawurlencode($absoluteTokenFeedUrl) . '&name=' . rawurlencode($appName . ' Schedule');
 
         $this->view('integration/index', [
             'title' => 'カレンダー連携',
@@ -54,6 +55,7 @@ class IntegrationController extends Controller
             'absoluteAuthFeedUrl' => $this->absoluteUrl($feedUrl),
             'googleUrl' => $googleUrl,
             'outlookUrl' => $outlookUrl,
+            'appName' => $appName,
             'jsFiles' => ['integration.js']
         ]);
     }

@@ -1,5 +1,5 @@
 <?php
-$pageTitle = '申請テンプレート選択 - TeamSpace';
+$pageTitle = '申請テンプレート選択';
 ?>
 <div class="container-fluid" data-page-type="template_selector">
     <div class="row align-items-center mb-4">

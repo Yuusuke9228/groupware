@@ -1,16 +1,57 @@
-._*
-/vendor/
-/public/uploads/
-
-config/config.php
-config/database.php
-
-/node_modules/
-/.phpunit.cache/
-/.venv_playwright/
-*.log
+# ===========================================
+# OS / Editor
+# ===========================================
 .DS_Store
 Thumbs.db
+._*
+*.swp
+*.swo
+*~
+.idea/
+.vscode/
+
+# ===========================================
+# Dependencies
+# ===========================================
+/vendor/
+/node_modules/
+
+# ===========================================
+# Configuration (secrets)
+# ===========================================
+config/config.php
+config/database.php
+.env
+install.lock
+
+# Sample configs should be tracked
+!config/*_sample.php
+
+# ===========================================
+# Logs & Cache
+# ===========================================
+*.log
+/.phpunit.cache/
+/.venv_playwright/
+
+# ===========================================
+# Uploads (keep directory structure, ignore contents)
+# ===========================================
+/uploads/files/*
+!/uploads/files/.gitkeep
+/public/uploads/*
+!/public/uploads/.gitkeep
+
+# ===========================================
+# Exports (keep directory structure, ignore contents)
+# ===========================================
 /exports/*
 !/exports/workflow/
 !/exports/workflow/.gitkeep
+
+# ===========================================
+# Backups
+# ===========================================
+*.sql.bak
+*.bak
+*.backup

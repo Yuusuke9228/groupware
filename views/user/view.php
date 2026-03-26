@@ -1,6 +1,6 @@
 <?php
 // views/user/view.php
-$pageTitle = 'ユーザー詳細 - TeamSpace';
+$pageTitle = 'ユーザー詳細';
 ?>
 <div class="container-fluid" data-page-type="view">
     <div class="row mb-4">
@@ -74,7 +74,7 @@ $pageTitle = 'ユーザー詳細 - TeamSpace';
                         'inactive' => '<span class="badge bg-warning">無効</span>',
                         'suspended' => '<span class="badge bg-danger">停止</span>'
                     ];
-                    echo $statusLabels[$user['status']] ?? $user['status'];
+                    echo isset($statusLabels[$user['status']]) ? $statusLabels[$user['status']] : $user['status'];
                     ?>
                 </div>
             </div>
@@ -89,7 +89,7 @@ $pageTitle = 'ユーザー詳細 - TeamSpace';
                             'manager' => '<span class="badge bg-warning">マネージャー</span>',
                             'user' => '<span class="badge bg-info">一般ユーザー</span>'
                         ];
-                        echo $roleLabels[$user['role']] ?? $user['role'];
+                        echo isset($roleLabels[$user['role']]) ? $roleLabels[$user['role']] : $user['role'];
                         ?>
                     </div>
                 </div>
@@ -109,12 +109,25 @@ $pageTitle = 'ユーザー詳細 - TeamSpace';
             <h5 class="card-title mb-0">所属組織</h5>
         </div>
         <div class="card-body">
-            <div id="organization-list">
-                <div class="text-center">
-                    <div class="spinner-border text-primary" role="status">
-                        <span class="visually-hidden">Loading...</span>
-                    </div>
-                </div>
+            <div id="organization-list" data-server-rendered="true">
+                <?php if (!empty($userOrganizations)): ?>
+                    <ul class="list-group">
+                        <?php foreach ($userOrganizations as $organization): ?>
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                <div>
+                                    <a href="<?php echo BASE_PATH; ?>/organizations/view/<?php echo $organization['id']; ?>">
+                                        <?php echo htmlspecialchars($organization['name']); ?>
+                                    </a>
+                                    <?php if (!empty($organization['is_primary'])): ?>
+                                        <span class="badge bg-primary ms-2">主組織</span>
+                                    <?php endif; ?>
+                                </div>
+                            </li>
+                        <?php endforeach; ?>
+                    </ul>
+                <?php else: ?>
+                    <p class="mb-0">所属組織はありません</p>
+                <?php endif; ?>
             </div>
         </div>
     </div>

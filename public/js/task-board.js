@@ -4,6 +4,9 @@
 
 // タスクボード管理
 const TaskBoard = {
+    _initialized: false,
+    isDragging: false,
+    dragSuppressUntil: 0,
     boardId: null,
     lists: {},
     cards: {},
@@ -26,10 +29,23 @@ const TaskBoard = {
 
     // 初期化
     init: function () {
+        if (this._initialized) {
+            return;
+        }
+
+        if (!document.getElementById('board-container')) {
+            return;
+        }
+
+        this._initialized = true;
+
         // ボードIDを取得
         this.boardId = $('#board-container').data('board-id');
         this.currentUser = $('body').data('user-id');
-        this.canEdit = $('#canEdit').val() === '1' || $('body').data('is-admin') === true;
+        this.canEdit = $('#board-container').data('can-edit') === 1
+            || $('#board-container').data('can-edit') === '1'
+            || $('#canEdit').val() === '1'
+            || $('body').data('is-admin') === true;
 
         // ラベル情報の取得
         $('.kanban-label').each((index, el) => {
@@ -99,8 +115,29 @@ const TaskBoard = {
             }
         });
 
-        // カードクリック（詳細表示）
+        // カードクリック（詳細モーダル表示）
         $(document).on('click', '.kanban-card', function (e) {
+            if ($(e.target).closest('a, button, input, select, textarea, label').length) {
+                return;
+            }
+
+            if (TaskBoard.isDragging || Date.now() < TaskBoard.dragSuppressUntil) {
+                return;
+            }
+
+            e.preventDefault();
+            e.stopPropagation();
+
+            const cardId = $(this).data('card-id');
+            TaskBoard.showCardDetail(cardId);
+        });
+
+        $(document).on('keydown', '.kanban-card', function (e) {
+            if (e.key !== 'Enter' && e.key !== ' ') {
+                return;
+            }
+
+            e.preventDefault();
             const cardId = $(this).data('card-id');
             TaskBoard.showCardDetail(cardId);
         });
@@ -216,7 +253,12 @@ const TaskBoard = {
                 handle: '.kanban-list-header',
                 draggable: '.kanban-list',
                 filter: '.kanban-add-list',
+                onStart: function () {
+                    TaskBoard.isDragging = true;
+                },
                 onEnd: function (evt) {
+                    TaskBoard.isDragging = false;
+                    TaskBoard.dragSuppressUntil = Date.now() + 300;
                     if (evt.oldIndex !== evt.newIndex) {
                         TaskBoard.updateListOrder(evt.item.dataset.listId, evt.newIndex);
                     }
@@ -230,10 +272,18 @@ const TaskBoard = {
                     animation: 150,
                     draggable: '.kanban-card',
                     filter: '.kanban-empty-msg',
+                    onStart: function (evt) {
+                        TaskBoard.isDragging = true;
+                        $(evt.from).find('.kanban-empty-msg').hide();
+                    },
                     onEnd: function (evt) {
                         const cardId = evt.item.dataset.cardId;
                         const newListId = evt.to.id.replace('cards-', '');
-                        const newIndex = Array.from(evt.to.children).indexOf(evt.item);
+                        const newIndex = TaskBoard.getCardPosition(evt.to, evt.item);
+
+                        TaskBoard.isDragging = false;
+                        TaskBoard.dragSuppressUntil = Date.now() + 300;
+                        TaskBoard.syncEmptyStates(evt.from, evt.to);
 
                         TaskBoard.updateCardOrder(cardId, newListId, newIndex);
                     }
@@ -536,10 +586,18 @@ const TaskBoard = {
                 animation: 150,
                 draggable: '.kanban-card',
                 filter: '.kanban-empty-msg',
+                onStart: function (evt) {
+                    TaskBoard.isDragging = true;
+                    $(evt.from).find('.kanban-empty-msg').hide();
+                },
                 onEnd: function (evt) {
                     const cardId = evt.item.dataset.cardId;
                     const newListId = evt.to.id.replace('cards-', '');
-                    const newIndex = Array.from(evt.to.children).indexOf(evt.item);
+                    const newIndex = TaskBoard.getCardPosition(evt.to, evt.item);
+
+                    TaskBoard.isDragging = false;
+                    TaskBoard.dragSuppressUntil = Date.now() + 300;
+                    TaskBoard.syncEmptyStates(evt.from, evt.to);
 
                     TaskBoard.updateCardOrder(cardId, newListId, newIndex);
                 }
@@ -620,7 +678,91 @@ const TaskBoard = {
         });
     },
 
-    // その他のメソッドは変更なし...
+    updateListOrder: function (listId, position) {
+        $.ajax({
+            url: BASE_PATH + `/api/task/lists/${listId}/order`,
+            type: 'POST',
+            data: JSON.stringify({ position: position }),
+            contentType: 'application/json',
+            success: function (response) {
+                if (!response.success) {
+                    alert(response.error || 'リストの並び替えに失敗しました');
+                    window.location.reload();
+                }
+            },
+            error: function (xhr) {
+                console.error('リスト並び替えエラー:', xhr.responseText);
+                alert('リストの並び替えに失敗しました');
+                window.location.reload();
+            }
+        });
+    },
+
+    updateCardOrder: function (cardId, listId, position) {
+        $.ajax({
+            url: BASE_PATH + `/api/task/cards/${cardId}/order`,
+            type: 'POST',
+            data: JSON.stringify({
+                list_id: listId,
+                position: position
+            }),
+            contentType: 'application/json',
+            success: function (response) {
+                if (response.success) {
+                    TaskBoard.updateVisibleCardCounts();
+                    return;
+                }
+
+                alert(response.error || 'カードの移動に失敗しました');
+                window.location.reload();
+            },
+            error: function (xhr) {
+                console.error('カード移動エラー:', xhr.responseText);
+                alert('カードの移動に失敗しました');
+                window.location.reload();
+            }
+        });
+    },
+
+    getCardPosition: function (container, item) {
+        const cards = Array.from(container.querySelectorAll('.kanban-card'));
+        return cards.indexOf(item);
+    },
+
+    syncEmptyStates: function (fromContainer, toContainer) {
+        [fromContainer, toContainer].forEach((container) => {
+            if (!container) {
+                return;
+            }
+
+            const cards = container.querySelectorAll('.kanban-card');
+            const emptyMessage = container.querySelector('.kanban-empty-msg');
+
+            if (cards.length === 0) {
+                if (!emptyMessage) {
+                    const empty = document.createElement('div');
+                    empty.className = 'kanban-empty-msg';
+                    empty.textContent = 'カードがありません';
+                    container.appendChild(empty);
+                } else {
+                    emptyMessage.style.display = '';
+                    emptyMessage.textContent = 'カードがありません';
+                }
+            } else if (emptyMessage) {
+                emptyMessage.remove();
+            }
+        });
+
+        this.updateVisibleCardCounts();
+    },
+
+    updateVisibleCardCounts: function () {
+        $('.kanban-list').each(function () {
+            const listId = $(this).data('list-id');
+            const count = $(`#cards-${listId} .kanban-card`).length;
+            $(this).find('.kanban-list-title .badge').text(count);
+        });
+    },
 
     // カード詳細を表示
     showCardDetail: function (cardId) {
@@ -848,8 +990,8 @@ const TaskBoard = {
                     <button type="button" class="btn btn-outline-danger me-2 delete-card" data-card-id="${card.id}">
                         <i class="fas fa-trash"></i> 削除
                     </button>
-                    <a href="${BASE_PATH}/task/edit-card/${card.id}" class="btn btn-primary">
-                        <i class="fas fa-edit"></i> 編集
+                    <a href="${BASE_PATH}/task/edit-card/${card.id}" class="btn btn-primary" title="編集画面へ移動">
+                        <i class="fas fa-edit"></i> 別画面で編集
                     </a>
                 </div>
             `;
@@ -1843,7 +1985,21 @@ const TaskBoard = {
     }
 };
 
-// DOMが読み込まれたら初期化
-$(document).ready(function () {
+function initTaskBoardWhenReady() {
+    if (typeof TaskBoard === 'undefined') {
+        return;
+    }
+
     TaskBoard.init();
-});
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initTaskBoardWhenReady);
+} else {
+    initTaskBoardWhenReady();
+}
+
+setTimeout(initTaskBoardWhenReady, 0);
+setTimeout(initTaskBoardWhenReady, 500);
+setTimeout(initTaskBoardWhenReady, 1500);
+setTimeout(initTaskBoardWhenReady, 3000);

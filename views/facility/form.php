@@ -1,4 +1,4 @@
-<?php $pageTitle = '施設予約の作成 - TeamSpace'; ?>
+<?php $pageTitle = '施設予約の作成'; ?>
 <div class="container-fluid" style="max-width:600px;">
     <h4 class="mb-3"><i class="fas fa-plus me-2"></i>施設を予約する</h4>
 

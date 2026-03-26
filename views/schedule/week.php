@@ -1,6 +1,6 @@
 <?php
 // views/schedule/week.php
-$pageTitle = 'スケジュール（週表示） - TeamSpace';
+$pageTitle = 'スケジュール（週表示）';
 $startOfWeek = reset($weekDates);
 $endOfWeek = end($weekDates);
 $startDate = new DateTime($startOfWeek);

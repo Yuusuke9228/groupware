@@ -161,7 +161,7 @@ class Auth
             return false;
         }
 
-        return $_SESSION['user_role'] === $role;
+        return ($_SESSION['user_role'] ?? null) === $role;
     }
 
     // 管理者権限を持っているかチェック

@@ -1,6 +1,6 @@
 <?php
 // views/user/index.php
-$pageTitle = 'ユーザー管理 - TeamSpace';
+$pageTitle = 'ユーザー管理';
 ?>
 <div class="container-fluid" data-page-type="index">
     <div class="row mb-4">
@@ -54,7 +54,45 @@ $pageTitle = 'ユーザー管理 - TeamSpace';
                         </tr>
                     </thead>
                     <tbody>
-                        <!-- データはJSで動的に生成 -->
+                        <?php if (!empty($users)): ?>
+                            <?php foreach ($users as $user): ?>
+                                <tr>
+                                    <td><?php echo (int)$user['id']; ?></td>
+                                    <td><?php echo htmlspecialchars($user['username']); ?></td>
+                                    <td><?php echo htmlspecialchars($user['display_name']); ?></td>
+                                    <td><?php echo htmlspecialchars($user['email']); ?></td>
+                                    <td><?php echo htmlspecialchars(!empty($user['organization_name']) ? $user['organization_name'] : '-'); ?></td>
+                                    <td>
+                                        <?php if ($user['status'] === 'active'): ?>
+                                            <span class="badge bg-success">有効</span>
+                                        <?php elseif ($user['status'] === 'inactive'): ?>
+                                            <span class="badge bg-warning">無効</span>
+                                        <?php elseif ($user['status'] === 'suspended'): ?>
+                                            <span class="badge bg-danger">停止</span>
+                                        <?php else: ?>
+                                            <?php echo htmlspecialchars($user['status']); ?>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group" role="group">
+                                            <a href="<?php echo BASE_PATH; ?>/users/view/<?php echo (int)$user['id']; ?>" class="btn btn-sm btn-info">
+                                                <i class="fas fa-eye"></i> 詳細
+                                            </a>
+                                            <?php if ($this->auth->isAdmin() || $this->auth->id() == $user['id']): ?>
+                                                <a href="<?php echo BASE_PATH; ?>/users/edit/<?php echo (int)$user['id']; ?>" class="btn btn-sm btn-primary">
+                                                    <i class="fas fa-edit"></i> 編集
+                                                </a>
+                                            <?php endif; ?>
+                                            <?php if ($this->auth->isAdmin() && $this->auth->id() != $user['id']): ?>
+                                                <button type="button" class="btn btn-sm btn-danger btn-delete" data-url="<?php echo BASE_PATH; ?>/api/users/<?php echo (int)$user['id']; ?>" data-confirm="ユーザー「<?php echo htmlspecialchars($user['display_name']); ?>」を削除しますか？">
+                                                    <i class="fas fa-trash"></i> 削除
+                                                </button>
+                                            <?php endif; ?>
+                                        </div>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
                     </tbody>
                 </table>
             </div>

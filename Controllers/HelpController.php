@@ -23,4 +23,18 @@ class HelpController extends Controller
             'title' => '利用規約'
         ]);
     }
+
+    public function installManual()
+    {
+        $this->view('help/install_manual', [
+            'title' => 'インストールマニュアル'
+        ]);
+    }
+
+    public function adminManual()
+    {
+        $this->view('help/admin_manual', [
+            'title' => '管理者マニュアル'
+        ]);
+    }
 }

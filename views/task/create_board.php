@@ -113,32 +113,43 @@
 </div>
 
 <script>
-    // DOMContentLoadedイベントを使用して、DOM読み込み後に処理を開始
-    document.addEventListener('DOMContentLoaded', function() {
-        // jQueryが定義されているか確認
+    function ensureBoardFormInitialized() {
+        if (window.__taskBoardCreateInitialized) {
+            return;
+        }
+
         if (typeof jQuery === 'undefined') {
             console.error('jQuery is not loaded! Adding jQuery from CDN...');
 
-            // jQueryを動的に読み込む
             var script = document.createElement('script');
             script.src = 'https://code.jquery.com/jquery-3.6.4.min.js';
             script.integrity = 'sha256-oP6HI9z1XaZNBrJURtCoUT5SUnxFr8s3BzRl+cbzUq8=';
             script.crossOrigin = 'anonymous';
 
             script.onload = function() {
-                console.log('jQuery loaded successfully. Initializing form...');
                 initializeForm();
             };
 
             document.head.appendChild(script);
-        } else {
-            console.log('jQuery is already loaded. Initializing form...');
-            initializeForm();
+            return;
         }
-    });
+
+        initializeForm();
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', ensureBoardFormInitialized);
+    } else {
+        ensureBoardFormInitialized();
+    }
 
     // フォームの初期化とイベントハンドラの設定
     function initializeForm() {
+        if (window.__taskBoardCreateInitialized) {
+            return;
+        }
+        window.__taskBoardCreateInitialized = true;
+
         // BASE_PATH変数がない場合に定義（念のため）
         if (typeof BASE_PATH === 'undefined') {
             BASE_PATH = '<?php echo BASE_PATH; ?>';
@@ -235,6 +246,7 @@
             const xhr = new XMLHttpRequest();
             xhr.open('POST', BASE_PATH + '/api/task/boards', true);
             xhr.setRequestHeader('Content-Type', 'application/json');
+            xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
 
             xhr.onload = function() {
                 if (xhr.status >= 200 && xhr.status < 300) {

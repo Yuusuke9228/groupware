@@ -16,6 +16,27 @@ class Router
         $this->auth = Auth::getInstance();
     }
 
+    private function isAjaxRequest()
+    {
+        $requestedWith = strtolower($_SERVER['HTTP_X_REQUESTED_WITH'] ?? '');
+        if ($requestedWith === 'xmlhttprequest') {
+            return true;
+        }
+
+        $accept = strtolower($_SERVER['HTTP_ACCEPT'] ?? '');
+        return strpos($accept, 'application/json') !== false;
+    }
+
+    private function sendNoCacheHeaders()
+    {
+        header('Cache-Control: private, no-store, no-cache, must-revalidate, max-age=0, s-maxage=0, proxy-revalidate');
+        header('Pragma: no-cache');
+        header('Expires: 0');
+        header('Surrogate-Control: no-store');
+        header('CDN-Cache-Control: no-store');
+        header('Vary: Cookie, Authorization, X-Requested-With');
+    }
+
     // シングルトンパターンでインスタンスを取得
     public static function getInstance()
     {
@@ -97,6 +118,8 @@ class Router
             if (strpos($routePart, ':') === 0) {
                 $paramName = substr($routePart, 1);
                 $params[$paramName] = $pathParts[$index];
+            } elseif (preg_match('/^\{(.+)\}$/', $routePart, $m)) {
+                $params[$m[1]] = $pathParts[$index];
             } elseif ($routePart !== $pathParts[$index]) {
                 return null;
             }
@@ -158,6 +181,7 @@ class Router
             $params = $_GET;
             $response = $controller->apiCheckCodeUnique($params);
 
+            $this->sendNoCacheHeaders();
             header('Content-Type: application/json');
             echo json_encode($response);
             exit;
@@ -170,6 +194,7 @@ class Router
             if ($matched) {
                 // 認証が必要なルートの場合
                 if ($route['authRequired'] && !$this->auth->check()) {
+                    $this->sendNoCacheHeaders();
                     header('Content-Type: application/json');
                     http_response_code(401);
                     echo json_encode(['error' => '認証が必要です']);
@@ -208,7 +233,26 @@ class Router
                 // ハンドラを実行
                 $response = call_user_func($route['handler'], $params, $requestData);
 
+                // 通常フォームからAPIへ直接送られた場合は、成功時に画面遷移へフォールバックする
+                if (($method === 'POST' || $method === 'PUT') && !$this->isAjaxRequest()) {
+                    if (!empty($response['success']) && !empty($response['redirect'])) {
+                        header('Location: ' . $response['redirect']);
+                        exit;
+                    }
+
+                    if (!empty($response['error'])) {
+                        if (session_status() === PHP_SESSION_ACTIVE) {
+                            $_SESSION['error'] = $response['error'];
+                        }
+
+                        $fallbackUrl = $_SERVER['HTTP_REFERER'] ?? $this->basePath . '/';
+                        header('Location: ' . $fallbackUrl);
+                        exit;
+                    }
+                }
+
                 // JSON応答を返す
+                $this->sendNoCacheHeaders();
                 header('Content-Type: application/json');
                 echo json_encode($response);
                 exit;
@@ -234,6 +278,7 @@ class Router
 
         // 一致するルートがなかった場合
         header("HTTP/1.0 404 Not Found");
+        $this->sendNoCacheHeaders();
         echo "404 Not Found";
     }
 }

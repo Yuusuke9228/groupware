@@ -1,6 +1,29 @@
 <?php
 // views/organization/index.php
-$pageTitle = '組織管理 - TeamSpace';
+$pageTitle = '組織管理';
+
+$renderOrganizationTree = function ($nodes) use (&$renderOrganizationTree) {
+    if (empty($nodes) || !is_array($nodes)) {
+        return;
+    }
+
+    echo '<ul class="list-unstyled mb-0">';
+    foreach ($nodes as $node) {
+        echo '<li class="mb-1">';
+        echo '<a href="' . BASE_PATH . '/organizations/view/' . (int)$node['id'] . '" class="text-decoration-none">';
+        echo htmlspecialchars($node['name']);
+        echo '</a>';
+
+        if (!empty($node['children'])) {
+            echo '<div class="ms-3 mt-1">';
+            $renderOrganizationTree($node['children']);
+            echo '</div>';
+        }
+
+        echo '</li>';
+    }
+    echo '</ul>';
+};
 ?>
 <div class="container-fluid" data-page-type="index">
     <div class="row mb-4">
@@ -36,7 +59,13 @@ $pageTitle = '組織管理 - TeamSpace';
                     </div>
                 </div>
                 <div class="card-body">
-                    <div id="organization-tree"></div>
+                    <div id="organization-tree" data-server-rendered="true">
+                        <?php if (!empty($organizations)): ?>
+                            <?php $renderOrganizationTree($organizations); ?>
+                        <?php else: ?>
+                            <p class="mb-0 text-muted">組織はありません</p>
+                        <?php endif; ?>
+                    </div>
                 </div>
             </div>
         </div>

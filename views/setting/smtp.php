@@ -52,7 +52,7 @@
 
                         <div class="mb-3">
                             <label for="mail_from_name" class="form-label">送信者名</label>
-                            <input type="text" class="form-control" id="mail_from_name" name="mail_from_name" value="<?= htmlspecialchars($settings['mail_from_name'] ?? ($settings['app_name'] ?? 'TeamSpace')) ?>">
+                            <input type="text" class="form-control" id="mail_from_name" name="mail_from_name" value="<?= htmlspecialchars($settings['mail_from_name'] ?? ($settings['app_name'] ?? $appName)) ?>">
                             <div class="form-text">メールに表示する送信者名です。</div>
                         </div>
 

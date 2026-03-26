@@ -264,6 +264,11 @@
                                 commentList.innerHTML = '<p class="text-center">まだコメントはありません</p>';
                             }
 
+                            const commentTitle = document.querySelector('#commentList')?.closest('.card-body')?.previousElementSibling?.querySelector('h5');
+                            if (commentTitle && data.data.comments) {
+                                commentTitle.textContent = `コメント（${data.data.comments.length}）`;
+                            }
+
                             // コメント入力欄をクリア
                             this.querySelector('[name="comment"]').value = '';
 

@@ -334,7 +334,7 @@ if (!function_exists('formatFileSize')) {
 
                         <div class="mb-3">
                             <label class="form-label">承認者</label>
-                            <select class="form-select form-select-sm" name="approval_user_ids[]" multiple size="4">
+                            <select class="form-select form-select-sm select2-multi" name="approval_user_ids[]" multiple data-placeholder="承認者を選択...">
                                 <?php foreach ($users as $user): ?>
                                     <option value="<?= (int)$user['id'] ?>"><?= htmlspecialchars($user['display_name']) ?></option>
                                 <?php endforeach; ?>
@@ -376,7 +376,7 @@ if (!function_exists('formatFileSize')) {
                             <input type="hidden" name="csrf_token" value="<?= $csrf_token ?>">
                             <div class="mb-3">
                                 <label class="form-label">承認者</label>
-                                <select class="form-select form-select-sm" name="approval_user_ids[]" multiple size="4">
+                                <select class="form-select form-select-sm select2-multi" name="approval_user_ids[]" multiple data-placeholder="承認者を選択...">
                                     <?php foreach ($users as $user): ?>
                                         <option value="<?= (int)$user['id'] ?>"><?= htmlspecialchars($user['display_name']) ?></option>
                                     <?php endforeach; ?>
@@ -423,14 +423,16 @@ if (!function_exists('formatFileSize')) {
                             ?>
                             <div class="mb-3">
                                 <div class="fw-bold small text-uppercase text-muted mb-1"><?= $label ?>権限</div>
-                                <select class="form-select form-select-sm mb-2" name="<?= $permissionType ?>_organization_ids[]" multiple size="3">
+                                <label class="form-label small text-muted mb-1">組織</label>
+                                <select class="form-select form-select-sm select2-multi mb-2" name="<?= $permissionType ?>_organization_ids[]" multiple data-placeholder="組織を選択...">
                                     <?php foreach ($organizations as $organization): ?>
                                         <option value="<?= (int)$organization['id'] ?>" <?= in_array((int)$organization['id'], $selectedOrgIds, true) ? 'selected' : '' ?>>
                                             <?= htmlspecialchars($organization['name']) ?>
                                         </option>
                                     <?php endforeach; ?>
                                 </select>
-                                <select class="form-select form-select-sm" name="<?= $permissionType ?>_user_ids[]" multiple size="3">
+                                <label class="form-label small text-muted mb-1">ユーザー</label>
+                                <select class="form-select form-select-sm select2-multi" name="<?= $permissionType ?>_user_ids[]" multiple data-placeholder="ユーザーを選択...">
                                     <?php foreach ($users as $user): ?>
                                         <option value="<?= (int)$user['id'] ?>" <?= in_array((int)$user['id'], $selectedUserIds, true) ? 'selected' : '' ?>>
                                             <?= htmlspecialchars($user['display_name']) ?>

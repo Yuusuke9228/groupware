@@ -1,6 +1,6 @@
 <?php
 // views/schedule/day.php
-$pageTitle = 'スケジュール（日表示） - TeamSpace';
+$pageTitle = 'スケジュール（日表示）';
 $formattedDate = date('Y年n月j日', strtotime($date));
 $dayOfWeek = ['日', '月', '火', '水', '木', '金', '土'][date('w', strtotime($date))];
 

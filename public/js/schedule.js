@@ -124,6 +124,9 @@ const Schedule = {
             case 'edit':
                 this.initForm();
                 break;
+            case 'form':
+                this.initForm();
+                break;
             case 'view':
                 this.initView();
                 break;
@@ -1540,6 +1543,25 @@ const Schedule = {
                 const monthUserId = $('#user-id').val();
                 this.loadMonthSchedules(year, month, monthUserId);
                 break;
+            case 'organization-day':
+                this.loadOrganizationDaySchedules($('#current-date').val(), $('#organization-id').val());
+                break;
+            case 'organization-week':
+                this.loadOrganizationWeekSchedules($('#current-date').val(), $('#organization-id').val());
+                break;
+            case 'organization-month':
+                this.loadOrganizationMonthSchedules($('#current-year').val(), $('#current-month').val(), $('#organization-id').val());
+                break;
+            case 'calendar':
+                if (this.calendar) {
+                    this.calendar.refetchEvents();
+                    break;
+                }
+                window.location.reload();
+                break;
+            default:
+                window.location.reload();
+                break;
         }
     },
 
@@ -1572,6 +1594,13 @@ const Schedule = {
             $('.time-picker').hide();
         }
 
+        // 初期表示（公開範囲の状態に合わせる）
+        if ($('#visibility').val() === 'specific') {
+            $('.visibility-specific, .organization-select-container').show();
+        } else {
+            $('.visibility-specific, .organization-select-container').hide();
+        }
+
         // 繰り返し設定の表示切替
         $('#repeat_type').on('change', function () {
             if ($(this).val() !== 'none') {
@@ -1585,9 +1614,9 @@ const Schedule = {
         // 公開範囲の変更処理
         $('#visibility').on('change', function () {
             if ($(this).val() === 'specific') {
-                $('.organization-select-container').show();
+                $('.visibility-specific, .organization-select-container').show();
             } else {
-                $('.organization-select-container').hide();
+                $('.visibility-specific, .organization-select-container').hide();
             }
         });
 
@@ -2882,3 +2911,23 @@ const Schedule = {
         }
     }
 };
+
+// 自己初期化（mod_pagespeed/XPageSpeedのJS遅延読み込み対策）
+// pagespeedがscriptをdefer化するため、app.jsのdocument.readyより後にschedule.jsが
+// 読み込まれる場合がある。この自己初期化で確実にSchedule.init()が呼ばれるようにする。
+(function() {
+    function initSchedule() {
+        if (typeof Schedule !== 'undefined' && typeof $ !== 'undefined' && $('[data-page-type]').length > 0) {
+            if (!Schedule._initialized) {
+                Schedule._initialized = true;
+                Schedule.init();
+            }
+        }
+    }
+    if (document.readyState === 'complete' || document.readyState === 'interactive') {
+        // DOMが既に読み込み済みの場合（pagespeedによる遅延実行時）
+        setTimeout(initSchedule, 0);
+    } else {
+        document.addEventListener('DOMContentLoaded', initSchedule);
+    }
+})();

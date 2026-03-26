@@ -6,7 +6,7 @@
             <p class="text-muted mb-4">最終更新日: 2026年3月25日</p>
 
             <p class="mb-4">
-                本利用規約（以下「本規約」といいます）は、Tukurossa Co. Ltd（以下「当社」といいます）が提供するグループウェアサービス「TeamSpace」（以下「本サービス」といいます）の利用に関する条件を定めるものです。本サービスをご利用いただくにあたり、本規約に同意いただく必要があります。
+                本利用規約（以下「本規約」といいます）は、<?php echo htmlspecialchars($companyName); ?>（以下「当社」といいます）が提供するグループウェアサービス「<?php echo htmlspecialchars($appName); ?>」（以下「本サービス」といいます）の利用に関する条件を定めるものです。本サービスをご利用いただくにあたり、本規約に同意いただく必要があります。
             </p>
 
             <!-- 第1条 サービスの概要 -->
@@ -217,8 +217,8 @@
                 <div class="card-body">
                     <p>本規約に関するお問い合わせは、本サービス内のお問い合わせ機能、または下記の連絡先までご連絡ください。</p>
                     <div class="mt-3 p-3 bg-light rounded">
-                        <strong>Tukurossa Co. Ltd</strong><br>
-                        サービス名称: TeamSpace<br>
+                        <strong><?php echo htmlspecialchars($companyName); ?></strong><br>
+                        サービス名称: <?php echo htmlspecialchars($appName); ?><br>
                         お問い合わせ: 本サービス内の管理者までご連絡ください。
                     </div>
                 </div>
@@ -226,7 +226,7 @@
 
             <hr class="my-4">
             <div class="text-center text-muted">
-                <p class="mb-1">&copy; 2024-2026 Tukurossa Co. Ltd. All rights reserved.</p>
+                <p class="mb-1">&copy; 2024-<?php echo date('Y'); ?> Yuusuke9228. All rights reserved.</p>
                 <p class="small">本規約は2026年3月25日より施行します。</p>
             </div>
 

@@ -1,6 +1,6 @@
 <?php
 // views/workflow/approvals.php
-$pageTitle = '承認待ち一覧 - TeamSpace';
+$pageTitle = '承認待ち一覧';
 ?>
 <div class="container-fluid" data-page-type="approvals">
     <div class="row mb-4">
@@ -80,7 +80,13 @@ $pageTitle = '承認待ち一覧 - TeamSpace';
                             <?php endforeach; ?>
                         <?php else: ?>
                             <tr>
-                                <td colspan="7" class="text-center">承認待ちの申請はありません</td>
+                                <td class="text-center text-muted">承認待ちの申請はありません</td>
+                                <td></td>
+                                <td></td>
+                                <td></td>
+                                <td></td>
+                                <td></td>
+                                <td></td>
                             </tr>
                         <?php endif; ?>
                     </tbody>

@@ -1,116 +1,140 @@
 groupware/
+├── CHANGELOG.md
+├── CONTRIBUTING.md
+├── README.md
 ├── composer.json
-├── config/                             # 設定関連
-│   ├── config_sample.php
-│   ├── database_sample.php
-│   └── temp/
-├── Controllers/                        # コントローラー
-│   ├── HomeController.php              # ホーム画面
-│   ├── MessageController.php           # メッセージ管理
-│   ├── NotificationController.php      # 通知管理
-│   ├── OrganizationController.php      # 組織管理
-│   ├── ScheduleController.php          # スケジュール管理
-│   ├── SettingController.php           # 設定関連
-│   ├── UserController.php              # ユーザー管理
-│   └── WorkflowController.php          # ワークフロー管理
-├── Core/                               # コアライブラリ
+├── composer.lock
+├── phpunit.xml
+├── project-structure.txt
+├── Controllers/                        # 各機能のコントローラー
+│   ├── AddressBookController.php
+│   ├── AutomationController.php
+│   ├── BulletinController.php
+│   ├── CsvImportController.php
+│   ├── DailyReportController.php
+│   ├── FacilityController.php
+│   ├── FileManagerController.php
+│   ├── HelpController.php
+│   ├── HomeController.php
+│   ├── IntegrationController.php
+│   ├── MessageController.php
+│   ├── NotificationController.php
+│   ├── OrganizationController.php
+│   ├── ScheduleController.php
+│   ├── SearchController.php
+│   ├── SettingController.php
+│   ├── TaskController.php
+│   ├── UserController.php
+│   ├── WebDatabaseController.php
+│   └── WorkflowController.php
+├── Core/                               # 共通基盤
 │   ├── Auth.php
 │   ├── Controller.php
 │   ├── Database.php
+│   ├── Mailer.php
 │   └── Router.php
-├── db/
-│   └── schema.sql                      # DB定義
-├── exports/
-│   └── workflow/                       # ワークフロー出力ファイル保存
-├── Models/                             # モデル
+├── Models/                             # DBモデル
+│   ├── AutomationJob.php
+│   ├── CalendarImportSubscription.php
+│   ├── CalendarIntegrationSetting.php
+│   ├── DailyReport.php
 │   ├── Message.php
 │   ├── Notification.php
 │   ├── Organization.php
 │   ├── Schedule.php
 │   ├── Setting.php
+│   ├── Task.php
+│   ├── Team.php
+│   ├── UnifiedSearch.php
 │   ├── User.php
+│   ├── WebDatabase.php
 │   └── Workflow.php
-├── project-structure.txt               # 構造ファイル（このファイル）
-├── public/                             # 公開ディレクトリ
+├── Services/                           # 補助サービス
+│   ├── CalendarFeedService.php
+│   ├── CalendarImportService.php
+│   ├── DateRangeHelper.php
+│   ├── FileDiffService.php
+│   ├── FilePermissionService.php
+│   ├── NotificationRecipientHelper.php
+│   └── ScheduleDisplaySettings.php
+├── config/                             # 設定ファイル
+│   ├── config.php
+│   ├── config.production.php
+│   ├── config_sample.php
+│   ├── database.php
+│   ├── database_sample.php
+│   └── temp/
+├── db/                                 # スキーマとアップグレードSQL
+│   ├── schema.sql
+│   ├── demo_data.sql
+│   ├── demo_data_comprehensive.sql
+│   └── upgrade_*.sql
+├── public/                             # 公開ルート
+│   ├── index.php
+│   ├── install.php
 │   ├── css/
 │   │   ├── home.css
-│   │   └── style.css
+│   │   ├── style.css
+│   │   └── task.css
 │   ├── img/
-│   ├── index.php                       # エントリーポイント
+│   ├── img_icon/
 │   ├── js/
 │   │   ├── app.js
+│   │   ├── automation.js
+│   │   ├── daily-report.js
 │   │   ├── home.js
-│   │   ├── js_constants.php
+│   │   ├── integration.js
 │   │   ├── message.js
 │   │   ├── notification.js
 │   │   ├── organization.js
 │   │   ├── schedule.js
 │   │   ├── setting.js
+│   │   ├── task-board.js
+│   │   ├── task.js
 │   │   ├── user.js
-│   │   ├── workflow.js
-│   │   ├── workflow-form-designer.js
-│   │   └── workflow-route-designer.js
-│   └── uploads/                       # 添付ファイル保存
-│       ├── messages/
-│       └── workflow/
-├── readme.md
-├── reset_admin_password.php
-├── scripts/
-│   └── process_email_queue.php         # メール送信バッチ処理
-├── vendor/                             # Composer関連
-└── views/                              # 画面テンプレート
-    ├── auth/
-    │   └── login.php
-    ├── home/
-    │   └── index.php
-    ├── layouts/
-    │   ├── footer.php
-    │   ├── header.php
-    │   └── notification_dropdown.php
-    ├── message/
-    │   ├── compose.php
-    │   ├── inbox.php
-    │   ├── sent.php
-    │   ├── sidebar.php
-    │   ├── starred.php
-    │   └── view.php
-    ├── notification/
-    │   ├── index.php
-    │   └── settings.php
-    ├── organization/
-    │   ├── create.php
-    │   ├── edit.php
-    │   ├── index.php
-    │   └── view.php
-    ├── schedule/
-    │   ├── create.php
-    │   ├── day.php
-    │   ├── edit.php
-    │   ├── form_fields.php
-    │   ├── form.php
-    │   ├── modal.php
-    │   ├── month.php
-    │   ├── view.php
-    │   └── week.php
-    ├── setting/
-    │   ├── index.php
-    │   ├── notification.php
-    │   └── smtp.php
-    ├── user/
-    │   ├── create.php
-    │   ├── edit.php
-    │   ├── form_fields.php
-    │   ├── index.php
-    │   └── view.php
-    └── workflow/
-        ├── approvals.php
-        ├── delegates.php
-        ├── form_designer.php
-        ├── index.php
-        ├── request_form.php
-        ├── requests.php
-        ├── request_view.php
-        ├── route_designer.php
-        ├── submenu.php
-        ├── template_form.php
-        └── templates.php
+│   │   ├── webdatabase*.js
+│   │   ├── workflow*.js
+│   │   └── vendor/
+│   └── uploads/
+├── scripts/                            # バッチ・補助スクリプト
+│   ├── export_shiire_weekly_summary.py
+│   ├── process_automation_jobs.php
+│   ├── process_calendar_imports.php
+│   └── process_email_queue.php
+├── tests/
+│   ├── bootstrap.php
+│   ├── Unit/
+│   └── e2e/
+│       ├── cache_profile_org_regression.js
+│       ├── schedule_regression.js
+│       ├── task_board_drag_regression.js
+│       ├── task_board_modal_regression.js
+│       └── workflow_view_regression.js
+├── views/                              # 画面テンプレート
+│   ├── address_book/
+│   ├── admin/
+│   ├── auth/
+│   ├── automation/
+│   ├── bulletin/
+│   ├── daily_report/
+│   ├── facility/
+│   ├── file_manager/
+│   ├── help/
+│   ├── home/
+│   ├── integration/
+│   ├── layouts/
+│   ├── message/
+│   ├── notification/
+│   ├── organization/
+│   ├── schedule/
+│   ├── search/
+│   ├── setting/
+│   ├── task/
+│   ├── user/
+│   ├── webdatabase/
+│   └── workflow/
+├── api/
+├── exports/
+├── uploads/
+├── node_modules/
+└── vendor/

@@ -1,6 +1,12 @@
 <?php
 // public/index.php - アプリケーションのエントリーポイント
 
+// インストールチェック: database.php が存在しない場合はインストーラーへリダイレクト
+if (!file_exists(__DIR__ . '/../config/database.php') && file_exists(__DIR__ . '/install.php') && !file_exists(__DIR__ . '/../install.lock')) {
+    header('Location: install.php');
+    exit;
+}
+
 // 基本設定
 session_start();
 date_default_timezone_set('Asia/Tokyo');
@@ -595,6 +601,12 @@ $router->apiGet('/workflow/stats', function ($params) {
 }, true);
 
 // メッセージ機能のルーティング
+// /messages -> /messages/inbox へリダイレクト
+$router->get('/messages', function () {
+    header('Location: ' . BASE_PATH . '/messages/inbox');
+    exit;
+}, true);
+
 // メッセージの受信トレイ
 $router->get('/messages/inbox', function () {
     $controller = new Controllers\MessageController();
@@ -937,6 +949,10 @@ $router->apiGet('/webdatabase/all-databases', function () {
 }, true);
 
 // タスク管理ルーティング
+// 複数形リダイレクト
+$router->get('/tasks', function () { header('Location: ' . BASE_PATH . '/task'); exit; }, true);
+$router->get('/facilities', function () { header('Location: ' . BASE_PATH . '/facility'); exit; }, true);
+
 // タスク管理ダッシュボード
 $router->get('/task', function () {
     $controller = new Controllers\TaskController();
@@ -1392,6 +1408,57 @@ $router->get('/address-book/delete/{id}', function ($params) {
     $controller->delete($params);
 }, true);
 
+// 名刺管理
+$router->get('/address-book/create-from-card', function () {
+    $controller = new Controllers\AddressBookController();
+    $controller->createFromCard();
+}, true);
+
+$router->post('/address-book/store-from-card', function () {
+    $controller = new Controllers\AddressBookController();
+    $controller->storeFromCard();
+}, true);
+
+$router->post('/address-book/upload-card/{id}', function ($params) {
+    $controller = new Controllers\AddressBookController();
+    $controller->uploadBusinessCard($params);
+}, true);
+
+$router->post('/address-book/upload-card-batch/{id}', function ($params) {
+    $controller = new Controllers\AddressBookController();
+    $controller->uploadBusinessCardBatch($params);
+}, true);
+
+$router->post('/address-book/ocr-card/{id}', function ($params) {
+    $controller = new Controllers\AddressBookController();
+    $controller->ocrBusinessCard($params);
+}, true);
+
+$router->get('/address-book/card-image/{id}', function ($params) {
+    $controller = new Controllers\AddressBookController();
+    $controller->previewBusinessCard($params);
+}, true);
+
+$router->post('/address-book/delete-card/{id}', function ($params) {
+    $controller = new Controllers\AddressBookController();
+    $controller->deleteBusinessCard($params);
+}, true);
+
+$router->get('/address-book/export-vcard/{id}', function ($params) {
+    $controller = new Controllers\AddressBookController();
+    $controller->exportVcard($params);
+}, true);
+
+$router->post('/address-book/upload-and-ocr', function () {
+    $controller = new Controllers\AddressBookController();
+    $controller->uploadAndOcr();
+}, true);
+
+$router->get('/address-book/temp-card-image/{filename}', function ($params) {
+    $controller = new Controllers\AddressBookController();
+    $controller->tempCardImage($params);
+}, true);
+
 // 施設予約
 $router->get('/facility', function () {
     $controller = new Controllers\FacilityController();
@@ -1437,6 +1504,16 @@ $router->get('/help', function () {
 $router->get('/terms', function () {
     $controller = new Controllers\HelpController();
     $controller->terms();
+}, true);
+
+$router->get('/help/install-manual', function () {
+    $controller = new Controllers\HelpController();
+    $controller->installManual();
+}, true);
+
+$router->get('/help/admin-manual', function () {
+    $controller = new Controllers\HelpController();
+    $controller->adminManual();
 }, true);
 
 // CSVインポート

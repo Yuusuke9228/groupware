@@ -298,21 +298,101 @@ class User {
         if (!$user) {
             return false;
         }
-        
+
         // トランザクション開始
         $this->db->beginTransaction();
-        
+
         try {
-            // ユーザー組織関連を削除
-            $this->db->execute("DELETE FROM user_organizations WHERE user_id = ?", [$id]);
-            
+            // 関連テーブルを先に削除（外部キー制約対応）
+            // 直接削除するもの（ユーザー固有データ）
+            $deleteTables = [
+                'user_organizations' => 'user_id',
+                'user_tokens' => 'user_id',
+                'notification_settings' => 'user_id',
+                'notifications' => 'user_id',
+                'schedule_participants' => 'user_id',
+                'message_recipients' => 'user_id',
+                'bulletin_post_reads' => 'user_id',
+                'bulletin_comments' => 'user_id',
+                'daily_report_likes' => 'user_id',
+                'daily_report_comments' => 'user_id',
+                'daily_report_reads' => 'user_id',
+                'daily_report_tags' => 'user_id',
+                'task_assignees' => 'user_id',
+                'task_comments' => 'user_id',
+                'task_board_members' => 'user_id',
+                'task_activities' => 'user_id',
+                'team_members' => 'user_id',
+                'facility_reservations' => 'user_id',
+                'workflow_comments' => 'user_id',
+                'workflow_approvals' => 'approver_id',
+                'workflow_delegates' => 'user_id',
+                'calendar_integration_settings' => 'user_id',
+                'calendar_import_subscriptions' => 'user_id',
+                'file_checkout_history' => 'user_id',
+                'automation_jobs' => 'created_by',
+                'address_book' => 'created_by',
+                'business_cards' => 'user_id',
+            ];
+
+            foreach ($deleteTables as $table => $column) {
+                try {
+                    $this->db->execute("DELETE FROM {$table} WHERE {$column} = ?", [$id]);
+                } catch (\Exception $e) {
+                    // テーブルが存在しない場合はスキップ
+                }
+            }
+
+            // delegate_id も削除
+            try {
+                $this->db->execute("DELETE FROM workflow_delegates WHERE delegate_id = ?", [$id]);
+            } catch (\Exception $e) {}
+
+            // NULLに設定するもの（他ユーザーのデータに紐付くもの）
+            $nullifyTables = [
+                'schedules' => 'creator_id',
+                'messages' => 'sender_id',
+                'bulletin_posts' => 'author_id',
+                'bulletin_categories' => 'created_by',
+                'workflow_templates' => 'creator_id',
+                'workflow_requests' => 'requester_id',
+                'workflow_approvals' => 'approver_id',
+                'workflow_approvals' => 'delegate_id',
+                'web_databases' => 'creator_id',
+                'web_database_records' => 'creator_id',
+                'web_database_records' => 'updater_id',
+                'web_database_views' => 'creator_id',
+                'file_folders' => 'created_by',
+                'file_entries' => 'uploaded_by',
+                'file_entries' => 'checked_out_by',
+                'file_versions' => 'uploaded_by',
+                'file_permissions' => 'created_by',
+                'file_approval_requests' => 'requested_by',
+                'file_approval_steps' => 'approver_id',
+                'task_cards' => 'created_by',
+                'task_attachments' => 'uploaded_by',
+                'task_boards' => 'created_by',
+                'teams' => 'created_by',
+                'daily_reports' => 'user_id',
+                'daily_report_templates' => 'user_id',
+            ];
+
+            foreach ($nullifyTables as $table => $column) {
+                try {
+                    $this->db->execute("UPDATE {$table} SET {$column} = NULL WHERE {$column} = ?", [$id]);
+                } catch (\Exception $e) {
+                    // テーブルが存在しない場合やNULL不可の場合はスキップ
+                }
+            }
+
             // ユーザーを削除
             $this->db->execute("DELETE FROM users WHERE id = ?", [$id]);
-            
+
             $this->db->commit();
             return true;
         } catch (\Exception $e) {
             $this->db->rollBack();
+            error_log("User delete failed (ID: {$id}): " . $e->getMessage());
             return false;
         }
     }

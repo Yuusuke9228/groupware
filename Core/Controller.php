@@ -14,6 +14,8 @@ class Controller
     // ビューを表示するメソッド
     protected function view($view, $data = [])
     {
+        $this->sendNoCacheHeaders();
+
         // データを変数として展開
         extract($data);
 
@@ -44,6 +46,7 @@ class Controller
     protected function json($data, $statusCode = 200)
     {
         http_response_code($statusCode);
+        $this->sendNoCacheHeaders();
         header('Content-Type: application/json');
         echo json_encode($data);
         exit;
@@ -88,5 +91,15 @@ class Controller
         $token = bin2hex(random_bytes(32));
         $_SESSION['csrf_token'] = $token;
         return $token;
+    }
+
+    protected function sendNoCacheHeaders()
+    {
+        header('Cache-Control: private, no-store, no-cache, must-revalidate, max-age=0, s-maxage=0, proxy-revalidate');
+        header('Pragma: no-cache');
+        header('Expires: 0');
+        header('Surrogate-Control: no-store');
+        header('CDN-Cache-Control: no-store');
+        header('Vary: Cookie, Authorization, X-Requested-With');
     }
 }

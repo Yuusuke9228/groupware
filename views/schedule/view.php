@@ -1,9 +1,11 @@
 <?php
 // views/schedule/view.php
-$pageTitle = 'スケジュール詳細 - TeamSpace';
+$pageTitle = 'スケジュール詳細';
 
 // 現在のユーザー情報
 $currentUser = \Core\Auth::getInstance()->user();
+$isParticipant = $isParticipant ?? false;
+$participationStatus = $participationStatus ?? null;
 
 // 日時フォーマット
 $startDateTime = new DateTime($schedule['start_time']);

@@ -1,6 +1,6 @@
 <?php
 // views/workflow/requests.php
-$pageTitle = '申請一覧 - TeamSpace';
+$pageTitle = '申請一覧';
 ?>
 <div class="container-fluid" data-page-type="requests">
     <div class="row mb-4">
@@ -127,7 +127,13 @@ $pageTitle = '申請一覧 - TeamSpace';
                             <?php endforeach; ?>
                         <?php else: ?>
                             <tr>
-                                <td colspan="7" class="text-center">申請がありません</td>
+                                <td class="text-center text-muted">申請がありません</td>
+                                <td></td>
+                                <td></td>
+                                <td></td>
+                                <td></td>
+                                <td></td>
+                                <td></td>
                             </tr>
                         <?php endif; ?>
                     </tbody>

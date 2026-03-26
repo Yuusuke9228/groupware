@@ -228,6 +228,7 @@ class ScheduleController extends Controller
 
         // 組織一覧を取得
         $organizations = $this->organization->getAll();
+        $availableUsers = $this->user->getActiveUsers();
 
         // 繰り返しタイプ一覧
         $repeatTypes = [
@@ -276,6 +277,10 @@ class ScheduleController extends Controller
             'priorities' => $priorities,
             'visibilities' => $visibilities,
             'organizations' => $organizations,
+            'availableOrganizations' => $organizations,
+            'availableUsers' => $availableUsers,
+            'participants' => [],
+            'sharedOrganizations' => [],
             'jsFiles' => ['schedule.js']
         ];
 
@@ -308,6 +313,7 @@ class ScheduleController extends Controller
 
         // 組織一覧を取得
         $organizations = $this->organization->getAll();
+        $availableUsers = $this->user->getActiveUsers();
 
         // 繰り返しタイプ一覧
         $repeatTypes = [
@@ -345,6 +351,10 @@ class ScheduleController extends Controller
             'priorities' => $priorities,
             'visibilities' => $visibilities,
             'organizations' => $organizations,
+            'availableOrganizations' => $organizations,
+            'availableUsers' => $availableUsers,
+            'participants' => $participants,
+            'sharedOrganizations' => $sharedOrganizations,
             'jsFiles' => ['schedule.js']
         ];
 
@@ -385,6 +395,7 @@ class ScheduleController extends Controller
 
         // 現在のユーザーの参加ステータス
         $participationStatus = $this->schedule->getUserParticipationStatus($id, $this->auth->id());
+        $isParticipant = $this->schedule->isParticipant($id, $this->auth->id());
 
         $viewData = [
             'title' => $schedule['title'],
@@ -392,6 +403,7 @@ class ScheduleController extends Controller
             'participants' => $participants,
             'sharedOrganizations' => $sharedOrganizations,
             'participationStatus' => $participationStatus,
+            'isParticipant' => $isParticipant,
             'canEdit' => $canEdit,
             'canDelete' => $canDelete,
             'jsFiles' => ['schedule.js']
@@ -624,6 +636,8 @@ class ScheduleController extends Controller
     // API: スケジュール新規作成
     public function apiCreate($params, $data)
     {
+        $data = $this->normalizeScheduleData($data);
+
         // error_log(json_encode(['postdata:' => $data]));
         $validation = $this->validateScheduleData($data);
         if (!empty($validation)) {
@@ -730,6 +744,7 @@ class ScheduleController extends Controller
         return [
             'success' => true,
             'message' => 'スケジュールが正常に作成されました',
+            'redirect' => BASE_PATH . '/schedule/view/' . $scheduleId,
             'data' => [
                 'id' => $scheduleId
             ]
@@ -740,6 +755,8 @@ class ScheduleController extends Controller
     public function apiUpdate($params, $data)
     {
         $id = $params['id'] ?? 0;
+
+        $data = $this->normalizeScheduleData($data);
 
         // スケジュールデータを取得
         $schedule = $this->schedule->getById($id);
@@ -856,6 +873,7 @@ class ScheduleController extends Controller
         return [
             'success' => true,
             'message' => 'スケジュールが正常に更新されました',
+            'redirect' => BASE_PATH . '/schedule/view/' . $id,
             'data' => [
                 'id' => $id,
                 'redirect' => BASE_PATH . '/schedule/view/' . $id
@@ -910,6 +928,7 @@ class ScheduleController extends Controller
         return [
             'success' => true,
             'message' => 'スケジュールが正常に削除されました',
+            'redirect' => BASE_PATH . '/schedule',
             'data' => [
                 'redirect' => BASE_PATH . '/schedule'
             ]
@@ -1209,6 +1228,34 @@ class ScheduleController extends Controller
         } catch (\Exception $e) {
             return false;
         }
+    }
+
+    private function normalizeScheduleData($data)
+    {
+        $startDate = trim((string)($data['start_time_date'] ?? ''));
+        $startTime = trim((string)($data['start_time_time'] ?? ''));
+        $endDate = trim((string)($data['end_time_date'] ?? ''));
+        $endTime = trim((string)($data['end_time_time'] ?? ''));
+        $isAllDay = !empty($data['all_day']);
+
+        if ($isAllDay) {
+            if ($startDate !== '' && $startTime === '') {
+                $startTime = '00:00';
+            }
+            if ($endDate !== '' && $endTime === '') {
+                $endTime = '23:59';
+            }
+        }
+
+        if (empty($data['start_time']) && $startDate !== '') {
+            $data['start_time'] = $startDate . ' ' . ($startTime !== '' ? $startTime : '00:00');
+        }
+
+        if (empty($data['end_time']) && $endDate !== '') {
+            $data['end_time'] = $endDate . ' ' . ($endTime !== '' ? $endTime : ($isAllDay ? '23:59' : '00:00'));
+        }
+
+        return $data;
     }
 
     // スケジュールデータのバリデーション

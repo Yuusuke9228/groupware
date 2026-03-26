@@ -1,4 +1,4 @@
-<?php $pageTitle = '施設管理 - TeamSpace'; ?>
+<?php $pageTitle = '施設管理'; ?>
 <div class="container-fluid" style="max-width:800px;">
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h4 class="mb-0"><i class="fas fa-cog me-2"></i>施設管理</h4>

@@ -2,6 +2,29 @@
 // views/workflow/request_form.php
 $pageTitle = isset($request) ? '申請編集 - ' . $request['title'] : '新規申請 - ' . $template['name'];
 $isEdit = isset($request);
+$normalizeOptions = function ($options) {
+    if (!is_array($options)) {
+        return [];
+    }
+
+    $normalized = [];
+    foreach ($options as $option) {
+        if (is_array($option)) {
+            $normalized[] = [
+                'value' => isset($option['value']) ? (string)$option['value'] : (string)($option['label'] ?? ''),
+                'label' => isset($option['label']) ? (string)$option['label'] : (string)($option['value'] ?? '')
+            ];
+            continue;
+        }
+
+        $normalized[] = [
+            'value' => (string)$option,
+            'label' => (string)$option
+        ];
+    }
+
+    return $normalized;
+};
 ?>
 <div class="container-fluid" data-page-type="request_form">
     <div class="row mb-4">
@@ -63,7 +86,7 @@ $isEdit = isset($request);
                             </div>
                         <?php break;
                         case 'select':
-                            $options = $field['options'] ? json_decode($field['options'], true) : [];
+                            $options = $normalizeOptions($field['options'] ? json_decode($field['options'], true) : []);
                         ?>
                             <div class="mb-3">
                                 <label for="<?php echo $fieldId; ?>" class="form-label"><?php echo htmlspecialchars($field['label']); ?> <?php echo $requiredMark; ?></label>
@@ -79,7 +102,7 @@ $isEdit = isset($request);
                             </div>
                         <?php break;
                         case 'radio':
-                            $options = $field['options'] ? json_decode($field['options'], true) : [];
+                            $options = $normalizeOptions($field['options'] ? json_decode($field['options'], true) : []);
                         ?>
                             <div class="mb-3">
                                 <label class="form-label"><?php echo htmlspecialchars($field['label']); ?> <?php echo $requiredMark; ?></label>
@@ -95,7 +118,7 @@ $isEdit = isset($request);
                             </div>
                         <?php break;
                         case 'checkbox':
-                            $options = $field['options'] ? json_decode($field['options'], true) : [];
+                            $options = $normalizeOptions($field['options'] ? json_decode($field['options'], true) : []);
                             $checkedValues = is_array($fieldValue) ? $fieldValue : ($fieldValue ? [$fieldValue] : []);
                         ?>
                             <div class="mb-3">

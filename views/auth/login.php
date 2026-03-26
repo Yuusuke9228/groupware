@@ -1,5 +1,7 @@
 <?php
 // views/auth/login.php
+$settingModel = new \Models\Setting();
+$appName = $settingModel->getAppName();
 ?>
 <!DOCTYPE html>
 <html lang="ja">
@@ -8,7 +10,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="theme-color" content="#2b7de9">
-    <title>ログイン - TeamSpace</title>
+    <title>ログイン - <?php echo htmlspecialchars($appName); ?></title>
     <link rel="icon" type="image/svg+xml" href="<?php echo BASE_PATH; ?>/img_icon/favicon.svg">
 
     <!-- Bootstrap CSS -->
@@ -195,7 +197,7 @@
             <div class="login-logo">
                 <i class="fas fa-th-large"></i>
             </div>
-            <h1 class="login-title"><img src="<?php echo BASE_PATH; ?>/img_icon/favicon.svg" alt="" style="height:36px;border-radius:8px;margin-right:8px;vertical-align:middle;">TeamSpace</h1>
+            <h1 class="login-title"><img src="<?php echo BASE_PATH; ?>/img_icon/favicon.svg" alt="" style="height:36px;border-radius:8px;margin-right:8px;vertical-align:middle;"><?php echo htmlspecialchars($appName); ?></h1>
             <p class="login-subtitle">アカウントにログイン</p>
 
             <?php if (isset($_SESSION['login_error'])): ?>
@@ -225,8 +227,51 @@
             </button>
 
 
+            <?php
+            $configFile = __DIR__ . '/../../config/config.php';
+            $demoMode = false;
+            if (file_exists($configFile)) {
+                $cfg = include $configFile;
+                $demoMode = !empty($cfg['app']['demo_mode']);
+            }
+            if ($demoMode):
+            ?>
+            <div class="demo-hint" style="margin-top:20px;padding:16px;background:linear-gradient(135deg,#fff8e1,#fff3cd);border:1px solid #ffc107;border-radius:10px;font-size:13px;">
+                <div style="font-weight:700;color:#856404;margin-bottom:10px;font-size:14px;">
+                    <i class="fas fa-info-circle me-1"></i> デモサイトへようこそ
+                </div>
+                <p style="margin:0 0 10px;color:#664d03;">以下のアカウントでログインしてお試しいただけます。</p>
+                <table style="width:100%;font-size:12px;border-collapse:collapse;">
+                    <tr style="border-bottom:1px solid rgba(0,0,0,0.1);">
+                        <td style="padding:4px 0;font-weight:600;color:#856404;">管理者</td>
+                        <td style="padding:4px 8px;"><code style="background:#fff;padding:2px 6px;border-radius:4px;">admin</code></td>
+                        <td style="padding:4px 0;"><code style="background:#fff;padding:2px 6px;border-radius:4px;">demo1234</code></td>
+                    </tr>
+                    <tr style="border-bottom:1px solid rgba(0,0,0,0.1);">
+                        <td style="padding:4px 0;font-weight:600;color:#856404;">一般①</td>
+                        <td style="padding:4px 8px;"><code style="background:#fff;padding:2px 6px;border-radius:4px;">yamada</code></td>
+                        <td style="padding:4px 0;"><code style="background:#fff;padding:2px 6px;border-radius:4px;">demo1234</code></td>
+                    </tr>
+                    <tr style="border-bottom:1px solid rgba(0,0,0,0.1);">
+                        <td style="padding:4px 0;font-weight:600;color:#856404;">一般②</td>
+                        <td style="padding:4px 8px;"><code style="background:#fff;padding:2px 6px;border-radius:4px;">tanaka</code></td>
+                        <td style="padding:4px 0;"><code style="background:#fff;padding:2px 6px;border-radius:4px;">demo1234</code></td>
+                    </tr>
+                    <tr>
+                        <td style="padding:4px 0;font-weight:600;color:#856404;">一般③</td>
+                        <td style="padding:4px 8px;"><code style="background:#fff;padding:2px 6px;border-radius:4px;">suzuki</code></td>
+                        <td style="padding:4px 0;"><code style="background:#fff;padding:2px 6px;border-radius:4px;">demo1234</code></td>
+                    </tr>
+                </table>
+                <p style="margin:10px 0 0;color:#856404;font-size:11px;">
+                    <i class="fas fa-exclamation-triangle me-1"></i>
+                    デモ環境のデータは定期的にリセットされます。本番データの入力はお控えください。
+                </p>
+            </div>
+            <?php endif; ?>
+
             <div class="login-footer">
-                &copy; 2024-2026 Tukurossa Co. Ltd. All rights reserved.
+                &copy; 2024-<?php echo date('Y'); ?> Yuusuke9228. All rights reserved.
             </div>
         </form>
     </main>

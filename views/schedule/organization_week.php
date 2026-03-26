@@ -1,6 +1,6 @@
 <?php
 // views/schedule/organization_week.php
-$pageTitle = '組織スケジュール（週表示） - TeamSpace';
+$pageTitle = '組織スケジュール（週表示）';
 $startOfWeek = reset($weekDates);
 $endOfWeek = end($weekDates);
 $startDate = new DateTime($startOfWeek);

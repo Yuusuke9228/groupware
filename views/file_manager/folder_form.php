@@ -90,7 +90,7 @@ $permissionSummary = $permissionSummary ?? [
                                         </div>
                                         <div class="col-md-6">
                                             <label class="form-label small">対象組織</label>
-                                            <select class="form-select form-select-sm" name="<?= $permissionType ?>_organization_ids[]" multiple size="5">
+                                            <select class="form-select form-select-sm select2-multi" name="<?= $permissionType ?>_organization_ids[]" multiple data-placeholder="組織を選択...">
                                                 <?php foreach ($organizations as $organization): ?>
                                                     <option value="<?= (int)$organization['id'] ?>" <?= in_array((int)$organization['id'], $selectedOrgIds, true) ? 'selected' : '' ?>>
                                                         <?= htmlspecialchars($organization['name']) ?>
@@ -100,7 +100,7 @@ $permissionSummary = $permissionSummary ?? [
                                         </div>
                                         <div class="col-md-6">
                                             <label class="form-label small">対象ユーザー</label>
-                                            <select class="form-select form-select-sm" name="<?= $permissionType ?>_user_ids[]" multiple size="5">
+                                            <select class="form-select form-select-sm select2-multi" name="<?= $permissionType ?>_user_ids[]" multiple data-placeholder="ユーザーを選択...">
                                                 <?php foreach ($users as $user): ?>
                                                     <option value="<?= (int)$user['id'] ?>" <?= in_array((int)$user['id'], $selectedUserIds, true) ? 'selected' : '' ?>>
                                                         <?= htmlspecialchars($user['display_name']) ?>

@@ -986,7 +986,7 @@ class DailyReportController extends Controller
 
             // 権限設定から通知対象を取得
             $notifyUserIds = [];
-            $permissions = $this->reportModel->getReportPermissions($reportId);
+            $permissions = $report['permissions'] ?? [];
 
             foreach ($permissions as $permission) {
                 if ($permission['target_type'] === 'user') {

@@ -85,16 +85,21 @@ class WebDatabase
                     created_at
                 ) VALUES (?, ?, ?, ?, ?, ?, NOW())";
 
-        $this->db->execute($sql, [
-            $data['name'],
-            $data['description'] ?? null,
-            $data['icon'] ?? 'database',
-            $data['color'] ?? '#3498db',
-            $data['is_public'] ?? 0,
-            $data['creator_id']
-        ]);
+        try {
+            $this->db->execute($sql, [
+                $data['name'],
+                $data['description'] ?? null,
+                $data['icon'] ?? 'database',
+                $data['color'] ?? '#3498db',
+                $data['is_public'] ?? 0,
+                $data['creator_id']
+            ]);
 
-        return $this->db->lastInsertId();
+            return $this->db->lastInsertId();
+        } catch (\Throwable $e) {
+            error_log('Failed to create web database: ' . $e->getMessage());
+            return false;
+        }
     }
 
     /**
@@ -129,7 +134,12 @@ class WebDatabase
         $values[] = $id; // WHEREの条件用
 
         $sql = "UPDATE web_databases SET " . implode(", ", $fields) . " WHERE id = ?";
-        return $this->db->execute($sql, $values);
+        try {
+            return $this->db->execute($sql, $values);
+        } catch (\Throwable $e) {
+            error_log('Failed to update web database #' . (int) $id . ': ' . $e->getMessage());
+            return false;
+        }
     }
 
     /**
@@ -141,17 +151,22 @@ class WebDatabase
         $sql = "SELECT COUNT(*) as count FROM web_database_records WHERE database_id = ?";
         $result = $this->db->fetch($sql, [$id]);
 
-        if ($result['count'] > 0) {
-            // レコードがある場合は関連するレコードも削除
-            $this->db->execute("DELETE FROM web_database_record_data WHERE record_id IN (SELECT id FROM web_database_records WHERE database_id = ?)", [$id]);
-            $this->db->execute("DELETE FROM web_database_records WHERE database_id = ?", [$id]);
+        try {
+            if ($result['count'] > 0) {
+                // レコードがある場合は関連するレコードも削除
+                $this->db->execute("DELETE FROM web_database_record_data WHERE record_id IN (SELECT id FROM web_database_records WHERE database_id = ?)", [$id]);
+                $this->db->execute("DELETE FROM web_database_records WHERE database_id = ?", [$id]);
+            }
+
+            // 関連するフィールドを削除
+            $this->db->execute("DELETE FROM web_database_fields WHERE database_id = ?", [$id]);
+
+            // データベースを削除
+            return $this->db->execute("DELETE FROM web_databases WHERE id = ?", [$id]);
+        } catch (\Throwable $e) {
+            error_log('Failed to delete web database #' . (int) $id . ': ' . $e->getMessage());
+            return false;
         }
-
-        // 関連するフィールドを削除
-        $this->db->execute("DELETE FROM web_database_fields WHERE database_id = ?", [$id]);
-
-        // データベースを削除
-        return $this->db->execute("DELETE FROM web_databases WHERE id = ?", [$id]);
     }
 }
 
@@ -190,6 +205,12 @@ class WebDatabaseField
      */
     public function create($data)
     {
+        $database = $this->db->fetch("SELECT id FROM web_databases WHERE id = ? LIMIT 1", [$data['database_id']]);
+        if (!$database) {
+            error_log('Failed to create web database field: parent database not found #' . (int) $data['database_id']);
+            return false;
+        }
+
         // 同じデータベースのフィールドの最大並び順を取得
         $sql = "SELECT MAX(sort_order) as max_sort FROM web_database_fields WHERE database_id = ?";
         $result = $this->db->fetch($sql, [$data['database_id']]);
@@ -218,29 +239,34 @@ class WebDatabaseField
                     created_at
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
 
-        $this->db->execute($sql, [
-            $data['database_id'],
-            $data['name'],
-            $data['description'] ?? null,
-            $data['type'],
-            $data['options'] ?? null,
-            $data['required'] ?? 0,
-            $data['unique_value'] ?? 0,
-            $data['default_value'] ?? null,
-            $data['validation'] ?? null,
-            $sortOrder,
-            $data['is_title_field'] ?? 0,
-            $data['is_filterable'] ?? 0,
-            $data['is_sortable'] ?? 0,
-            $data['relation_database_id'] ?? null,
-            $data['relation_field_id'] ?? null,
-            $data['relation_type'] ?? null,
-            $data['lookup_relation_field_id'] ?? null,
-            $data['lookup_target_field_id'] ?? null,
-            $data['calc_formula'] ?? null
-        ]);
+        try {
+            $this->db->execute($sql, [
+                $data['database_id'],
+                $data['name'],
+                $data['description'] ?? null,
+                $data['type'],
+                $data['options'] ?? null,
+                $data['required'] ?? 0,
+                $data['unique_value'] ?? 0,
+                $data['default_value'] ?? null,
+                $data['validation'] ?? null,
+                $sortOrder,
+                $data['is_title_field'] ?? 0,
+                $data['is_filterable'] ?? 0,
+                $data['is_sortable'] ?? 0,
+                $data['relation_database_id'] ?? null,
+                $data['relation_field_id'] ?? null,
+                $data['relation_type'] ?? null,
+                $data['lookup_relation_field_id'] ?? null,
+                $data['lookup_target_field_id'] ?? null,
+                $data['calc_formula'] ?? null
+            ]);
 
-        return $this->db->lastInsertId();
+            return $this->db->lastInsertId();
+        } catch (\Throwable $e) {
+            error_log('Failed to create web database field for database #' . (int) $data['database_id'] . ': ' . $e->getMessage());
+            return false;
+        }
     }
 
     /**
@@ -288,7 +314,12 @@ class WebDatabaseField
         $values[] = $id; // WHEREの条件用
 
         $sql = "UPDATE web_database_fields SET " . implode(", ", $fields) . " WHERE id = ?";
-        return $this->db->execute($sql, $values);
+        try {
+            return $this->db->execute($sql, $values);
+        } catch (\Throwable $e) {
+            error_log('Failed to update web database field #' . (int) $id . ': ' . $e->getMessage());
+            return false;
+        }
     }
 
     /**
@@ -297,10 +328,15 @@ class WebDatabaseField
     public function delete($id)
     {
         // 関連するフィールドデータを削除
-        $this->db->execute("DELETE FROM web_database_record_data WHERE field_id = ?", [$id]);
+        try {
+            $this->db->execute("DELETE FROM web_database_record_data WHERE field_id = ?", [$id]);
 
-        // フィールドを削除
-        return $this->db->execute("DELETE FROM web_database_fields WHERE id = ?", [$id]);
+            // フィールドを削除
+            return $this->db->execute("DELETE FROM web_database_fields WHERE id = ?", [$id]);
+        } catch (\Throwable $e) {
+            error_log('Failed to delete web database field #' . (int) $id . ': ' . $e->getMessage());
+            return false;
+        }
     }
 
     /**
@@ -309,7 +345,12 @@ class WebDatabaseField
     public function updateSortOrder($id, $sortOrder)
     {
         $sql = "UPDATE web_database_fields SET sort_order = ?, updated_at = NOW() WHERE id = ?";
-        return $this->db->execute($sql, [$sortOrder, $id]);
+        try {
+            return $this->db->execute($sql, [$sortOrder, $id]);
+        } catch (\Throwable $e) {
+            error_log('Failed to update field sort order #' . (int) $id . ': ' . $e->getMessage());
+            return false;
+        }
     }
 }
 
@@ -505,12 +546,17 @@ class WebDatabaseRecord
                     created_at
                 ) VALUES (?, ?, NOW())";
 
-        $this->db->execute($sql, [
-            $data['database_id'],
-            $data['creator_id']
-        ]);
+        try {
+            $this->db->execute($sql, [
+                $data['database_id'],
+                $data['creator_id']
+            ]);
 
-        return $this->db->lastInsertId();
+            return $this->db->lastInsertId();
+        } catch (\Throwable $e) {
+            error_log('Failed to create web database record for database #' . (int) $data['database_id'] . ': ' . $e->getMessage());
+            return false;
+        }
     }
 
     /**
@@ -523,10 +569,15 @@ class WebDatabaseRecord
                 updated_at = NOW() 
                 WHERE id = ?";
 
-        return $this->db->execute($sql, [
-            $data['updater_id'],
-            $id
-        ]);
+        try {
+            return $this->db->execute($sql, [
+                $data['updater_id'],
+                $id
+            ]);
+        } catch (\Throwable $e) {
+            error_log('Failed to update web database record #' . (int) $id . ': ' . $e->getMessage());
+            return false;
+        }
     }
 
     /**
@@ -535,10 +586,15 @@ class WebDatabaseRecord
     public function delete($id)
     {
         // 関連するフィールドデータを削除
-        $this->db->execute("DELETE FROM web_database_record_data WHERE record_id = ?", [$id]);
+        try {
+            $this->db->execute("DELETE FROM web_database_record_data WHERE record_id = ?", [$id]);
 
-        // レコードを削除
-        return $this->db->execute("DELETE FROM web_database_records WHERE id = ?", [$id]);
+            // レコードを削除
+            return $this->db->execute("DELETE FROM web_database_records WHERE id = ?", [$id]);
+        } catch (\Throwable $e) {
+            error_log('Failed to delete web database record #' . (int) $id . ': ' . $e->getMessage());
+            return false;
+        }
     }
 
     /**
@@ -569,21 +625,31 @@ class WebDatabaseRecord
         if ($existing) {
             // 更新
             $sql = "UPDATE web_database_record_data SET value = ?, file_info = ? WHERE record_id = ? AND field_id = ?";
-            return $this->db->execute($sql, [
-                $value,
-                $fileInfo ? json_encode($fileInfo) : null,
-                $recordId,
-                $fieldId
-            ]);
+            try {
+                return $this->db->execute($sql, [
+                    $value,
+                    $fileInfo ? json_encode($fileInfo) : null,
+                    $recordId,
+                    $fieldId
+                ]);
+            } catch (\Throwable $e) {
+                error_log('Failed to update record field data for record #' . (int) $recordId . ', field #' . (int) $fieldId . ': ' . $e->getMessage());
+                return false;
+            }
         } else {
             // 新規作成
             $sql = "INSERT INTO web_database_record_data (record_id, field_id, value, file_info) VALUES (?, ?, ?, ?)";
-            return $this->db->execute($sql, [
-                $recordId,
-                $fieldId,
-                $value,
-                $fileInfo ? json_encode($fileInfo) : null
-            ]);
+            try {
+                return $this->db->execute($sql, [
+                    $recordId,
+                    $fieldId,
+                    $value,
+                    $fileInfo ? json_encode($fileInfo) : null
+                ]);
+            } catch (\Throwable $e) {
+                error_log('Failed to insert record field data for record #' . (int) $recordId . ', field #' . (int) $fieldId . ': ' . $e->getMessage());
+                return false;
+            }
         }
     }
 
@@ -650,26 +716,33 @@ class WebDatabaseRecord
     public function saveRelations($sourceRecordId, $sourceFieldId, $targetRecordIds, $targetDatabaseId)
     {
         // 既存のリレーションを削除
-        $this->db->execute(
-            "DELETE FROM web_database_relations WHERE source_record_id = ? AND source_field_id = ?",
-            [$sourceRecordId, $sourceFieldId]
-        );
+        try {
+            $this->db->execute(
+                "DELETE FROM web_database_relations WHERE source_record_id = ? AND source_field_id = ?",
+                [$sourceRecordId, $sourceFieldId]
+            );
 
-        // 新しいリレーションを挿入
-        if (!empty($targetRecordIds)) {
-            $sql = "INSERT INTO web_database_relations (source_record_id, source_field_id, target_record_id, target_database_id, sort_order) VALUES (?, ?, ?, ?, ?)";
-            foreach ($targetRecordIds as $order => $targetId) {
-                if (!empty($targetId)) {
-                    $this->db->execute($sql, [
-                        $sourceRecordId,
-                        $sourceFieldId,
-                        (int)$targetId,
-                        (int)$targetDatabaseId,
-                        $order
-                    ]);
+            // 新しいリレーションを挿入
+            if (!empty($targetRecordIds)) {
+                $sql = "INSERT INTO web_database_relations (source_record_id, source_field_id, target_record_id, target_database_id, sort_order) VALUES (?, ?, ?, ?, ?)";
+                foreach ($targetRecordIds as $order => $targetId) {
+                    if (!empty($targetId)) {
+                        $this->db->execute($sql, [
+                            $sourceRecordId,
+                            $sourceFieldId,
+                            (int)$targetId,
+                            (int)$targetDatabaseId,
+                            $order
+                        ]);
+                    }
                 }
             }
+        } catch (\Throwable $e) {
+            error_log('Failed to save web database relations for record #' . (int) $sourceRecordId . ': ' . $e->getMessage());
+            return false;
         }
+
+        return true;
     }
 
     /**

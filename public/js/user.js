@@ -141,6 +141,14 @@ const User = {
 
     // 組織選択の初期化
     initOrganizationSelect: function () {
+        const orgSelect = $('#organization_id');
+        const serverOrganizations = this.getOrganizationsFromSelect(orgSelect);
+
+        if (serverOrganizations.length > 0) {
+            this.buildAdditionalOrgSelect(serverOrganizations);
+            return;
+        }
+
         // 組織リストを取得
         App.apiGet('organizations')
             .then(response => {
@@ -148,7 +156,6 @@ const User = {
                     const organizations = response.data;
 
                     // 主組織のセレクトボックスを更新
-                    const orgSelect = $('#organization_id');
                     const selectedOrgId = orgSelect.data('selected');
 
                     orgSelect.empty();
@@ -171,10 +178,28 @@ const User = {
             });
     },
 
+
+    getOrganizationsFromSelect: function (orgSelect) {
+        const organizations = [];
+
+        orgSelect.find('option').each(function () {
+            const id = $(this).val();
+            if (!id) {
+                return;
+            }
+
+            organizations.push({
+                id: id,
+                name: $(this).text().trim()
+            });
+        });
+
+        return organizations;
+    },
+
     // 詳細ページの初期化
     initView: function () {
-        // 所属組織リストの初期化
-        this.initOrganizationList();
+        // 詳細画面はサーバー描画済みの所属組織をそのまま使う。
     },
 
     // パスワード変更ページの初期化

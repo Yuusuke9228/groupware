@@ -1,7 +1,7 @@
 <?php
 // views/layouts/header.php
 
-$pageTitle = $title ?? 'TeamSpace';
+$pageTitle = isset($title) ? $title : $appName;
 
 $currentPage = '';
 $requestUri = $_SERVER['REQUEST_URI'];
@@ -41,6 +41,11 @@ $currentUser = \Core\Auth::getInstance()->user();
 $unreadMessageCount = 0;
 $unreadNotificationCount = 0;
 
+// システム設定からアプリ名・会社名を取得
+$settingModel = new \Models\Setting();
+$appName = $settingModel->getAppName();
+$companyName = $settingModel->getCompanyName();
+
 if ($currentUser) {
     $messageModel = new \Models\Message();
     $unreadMessageCount = $messageModel->getUnreadCount($currentUser['id']);
@@ -54,10 +59,13 @@ if ($currentUser) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <meta name="theme-color" content="#2b7de9">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title><?php echo htmlspecialchars($pageTitle); ?> - TeamSpace</title>
+    <title><?php echo htmlspecialchars($pageTitle); ?> - <?php echo htmlspecialchars($appName); ?></title>
     <link rel="icon" type="image/svg+xml" href="<?php echo BASE_PATH; ?>/img_icon/favicon.svg">
 
     <!-- Bootstrap CSS -->
@@ -89,6 +97,47 @@ if ($currentUser) {
     <link href="<?php echo BASE_PATH; ?>/css/style.css?v=<?php echo $styleCssVersion; ?>" rel="stylesheet">
     <link href="<?php echo BASE_PATH; ?>/css/home.css?v=<?php echo $homeCssVersion; ?>" rel="stylesheet">
     <link href="<?php echo BASE_PATH; ?>/css/task.css?v=<?php echo $taskCssVersion; ?>" rel="stylesheet">
+
+    <!-- JSのベースパス設定 -->
+    <script>
+        var BASE_PATH = "<?php echo BASE_PATH; ?>";
+    </script>
+
+    <!-- 共通ライブラリ -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://code.jquery.com/ui/1.13.2/jquery-ui.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/locale/ja.js"></script>
+    <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.11.5/js/dataTables.bootstrap5.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jstree/3.3.12/jstree.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/ja.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@5.10.2/main.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@5.10.2/locales/ja.js"></script>
+
+    <script>
+        // Bootstrap 5 への移行後も既存の jQuery モーダル呼び出しを動かす互換層。
+        if (window.jQuery && window.bootstrap && typeof jQuery.fn.modal !== 'function') {
+            jQuery.fn.modal = function(action) {
+                return this.each(function() {
+                    var modal = bootstrap.Modal.getOrCreateInstance(this);
+                    if (action === 'hide') {
+                        modal.hide();
+                    } else if (action === 'toggle') {
+                        modal.toggle();
+                    } else {
+                        modal.show();
+                    }
+                });
+            };
+        }
+    </script>
 </head>
 
 <body data-is-admin="<?php echo $this->auth->isAdmin() ? 'true' : 'false'; ?>" data-user-id="<?php echo $this->auth->id(); ?>">
@@ -97,14 +146,14 @@ if ($currentUser) {
     <!-- ========== Top Header Bar ========== -->
     <header class="gw-header">
         <a class="gw-header-logo" href="<?php echo BASE_PATH; ?>/">
-            <img src="<?php echo BASE_PATH; ?>/img_icon/favicon.svg" alt="TeamSpace" style="height:28px;margin-right:8px;border-radius:6px;">
-            <span class="d-none d-sm-inline">TeamSpace</span>
+            <img src="<?php echo BASE_PATH; ?>/img_icon/favicon.svg" alt="<?php echo htmlspecialchars($appName); ?>" style="height:28px;margin-right:8px;border-radius:6px;">
+            <span class="d-none d-sm-inline"><?php echo htmlspecialchars($appName); ?></span>
         </a>
 
         <!-- 検索 -->
         <div class="gw-header-search position-relative d-none d-md-block">
             <form class="no-ajax" method="get" action="<?php echo BASE_PATH; ?>/search">
-                <input class="form-control" type="search" name="q" placeholder="キーワードで検索..." value="<?php echo htmlspecialchars($_GET['q'] ?? ''); ?>" autocomplete="off">
+                <input class="form-control" type="search" name="q" placeholder="キーワードで検索..." value="<?php echo htmlspecialchars(isset($_GET['q']) ? $_GET['q'] : ''); ?>" autocomplete="off">
                 <i class="fas fa-search search-icon"></i>
             </form>
         </div>

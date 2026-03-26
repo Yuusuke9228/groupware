@@ -1,6 +1,6 @@
 <?php
 // views/user/edit.php
-$pageTitle = 'ユーザー編集 - TeamSpace';
+$pageTitle = 'ユーザー編集';
 $isEdit = true;
 ?>
 <div class="container-fluid" data-page-type="edit">

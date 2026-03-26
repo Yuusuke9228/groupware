@@ -1,0 +1,13 @@
+ALTER TABLE task_lists DROP FOREIGN KEY task_lists_ibfk_1;
+ALTER TABLE task_cards DROP FOREIGN KEY task_cards_ibfk_1;
+ALTER TABLE task_labels DROP FOREIGN KEY task_labels_ibfk_1;
+ALTER TABLE task_card_labels DROP FOREIGN KEY task_card_labels_ibfk_1;
+ALTER TABLE task_card_labels DROP FOREIGN KEY task_card_labels_ibfk_2;
+ALTER TABLE task_comments DROP FOREIGN KEY task_comments_ibfk_1;
+ALTER TABLE task_checklists DROP FOREIGN KEY task_checklists_ibfk_1;
+ALTER TABLE task_checklist_items DROP FOREIGN KEY task_checklist_items_ibfk_1;
+ALTER TABLE task_activities DROP FOREIGN KEY task_activities_ibfk_1;
+ALTER TABLE task_activities DROP FOREIGN KEY task_activities_ibfk_2;
+ALTER TABLE task_assignees DROP FOREIGN KEY task_assignees_ibfk_1;
+ALTER TABLE task_attachments DROP FOREIGN KEY task_attachments_ibfk_1;
+ALTER TABLE task_board_members DROP FOREIGN KEY task_board_members_ibfk_1;

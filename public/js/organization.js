@@ -236,29 +236,14 @@ const Organization = {
 
     // ユーザーテーブルの初期化
     initUserTable: function () {
-        const orgId = $('#organization-id').val();
+        const table = $('#users-table');
+        if (!table.length) {
+            return;
+        }
 
-        // APIエンドポイントの修正
-        // データテーブルを初期化
-        this.dataTable = $('#users-table').DataTable({
-            processing: true,
-            serverSide: false, // サーバーサイド処理は実装しない
-            ajax: {
-                url: BASE_PATH + '/api/organizations/' + orgId + '/users',
-                type: 'GET',
-                error: function (xhr, error, thrown) {
-                    console.error('DataTables error:', error, thrown);
-                    console.log('Response:', xhr.responseText);
-                },
-                dataSrc: function (json) {
-                    if (json && json.success === true && Array.isArray(json.data)) {
-                        return json.data;
-                    } else {
-                        console.error('Invalid response format:', json);
-                        return [];
-                    }
-                }
-            },
+        this.dataTable = table.DataTable({
+            processing: false,
+            serverSide: false,
             columns: [
                 { data: 'id' },
                 { data: 'username' },

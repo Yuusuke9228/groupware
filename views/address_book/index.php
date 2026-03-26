@@ -1,12 +1,17 @@
 <?php
-$pageTitle = 'アドレス帳 - TeamSpace';
+$pageTitle = 'アドレス帳';
 ?>
 <div class="container-fluid">
     <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
         <h4 class="mb-0"><i class="fas fa-address-book me-2"></i>アドレス帳</h4>
-        <a href="<?= BASE_PATH ?>/address-book/create" class="btn btn-success btn-sm">
-            <i class="fas fa-plus me-1"></i>連絡先を追加
-        </a>
+        <div class="btn-group btn-group-sm">
+            <a href="<?= BASE_PATH ?>/address-book/create-from-card" class="btn btn-primary">
+                <i class="fas fa-id-card me-1"></i>名刺から追加
+            </a>
+            <a href="<?= BASE_PATH ?>/address-book/create" class="btn btn-success">
+                <i class="fas fa-plus me-1"></i>連絡先を追加
+            </a>
+        </div>
     </div>
 
     <?php if (isset($_SESSION['flash_message'])): ?>
@@ -50,6 +55,8 @@ $pageTitle = 'アドレス帳 - TeamSpace';
     url VARCHAR(500) DEFAULT '',
     category VARCHAR(50) DEFAULT '',
     memo TEXT,
+    has_business_card TINYINT(1) DEFAULT 0,
+    business_card_image VARCHAR(500) DEFAULT NULL,
     created_by INT,
     created_at DATETIME NOT NULL,
     updated_at DATETIME NOT NULL,
@@ -90,7 +97,8 @@ $pageTitle = 'アドレス帳 - TeamSpace';
                 <div class="card-body text-center py-5">
                     <i class="fas fa-address-book fa-3x text-muted mb-3"></i>
                     <h5>連絡先がありません</h5>
-                    <p class="text-muted">「連絡先を追加」ボタンから新しい連絡先を登録してください。</p>
+                    <p class="text-muted">「連絡先を追加」ボタンから新しい連絡先を登録してください。<br>
+                    または「名刺から追加」で名刺画像から自動的に連絡先を作成できます。</p>
                 </div>
             </div>
         <?php else: ?>
@@ -105,7 +113,7 @@ $pageTitle = 'アドレス帳 - TeamSpace';
                                 <th>メール</th>
                                 <th class="d-none d-md-table-cell">電話</th>
                                 <th class="d-none d-lg-table-cell">カテゴリ</th>
-                                <th style="width:80px;"></th>
+                                <th style="width:120px;"></th>
                             </tr>
                         </thead>
                         <tbody>
@@ -113,6 +121,9 @@ $pageTitle = 'アドレス帳 - TeamSpace';
                             <tr>
                                 <td>
                                     <a href="<?= BASE_PATH ?>/address-book/view/<?= $c['id'] ?>" class="text-decoration-none fw-bold">
+                                        <?php if (!empty($c['has_business_card'])): ?>
+                                            <i class="fas fa-id-card text-info me-1" title="名刺あり"></i>
+                                        <?php endif; ?>
                                         <?= htmlspecialchars($c['name']) ?>
                                     </a>
                                     <?php if (!empty($c['name_kana'])): ?>
@@ -134,6 +145,11 @@ $pageTitle = 'アドレス帳 - TeamSpace';
                                 </td>
                                 <td>
                                     <div class="btn-group btn-group-sm">
+                                        <?php if (!empty($c['has_business_card'])): ?>
+                                            <button type="button" class="btn btn-outline-info" title="名刺プレビュー" onclick="showCardPreview(<?= $c['id'] ?>, '<?= htmlspecialchars($c['name']) ?>')">
+                                                <i class="fas fa-id-card"></i>
+                                            </button>
+                                        <?php endif; ?>
                                         <a href="<?= BASE_PATH ?>/address-book/edit/<?= $c['id'] ?>" class="btn btn-outline-primary" title="編集"><i class="fas fa-edit"></i></a>
                                         <a href="<?= BASE_PATH ?>/address-book/delete/<?= $c['id'] ?>" class="btn btn-outline-danger" title="削除" onclick="return confirm('この連絡先を削除しますか？')"><i class="fas fa-trash"></i></a>
                                     </div>
@@ -148,3 +164,31 @@ $pageTitle = 'アドレス帳 - TeamSpace';
         <?php endif; ?>
     <?php endif; ?>
 </div>
+
+<!-- 名刺プレビューモーダル -->
+<div class="modal fade" id="cardPreviewModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-id-card me-2"></i><span id="cardPreviewName"></span>の名刺</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-center p-4">
+                <div style="background:#f8f9fa;border-radius:12px;padding:16px;box-shadow:0 4px 12px rgba(0,0,0,0.15);display:inline-block;max-width:100%;">
+                    <img id="cardPreviewImage" src="" alt="名刺画像" style="max-width:100%;max-height:500px;border-radius:8px;">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">閉じる</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function showCardPreview(contactId, contactName) {
+    document.getElementById('cardPreviewName').textContent = contactName;
+    document.getElementById('cardPreviewImage').src = '<?= BASE_PATH ?>/address-book/card-image/' + contactId + '?t=' + Date.now();
+    new bootstrap.Modal(document.getElementById('cardPreviewModal')).show();
+}
+</script>

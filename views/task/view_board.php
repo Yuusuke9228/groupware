@@ -1,7 +1,8 @@
-<div class="container-fluid mt-3" id="board-container" data-board-id="<?php echo $board['id']; ?>">
+<div class="container-fluid mt-3" id="board-container" data-board-id="<?php echo $board['id']; ?>" data-can-edit="<?php echo $canEdit ? '1' : '0'; ?>">
+    <input type="hidden" id="canEdit" value="<?php echo $canEdit ? '1' : '0'; ?>">
     <div class="row mb-3">
         <div class="col-12">
-            <div class="d-flex justify-content-between align-items-center flex-wrap">
+                <div class="d-flex justify-content-between align-items-center flex-wrap">
                 <div class="d-flex align-items-center">
                     <h4 class="mb-0">
                         <?php if ($board['owner_type'] == 'user'): ?>
@@ -50,6 +51,11 @@
                 </div>
             </div>
         </div>
+    </div>
+
+    <div class="alert alert-light border mb-3" role="note">
+        <i class="fas fa-info-circle me-2 text-primary"></i>
+        この画面ではカードをクリックすると詳細モーダルを開きます。編集が必要な場合は、モーダル内の「別画面で編集」を使用します。
     </div>
 
     <!-- ボード情報セクション -->
@@ -131,7 +137,12 @@
                             <div class="kanban-empty-msg">カードがありません</div>
                         <?php else: ?>
                             <?php foreach ($list['cards'] as $card): ?>
-                                <div class="kanban-card" data-card-id="<?php echo $card['id']; ?>">
+                                <div class="kanban-card"
+                                    data-card-id="<?php echo $card['id']; ?>"
+                                    role="button"
+                                    tabindex="0"
+                                    title="クリックで詳細モーダルを表示"
+                                    aria-label="<?php echo htmlspecialchars($card['title']); ?> の詳細をモーダル表示">
                                     <?php if (!empty($card['color'])): ?>
                                         <div class="kanban-card-color" style="background-color: <?php echo $card['color']; ?>"></div>
                                     <?php endif; ?>
@@ -181,7 +192,7 @@
                                                     'low' => '<i class="fas fa-arrow-down"></i>',
                                                     'lowest' => '<i class="fas fa-arrow-down"></i><i class="fas fa-arrow-down"></i>'
                                                 ];
-                                                echo $priorityIcons[$card['priority']] ?? '';
+                                                echo isset($priorityIcons[$card['priority']]) ? $priorityIcons[$card['priority']] : '';
                                                 ?>
                                             </span>
                                         </div>
@@ -679,7 +690,7 @@
                             <div class="card bg-light">
                                 <div class="card-body text-center p-3">
                                     <h6 class="card-subtitle mb-2 text-danger">期限切れ</h6>
-                                    <h3 class="mb-0 text-danger"><?php echo $summary['due_dates']['overdue'] ?? 0; ?></h3>
+                                    <h3 class="mb-0 text-danger"><?php echo isset($summary['due_dates']['overdue']) ? $summary['due_dates']['overdue'] : 0; ?></h3>
                                 </div>
                             </div>
                         </div>
@@ -687,7 +698,7 @@
                             <div class="card bg-light">
                                 <div class="card-body text-center p-3">
                                     <h6 class="card-subtitle mb-2 text-muted">今週期限</h6>
-                                    <h3 class="mb-0"><?php echo $summary['due_dates']['this_week'] ?? 0; ?></h3>
+                                    <h3 class="mb-0"><?php echo isset($summary['due_dates']['this_week']) ? $summary['due_dates']['this_week'] : 0; ?></h3>
                                 </div>
                             </div>
                         </div>

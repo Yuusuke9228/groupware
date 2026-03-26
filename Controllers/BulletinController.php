@@ -157,20 +157,24 @@ class BulletinController extends Controller
             $this->redirect(BASE_PATH . '/bulletin');
         }
 
-        $this->db->execute(
-            "UPDATE bulletin_posts SET view_count = view_count + 1 WHERE id = ?",
-            [$postId]
-        );
-
-        $existing = $this->db->fetch(
-            "SELECT id FROM bulletin_post_reads WHERE post_id = ? AND user_id = ?",
-            [$postId, $userId]
-        );
-        if (!$existing) {
+        try {
             $this->db->execute(
-                "INSERT INTO bulletin_post_reads (post_id, user_id) VALUES (?, ?)",
+                "UPDATE bulletin_posts SET view_count = view_count + 1 WHERE id = ?",
+                [$postId]
+            );
+
+            $existing = $this->db->fetch(
+                "SELECT id FROM bulletin_post_reads WHERE post_id = ? AND user_id = ?",
                 [$postId, $userId]
             );
+            if (!$existing) {
+                $this->db->execute(
+                    "INSERT INTO bulletin_post_reads (post_id, user_id) VALUES (?, ?)",
+                    [$postId, $userId]
+                );
+            }
+        } catch (\Throwable $e) {
+            error_log('Failed to update bulletin read state: ' . $e->getMessage());
         }
 
         $comments = $this->db->fetchAll(

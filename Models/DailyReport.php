@@ -44,23 +44,23 @@ class DailyReport
             $reportId = $this->db->lastInsertId();
 
             // タグを処理する
-            if (!empty($data['tags'])) {
-                $this->saveTags($reportId, $data['tags'], $data['user_id']);
+            if (!empty($data['tags']) && !$this->saveTags($reportId, $data['tags'], $data['user_id'])) {
+                throw new \Exception('タグの保存に失敗しました');
             }
 
             // 権限設定
-            if (!empty($data['permissions'])) {
-                $this->savePermissions($reportId, $data['permissions']);
+            if (!empty($data['permissions']) && !$this->savePermissions($reportId, $data['permissions'])) {
+                throw new \Exception('公開範囲の保存に失敗しました');
             }
 
             // スケジュールとの関連付け
-            if (!empty($data['schedules'])) {
-                $this->saveSchedules($reportId, $data['schedules']);
+            if (!empty($data['schedules']) && !$this->saveSchedules($reportId, $data['schedules'])) {
+                throw new \Exception('関連スケジュールの保存に失敗しました');
             }
 
             // タスクとの関連付け
-            if (!empty($data['tasks'])) {
-                $this->saveTasks($reportId, $data['tasks']);
+            if (!empty($data['tasks']) && !$this->saveTasks($reportId, $data['tasks'])) {
+                throw new \Exception('関連タスクの保存に失敗しました');
             }
 
             $this->db->commit();
@@ -121,7 +121,9 @@ class DailyReport
 
                 // 新しいタグを保存
                 if (!empty($data['tags'])) {
-                    $this->saveTags($id, $data['tags'], $data['user_id']);
+                    if (!$this->saveTags($id, $data['tags'], $data['user_id'])) {
+                        throw new \Exception('タグの保存に失敗しました');
+                    }
                 }
             }
 
@@ -132,7 +134,9 @@ class DailyReport
 
                 // 新しい権限を保存
                 if (!empty($data['permissions'])) {
-                    $this->savePermissions($id, $data['permissions']);
+                    if (!$this->savePermissions($id, $data['permissions'])) {
+                        throw new \Exception('公開範囲の保存に失敗しました');
+                    }
                 }
             }
 
@@ -143,7 +147,9 @@ class DailyReport
 
                 // 新しいスケジュール関連を保存
                 if (!empty($data['schedules'])) {
-                    $this->saveSchedules($id, $data['schedules']);
+                    if (!$this->saveSchedules($id, $data['schedules'])) {
+                        throw new \Exception('関連スケジュールの保存に失敗しました');
+                    }
                 }
             }
 
@@ -154,7 +160,9 @@ class DailyReport
 
                 // 新しいタスク関連を保存
                 if (!empty($data['tasks'])) {
-                    $this->saveTasks($id, $data['tasks']);
+                    if (!$this->saveTasks($id, $data['tasks'])) {
+                        throw new \Exception('関連タスクの保存に失敗しました');
+                    }
                 }
             }
 
@@ -849,7 +857,7 @@ class DailyReport
      * @param int $reportId 日報ID
      * @return array 権限リスト
      */
-    private function getReportPermissions($reportId)
+    public function getReportPermissions($reportId)
     {
         try {
             $sql = "SELECT * FROM daily_report_permissions WHERE report_id = ?";

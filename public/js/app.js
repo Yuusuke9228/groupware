@@ -14,9 +14,13 @@ const App = {
 
     // 現在のページ
     currentPage: null,
+    currentPageInitRetries: 0,
+    currentPageInitTimer: null,
 
     // 初期化
     init: function () {
+        this.initAjaxDefaults();
+
         // イベントリスナーを設定
         this.setupEventListeners();
 
@@ -28,6 +32,131 @@ const App = {
 
         // 通知系の初期化
         this.initNotifications();
+
+        // Select2の初期化（複数選択セレクトボックスをリッチUIに変換）
+        this.initSelect2();
+    },
+
+    initAjaxDefaults: function () {
+        this.patchFetch();
+
+        if (window.jQuery) {
+            $.ajaxSetup({
+                cache: false,
+                headers: this.buildNoCacheHeaders({
+                    'X-Requested-With': 'XMLHttpRequest'
+                })
+            });
+
+            $.ajaxPrefilter(function (options) {
+                const method = (options.type || options.method || 'GET').toUpperCase();
+                if (method !== 'GET' && method !== 'HEAD') {
+                    return;
+                }
+
+                options.url = App.appendCacheBuster(options.url);
+                options.cache = false;
+                options.headers = App.buildNoCacheHeaders(options.headers || {});
+            });
+        }
+    },
+
+    patchFetch: function () {
+        if (!window.fetch || window.__appFetchPatched) {
+            return;
+        }
+
+        const nativeFetch = window.fetch.bind(window);
+        window.fetch = function (resource, options = {}) {
+            const request = resource instanceof Request ? resource : null;
+            const inputUrl = request ? request.url : String(resource);
+            const method = ((options.method || (request && request.method) || 'GET') + '').toUpperCase();
+            const sameOrigin = App.isSameOriginRequest(inputUrl);
+            const nextOptions = Object.assign({}, options);
+
+            if (sameOrigin) {
+                nextOptions.credentials = nextOptions.credentials || 'same-origin';
+                nextOptions.headers = App.buildNoCacheHeaders(nextOptions.headers || {});
+
+                if (method === 'GET' || method === 'HEAD') {
+                    nextOptions.cache = 'no-store';
+
+                    if (!request) {
+                        resource = App.appendCacheBuster(inputUrl);
+                    }
+                }
+            }
+
+            return nativeFetch(resource, nextOptions);
+        };
+
+        window.__appFetchPatched = true;
+    },
+
+    buildNoCacheHeaders: function (headers = {}) {
+        const normalized = {};
+
+        if (headers instanceof Headers) {
+            headers.forEach((value, key) => {
+                normalized[key] = value;
+            });
+        } else {
+            Object.keys(headers || {}).forEach(key => {
+                normalized[key] = headers[key];
+            });
+        }
+
+        normalized['Cache-Control'] = normalized['Cache-Control'] || 'no-cache, no-store, must-revalidate';
+        normalized['Pragma'] = normalized['Pragma'] || 'no-cache';
+        normalized['Expires'] = normalized['Expires'] || '0';
+
+        return normalized;
+    },
+
+    appendCacheBuster: function (url) {
+        if (!url || /^https?:\/\/[^/]+/i.test(url) && !this.isSameOriginRequest(url)) {
+            return url;
+        }
+
+        const urlObj = new URL(url, window.location.origin);
+        urlObj.searchParams.set('_ts', Date.now().toString());
+
+        return /^https?:\/\//i.test(url) ? urlObj.toString() : (urlObj.pathname + urlObj.search + urlObj.hash);
+    },
+
+    isSameOriginRequest: function (url) {
+        if (!url) {
+            return false;
+        }
+
+        if (url.startsWith('/')) {
+            return true;
+        }
+
+        try {
+            return new URL(url, window.location.origin).origin === window.location.origin;
+        } catch (error) {
+            return false;
+        }
+    },
+
+    // Select2 複数選択セレクトボックスの初期化
+    initSelect2: function () {
+        if (typeof $.fn.select2 === 'undefined') return;
+        $('.select2-multi').each(function () {
+            $(this).select2({
+                theme: 'bootstrap-5',
+                width: '100%',
+                closeOnSelect: false,
+                allowClear: true,
+                placeholder: $(this).data('placeholder') || '選択してください...',
+                language: {
+                    noResults: function () { return '該当なし'; },
+                    searching: function () { return '検索中...'; },
+                    removeAllItems: function () { return 'すべて削除'; }
+                }
+            });
+        });
     },
 
     // イベントリスナーを設定
@@ -37,7 +166,7 @@ const App = {
             let href = $(this).attr('href');
 
             // # だけのリンク、JavaScript:など特殊リンク、外部リンクは除外
-            if (href === '#' || href.indexOf('javascript:') === 0 || href.indexOf('http') === 0) {
+            if (!href || href === '#' || href.indexOf('javascript:') === 0 || href.indexOf('http') === 0) {
                 return true;
             }
 
@@ -53,21 +182,39 @@ const App = {
 
         // モーダル内のフォーム送信
         $(document).on('submit', '.modal-form', function (e) {
+            if (e.isDefaultPrevented()) {
+                return true;
+            }
+
             e.preventDefault();
             const form = $(this);
             const url = form.attr('action');
             const method = form.attr('method') || 'POST';
             const data = form.serialize();
 
+            if (!url) {
+                return true;
+            }
+
             App.submitForm(url, method, data, form);
         });
 
         // 通常のフォーム送信
         $(document).on('submit', 'form:not(.modal-form):not(.no-ajax)', function (e) {
-            e.preventDefault();
+            if (e.isDefaultPrevented()) {
+                return true;
+            }
+
             const form = $(this);
             const url = form.attr('action');
-            const method = form.attr('method') || 'POST';
+            const method = (form.attr('method') || 'GET').toUpperCase();
+
+            // action未指定やGETフォームは通常送信に任せる
+            if (!url || method === 'GET') {
+                return true;
+            }
+
+            e.preventDefault();
             const data = form.serialize();
 
             App.submitForm(url, method, data, form);
@@ -77,6 +224,10 @@ const App = {
         $(document).on('click', '.btn-delete', function (e) {
             e.preventDefault();
             let url = $(this).data('url');
+
+            if (!url) {
+                return;
+            }
 
             // BASE_PATHがない場合は追加
             if (url.indexOf(BASE_PATH) !== 0 && url.charAt(0) === '/') {
@@ -116,27 +267,57 @@ const App = {
         });
     },
 
+    initCurrentPageModule: function (pageName, moduleName) {
+        this.currentPage = pageName;
+
+        if (typeof window[moduleName] !== 'undefined' && typeof window[moduleName].init === 'function') {
+            window[moduleName].init();
+            this.currentPageInitRetries = 0;
+
+            if (this.currentPageInitTimer) {
+                clearTimeout(this.currentPageInitTimer);
+                this.currentPageInitTimer = null;
+            }
+
+            return true;
+        }
+
+        return false;
+    },
+
+    scheduleCurrentPageRetry: function () {
+        if (this.currentPageInitRetries >= 10) {
+            return;
+        }
+
+        if (this.currentPageInitTimer) {
+            clearTimeout(this.currentPageInitTimer);
+        }
+
+        this.currentPageInitRetries += 1;
+        this.currentPageInitTimer = setTimeout(() => {
+            this.initCurrentPage();
+        }, 150);
+    },
+
     // 現在のページを判断して初期化
     initCurrentPage: function () {
         // URLから現在のページを判断
         const path = window.location.pathname;
 
         if (path.includes('/organizations')) {
-            this.currentPage = 'organizations';
-            // 組織管理ページの初期化
-            if (typeof Organization !== 'undefined') {
-                Organization.init();
+            if (!this.initCurrentPageModule('organizations', 'Organization')) {
+                this.scheduleCurrentPageRetry();
             }
         } else if (path.includes('/users')) {
-            this.currentPage = 'users';
-            // ユーザー管理ページの初期化
-            if (typeof User !== 'undefined') {
-                User.init();
+            if (!this.initCurrentPageModule('users', 'User')) {
+                this.scheduleCurrentPageRetry();
             }
         } else if (path.includes('/schedule')) {
             this.currentPage = 'schedule';
             // スケジュール管理ページの初期化
-            if (typeof Schedule !== 'undefined') {
+            if (typeof Schedule !== 'undefined' && !Schedule._initialized) {
+                Schedule._initialized = true;
                 Schedule.init();
             }
         }
@@ -198,15 +379,24 @@ const App = {
 
     // フォーム送信
     submitForm: function (url, method, data, form) {
+        if (!url) {
+            return;
+        }
+
         // BASE_PATHがない場合は追加
         if (url.indexOf(BASE_PATH) !== 0 && url.charAt(0) === '/') {
             url = BASE_PATH + url;
         }
 
-        $.ajax({
+        const hasFileInput = form.find('input[type="file"]').length > 0;
+        const isMultipart = (form.attr('enctype') || '').toLowerCase() === 'multipart/form-data';
+        const ajaxOptions = {
             url: url,
             type: method,
-            data: data,
+            cache: false,
+            headers: this.buildNoCacheHeaders({
+                'X-Requested-With': 'XMLHttpRequest'
+            }),
             beforeSend: function () {
                 // 送信ボタンを無効化
                 form.find('[type="submit"]').prop('disabled', true);
@@ -262,7 +452,17 @@ const App = {
                 // 送信ボタンを有効化
                 form.find('[type="submit"]').prop('disabled', false);
             }
-        });
+        };
+
+        if (hasFileInput || isMultipart) {
+            ajaxOptions.data = new FormData(form[0]);
+            ajaxOptions.processData = false;
+            ajaxOptions.contentType = false;
+        } else {
+            ajaxOptions.data = data;
+        }
+
+        $.ajax(ajaxOptions);
     },
 
     // API GET リクエスト
@@ -271,9 +471,14 @@ const App = {
 
         return fetch(url, {
             method: 'GET',
+            cache: 'no-store',
+            credentials: 'same-origin',
             headers: {
                 'Content-Type': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest'
+                'X-Requested-With': 'XMLHttpRequest',
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache',
+                'Expires': '0'
             }
         })
             .then(response => {
@@ -290,9 +495,13 @@ const App = {
 
         return fetch(url, {
             method: 'POST',
+            credentials: 'same-origin',
             headers: {
                 'Content-Type': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest'
+                'X-Requested-With': 'XMLHttpRequest',
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache',
+                'Expires': '0'
             },
             body: JSON.stringify(data)
         })
@@ -310,9 +519,13 @@ const App = {
 
         return fetch(url, {
             method: 'PUT',
+            credentials: 'same-origin',
             headers: {
                 'Content-Type': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest'
+                'X-Requested-With': 'XMLHttpRequest',
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache',
+                'Expires': '0'
             },
             body: JSON.stringify(data)
         })
@@ -330,9 +543,13 @@ const App = {
 
         return fetch(url, {
             method: 'DELETE',
+            credentials: 'same-origin',
             headers: {
                 'Content-Type': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest'
+                'X-Requested-With': 'XMLHttpRequest',
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache',
+                'Expires': '0'
             }
         })
             .then(response => {

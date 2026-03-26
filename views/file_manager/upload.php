@@ -104,7 +104,7 @@ $users = $users ?? [];
                                         </div>
                                         <div class="col-md-6">
                                             <label class="form-label small">対象組織</label>
-                                            <select class="form-select form-select-sm" name="<?= $permissionType ?>_organization_ids[]" multiple size="4">
+                                            <select class="form-select form-select-sm select2-multi" name="<?= $permissionType ?>_organization_ids[]" multiple data-placeholder="組織を選択...">
                                                 <?php foreach ($organizations as $organization): ?>
                                                     <option value="<?= (int)$organization['id'] ?>"><?= htmlspecialchars($organization['name']) ?></option>
                                                 <?php endforeach; ?>
@@ -112,7 +112,7 @@ $users = $users ?? [];
                                         </div>
                                         <div class="col-md-6">
                                             <label class="form-label small">対象ユーザー</label>
-                                            <select class="form-select form-select-sm" name="<?= $permissionType ?>_user_ids[]" multiple size="4">
+                                            <select class="form-select form-select-sm select2-multi" name="<?= $permissionType ?>_user_ids[]" multiple data-placeholder="ユーザーを選択...">
                                                 <?php foreach ($users as $user): ?>
                                                     <option value="<?= (int)$user['id'] ?>"><?= htmlspecialchars($user['display_name']) ?></option>
                                                 <?php endforeach; ?>
@@ -127,7 +127,7 @@ $users = $users ?? [];
                                 </div>
                                 <div class="mb-3">
                                     <label class="form-label small">承認者</label>
-                                    <select class="form-select form-select-sm" name="approval_user_ids[]" multiple size="5">
+                                    <select class="form-select form-select-sm select2-multi" name="approval_user_ids[]" multiple data-placeholder="承認者を選択...">
                                         <?php foreach ($users as $user): ?>
                                             <option value="<?= (int)$user['id'] ?>"><?= htmlspecialchars($user['display_name']) ?></option>
                                         <?php endforeach; ?>

@@ -1,6 +1,6 @@
 <div class="container-fluid mt-3">
     <h4 class="mb-3"><i class="fas fa-sync-alt me-2"></i>カレンダー連携</h4>
-    <p class="text-muted mb-4">TeamSpaceのスケジュールをiPhone、Googleカレンダー、Outlookなどと同期できます。公開範囲はユーザー単位で制御されます。</p>
+    <p class="text-muted mb-4"><?php echo htmlspecialchars($appName); ?>のスケジュールをiPhone、Googleカレンダー、Outlookなどと同期できます。公開範囲はユーザー単位で制御されます。</p>
 
     <?php if (!empty($_SESSION['flash_success'])): ?>
         <div class="alert alert-success alert-dismissible fade show" role="alert">
@@ -83,7 +83,7 @@
             <strong><i class="fas fa-link me-2"></i>あなたの同期用URL</strong>
         </div>
         <div class="card-body">
-            <p class="mb-2">以下のトークン付きURLをカレンダーアプリに登録すると、TeamSpaceの予定が自動で同期されます。</p>
+            <p class="mb-2">以下のトークン付きURLをカレンダーアプリに登録すると、<?php echo htmlspecialchars($appName); ?>の予定が自動で同期されます。</p>
             <div class="input-group mb-3">
                 <input type="text" id="feed-url" class="form-control" readonly value="<?php echo htmlspecialchars($absoluteFeedUrl); ?>">
                 <button class="btn btn-outline-primary copy-feed-url" type="button" data-target="#feed-url">
@@ -136,7 +136,7 @@
                     </ol>
                     <div class="alert alert-info mt-3 mb-0 small">
                         <i class="fas fa-info-circle me-1"></i>
-                        登録後、iPhoneの標準カレンダーアプリにTeamSpaceの予定が表示されます。自動で定期的に更新されます。
+                        登録後、iPhoneの標準カレンダーアプリに<?php echo htmlspecialchars($appName); ?>の予定が表示されます。自動で定期的に更新されます。
                     </div>
                 </div>
             </div>
@@ -201,7 +201,7 @@
             <strong><i class="fas fa-exchange-alt me-2"></i>外部カレンダーからの取り込み（双方向同期）</strong>
         </div>
         <div class="card-body">
-            <p class="mb-3">GoogleカレンダーやiPhoneで入力した予定をTeamSpaceに取り込むことができます。</p>
+            <p class="mb-3">GoogleカレンダーやiPhoneで入力した予定を<?php echo htmlspecialchars($appName); ?>に取り込むことができます。</p>
 
             <div class="row g-3 mb-3">
                 <div class="col-lg-6">
@@ -251,7 +251,7 @@
             <strong><i class="fas fa-repeat me-2"></i>定期取り込みジョブ</strong>
         </div>
         <div class="card-body">
-            <p class="text-muted">外部カレンダーの ICS URL を登録すると、定期ジョブで取り込み更新・削除まで同期します。TeamSpace から外部への購読 URL と組み合わせることで、実運用上の双方向同期として使えます。</p>
+            <p class="text-muted">外部カレンダーの ICS URL を登録すると、定期ジョブで取り込み更新・削除まで同期します。<?php echo htmlspecialchars($appName); ?> から外部への購読 URL と組み合わせることで、実運用上の双方向同期として使えます。</p>
 
             <form method="post" action="<?= BASE_PATH ?>/integrations/calendar-subscriptions" class="row g-3 mb-4 no-ajax">
                 <input type="hidden" name="csrf_token" value="<?= $this->generateCsrfToken() ?>">

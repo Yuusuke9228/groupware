@@ -1,5 +1,5 @@
 <?php
-$pageTitle = '施設予約 - TeamSpace';
+$pageTitle = '施設予約';
 $today = date('Y-m-d');
 $prevDate = date('Y-m-d', strtotime($date . ' -1 day'));
 $nextDate = date('Y-m-d', strtotime($date . ' +1 day'));
