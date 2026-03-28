@@ -14,6 +14,18 @@
                         <a href="<?= BASE_PATH ?>/daily-report/list" class="btn btn-secondary ms-2">
                             <i class="fas fa-list me-2"></i>一覧表示
                         </a>
+                        <a href="<?= BASE_PATH ?>/daily-report/week" class="btn btn-outline-secondary ms-2">
+                            <i class="fas fa-calendar-week me-2"></i>週間
+                        </a>
+                        <a href="<?= BASE_PATH ?>/daily-report/month" class="btn btn-outline-secondary ms-2">
+                            <i class="fas fa-calendar-alt me-2"></i>月間
+                        </a>
+                        <a href="<?= BASE_PATH ?>/daily-report/timeline" class="btn btn-outline-secondary ms-2">
+                            <i class="fas fa-stream me-2"></i>タイムライン
+                        </a>
+                        <a href="<?= BASE_PATH ?>/daily-report/analysis" class="btn btn-outline-success ms-2">
+                            <i class="fas fa-chart-line me-2"></i>分析
+                        </a>
                     </div>
                 </div>
 

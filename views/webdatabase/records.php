@@ -37,6 +37,52 @@
                     </button>
                 </div>
             </div>
+            <div class="row mt-3 g-2">
+                <div class="col-md-4">
+                    <label for="view-selector" class="form-label form-label-sm mb-1">ビュー</label>
+                    <select id="view-selector" class="form-select form-select-sm">
+                        <option value="">標準ビュー</option>
+                        <?php foreach (($views ?? []) as $view): ?>
+                            <option
+                                value="<?= (int)$view['id'] ?>"
+                                data-settings='<?= htmlspecialchars((string)($view['settings'] ?? '{}'), ENT_QUOTES, 'UTF-8') ?>'
+                                data-scope="<?= htmlspecialchars((string)($view['scope_type'] ?? 'private')) ?>"
+                                data-organization-id="<?= (int)($view['organization_id'] ?? 0) ?>"
+                                <?= (int)($selectedViewId ?? 0) === (int)$view['id'] ? 'selected' : '' ?>>
+                                <?= htmlspecialchars((string)$view['name']) ?>
+                                <?php if (!empty($view['scope_type'])): ?>
+                                    [<?= htmlspecialchars((string)$view['scope_type']) ?>]
+                                <?php endif; ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="view-name" class="form-label form-label-sm mb-1">保存名</label>
+                    <input type="text" id="view-name" class="form-control form-control-sm" placeholder="例: 自分の案件">
+                </div>
+                <div class="col-md-2">
+                    <label for="view-scope" class="form-label form-label-sm mb-1">範囲</label>
+                    <select id="view-scope" class="form-select form-select-sm">
+                        <option value="private">ユーザー</option>
+                        <option value="organization">組織</option>
+                        <option value="global">全体</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label for="view-organization" class="form-label form-label-sm mb-1">組織</label>
+                    <select id="view-organization" class="form-select form-select-sm">
+                        <option value="">組織を選択</option>
+                        <?php foreach (($userOrganizations ?? []) as $org): ?>
+                            <option value="<?= (int)$org['id'] ?>"><?= htmlspecialchars((string)$org['name']) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div class="col-md-1 d-grid gap-1">
+                    <button type="button" id="save-view-btn" class="btn btn-sm btn-primary">保存</button>
+                    <button type="button" id="delete-view-btn" class="btn btn-sm btn-outline-danger">削除</button>
+                </div>
+            </div>
         </div>
 
         <!-- フィルターパネル -->

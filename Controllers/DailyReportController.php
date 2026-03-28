@@ -87,6 +87,105 @@ class DailyReportController extends Controller
     }
 
     /**
+     * 日報週間ビュー
+     */
+    public function week()
+    {
+        $userId = $this->auth->id();
+        $date = $_GET['date'] ?? date('Y-m-d');
+        $timestamp = strtotime($date);
+        $weekStart = date('Y-m-d', strtotime('monday this week', $timestamp));
+        $weekEnd = date('Y-m-d', strtotime('sunday this week', $timestamp));
+
+        $reports = $this->reportModel->getReadableReports($userId, [
+            'start_date' => $weekStart,
+            'end_date' => $weekEnd
+        ], 1, 500);
+
+        $reportsByDate = [];
+        for ($i = 0; $i < 7; $i++) {
+            $day = date('Y-m-d', strtotime($weekStart . " +{$i} day"));
+            $reportsByDate[$day] = [];
+        }
+        foreach ($reports as $report) {
+            $reportsByDate[$report['report_date']][] = $report;
+        }
+
+        $this->view('daily_report/week', [
+            'title' => '日報週間',
+            'baseDate' => $date,
+            'weekStart' => $weekStart,
+            'weekEnd' => $weekEnd,
+            'reportsByDate' => $reportsByDate,
+            'jsFiles' => ['daily-report.js']
+        ]);
+    }
+
+    /**
+     * 日報月間ビュー
+     */
+    public function month()
+    {
+        $userId = $this->auth->id();
+        $month = $_GET['month'] ?? date('Y-m');
+        if (preg_match('/^\d{4}-\d{2}$/', $month) !== 1) {
+            $month = date('Y-m');
+        }
+
+        $monthStart = $month . '-01';
+        $monthEnd = date('Y-m-t', strtotime($monthStart));
+        $reports = $this->reportModel->getReadableReports($userId, [
+            'start_date' => $monthStart,
+            'end_date' => $monthEnd
+        ], 1, 2000);
+
+        $dailyCounts = [];
+        foreach ($reports as $report) {
+            if (!isset($dailyCounts[$report['report_date']])) {
+                $dailyCounts[$report['report_date']] = 0;
+            }
+            $dailyCounts[$report['report_date']]++;
+        }
+
+        $this->view('daily_report/month', [
+            'title' => '日報月間',
+            'month' => $month,
+            'monthStart' => $monthStart,
+            'monthEnd' => $monthEnd,
+            'dailyCounts' => $dailyCounts,
+            'jsFiles' => ['daily-report.js']
+        ]);
+    }
+
+    /**
+     * 日報タイムラインビュー
+     */
+    public function timeline()
+    {
+        $userId = $this->auth->id();
+        $date = $_GET['date'] ?? date('Y-m-d');
+        $filters = [
+            'start_date' => $date,
+            'end_date' => $date,
+            'user_id' => $_GET['user_id'] ?? null
+        ];
+        $reports = $this->reportModel->getReadableReports($userId, $filters, 1, 500);
+
+        usort($reports, static function ($a, $b) {
+            return strcmp($b['created_at'], $a['created_at']);
+        });
+
+        $this->view('daily_report/timeline', [
+            'title' => '日報タイムライン',
+            'date' => $date,
+            'reports' => $reports,
+            'users' => $this->userModel->getActiveUsers(),
+            'selectedUserId' => $filters['user_id'],
+            'jsFiles' => ['daily-report.js']
+        ]);
+    }
+
+    /**
      * 日報一覧を表示する
      */
     public function list()
@@ -100,7 +199,11 @@ class DailyReportController extends Controller
             'end_date' => $_GET['end_date'] ?? null,
             'user_id' => $_GET['user_id'] ?? null,
             'tag_id' => $_GET['tag_id'] ?? null,
-            'search' => $_GET['search'] ?? null
+            'search' => $_GET['search'] ?? null,
+            'project_id' => $_GET['project_id'] ?? null,
+            'industry_id' => $_GET['industry_id'] ?? null,
+            'product_id' => $_GET['product_id'] ?? null,
+            'process_id' => $_GET['process_id'] ?? null
         ];
 
         // ページネーション
@@ -128,6 +231,7 @@ class DailyReportController extends Controller
         // タグ一覧を取得
         $tags = $this->reportModel->getUserTags($userId);
         $publicTags = $this->reportModel->getPublicTags();
+        $analysisMasters = $this->reportModel->getAnalysisMasterSet();
 
         $viewData = [
             'title' => '日報一覧',
@@ -139,6 +243,7 @@ class DailyReportController extends Controller
             'users' => $users,
             'tags' => $tags,
             'publicTags' => $publicTags,
+            'analysisMasters' => $analysisMasters,
             'jsFiles' => ['daily-report.js']
         ];
 
@@ -168,6 +273,16 @@ class DailyReportController extends Controller
                 $template = null;
             }
         }
+        $templateSections = $template['sections'] ?? [];
+        $defaultDetailItems = [];
+        foreach ($templateSections as $section) {
+            $defaultDetailItems[] = [
+                'section_key' => $section['section_key'] ?? '',
+                'title' => $section['title'] ?? '',
+                'value' => $section['default_value_text'] ?? '',
+                'input_type' => $section['input_type'] ?? 'textarea'
+            ];
+        }
 
         // その日の予定を取得
         $schedules = $this->scheduleModel->getByDay($date, $userId);
@@ -188,10 +303,13 @@ class DailyReportController extends Controller
             'date' => $date,
             'templates' => $templates,
             'template' => $template,
+            'templateSections' => $templateSections,
+            'defaultDetailItems' => $defaultDetailItems,
             'schedules' => $schedules,
             'tasks' => $completedTasks,
             'organizations' => $organizations,
             'users' => $users,
+            'analysisMasters' => $this->reportModel->getAnalysisMasterSet(),
             'jsFiles' => ['daily-report.js']
         ];
 
@@ -235,14 +353,24 @@ class DailyReportController extends Controller
         // ユーザー一覧を取得
         $users = $this->userModel->getActiveUsers();
 
+        $template = null;
+        $templateSections = [];
+        if (!empty($report['template_id'])) {
+            $template = $this->reportModel->getTemplateById((int)$report['template_id']);
+            $templateSections = $template['sections'] ?? [];
+        }
+
         $viewData = [
             'title' => '日報編集',
             'user' => $user,
             'report' => $report,
+            'template' => $template,
+            'templateSections' => $templateSections,
             'schedules' => $schedules,
             'tasks' => $completedTasks,
             'organizations' => $organizations,
             'users' => $users,
+            'analysisMasters' => $this->reportModel->getAnalysisMasterSet(),
             'jsFiles' => ['daily-report.js']
         ];
 
@@ -268,7 +396,9 @@ class DailyReportController extends Controller
         }
 
         // 権限チェック
-        // TODO: 閲覧権限のチェック処理
+        if (!$this->canReadReport($report, $userId)) {
+            $this->redirect(BASE_PATH . '/daily-report');
+        }
 
         // 既読にする
         $this->reportModel->markAsRead($id, $userId);
@@ -385,14 +515,69 @@ class DailyReportController extends Controller
     }
 
     /**
+     * 日報分析画面（案件・業種・商品・プロセス / 予実）
+     */
+    public function analysis()
+    {
+        $currentUserId = $this->auth->id();
+        $selectedUserId = $currentUserId;
+        if ($this->auth->isAdmin() && !empty($_GET['user_id'])) {
+            $selectedUserId = (int)$_GET['user_id'];
+        }
+
+        $filters = [
+            'user_id' => $selectedUserId,
+            'start_date' => $_GET['start_date'] ?? date('Y-m-01'),
+            'end_date' => $_GET['end_date'] ?? date('Y-m-d'),
+            'project_id' => $_GET['project_id'] ?? null,
+            'industry_id' => $_GET['industry_id'] ?? null,
+            'product_id' => $_GET['product_id'] ?? null,
+            'process_id' => $_GET['process_id'] ?? null
+        ];
+        $targetMonth = $_GET['target_month'] ?? date('Y-m');
+        if (preg_match('/^\d{4}-\d{2}$/', (string)$targetMonth) !== 1) {
+            $targetMonth = date('Y-m');
+        }
+
+        $summary = $this->reportModel->getAnalysisSummary($filters);
+        $projectBreakdown = $this->reportModel->getAnalysisBreakdown($filters, 'project');
+        $industryBreakdown = $this->reportModel->getAnalysisBreakdown($filters, 'industry');
+        $productBreakdown = $this->reportModel->getAnalysisBreakdown($filters, 'product');
+        $processBreakdown = $this->reportModel->getAnalysisBreakdown($filters, 'process');
+        $monthlyTrend = $this->reportModel->getAnalysisMonthlyTrend($filters);
+        $monthlyTargets = $this->reportModel->getMonthlyTargets($selectedUserId, $targetMonth);
+        $targetVsActual = $this->reportModel->getAnalysisTargetVsActual($selectedUserId, $targetMonth);
+
+        $this->view('daily_report/analysis', [
+            'title' => '日報分析',
+            'filters' => $filters,
+            'targetMonth' => $targetMonth,
+            'summary' => $summary,
+            'projectBreakdown' => $projectBreakdown,
+            'industryBreakdown' => $industryBreakdown,
+            'productBreakdown' => $productBreakdown,
+            'processBreakdown' => $processBreakdown,
+            'monthlyTrend' => $monthlyTrend,
+            'monthlyTargets' => $monthlyTargets,
+            'targetVsActual' => $targetVsActual,
+            'analysisMasters' => $this->reportModel->getAnalysisMasterSet(),
+            'users' => $this->auth->isAdmin() ? $this->userModel->getActiveUsers() : [],
+            'selectedUserId' => $selectedUserId,
+            'jsFiles' => ['daily-report.js', 'chart.js']
+        ]);
+    }
+
+    /**
      * API: 日報を作成する
      */
     public function apiCreate($params, $data)
     {
         $userId = $this->auth->id();
+        $data = $this->resolveApiPayload($data);
+        $uploadedFiles = $this->processReportAttachments($_FILES['attachments'] ?? null);
 
         // バリデーション
-        $errors = $this->validateReportData($data);
+        $errors = $this->validateReportData($data, (int)$userId);
         if (!empty($errors)) {
             return [
                 'success' => false,
@@ -402,22 +587,14 @@ class DailyReportController extends Controller
         }
 
         // 日報データを整形
-        $reportData = [
-            'user_id' => $userId,
-            'report_date' => $data['report_date'],
-            'title' => $data['title'],
-            'content' => $data['content'],
-            'status' => $data['status'] ?? 'published',
-            'tags' => $data['tags'] ?? [],
-            'permissions' => $data['permissions'] ?? [],
-            'schedules' => $data['schedules'] ?? [],
-            'tasks' => $data['tasks'] ?? []
-        ];
+        $reportData = $this->prepareReportPayload($data, $userId);
+        $reportData['attachments'] = $uploadedFiles;
 
         // 日報を作成
         $reportId = $this->reportModel->create($reportData);
 
         if (!$reportId) {
+            $this->rollbackUploadedFiles($uploadedFiles);
             return [
                 'success' => false,
                 'error' => '日報の作成に失敗しました'
@@ -425,7 +602,7 @@ class DailyReportController extends Controller
         }
 
         // 通知を送信（公開状態の場合のみ）
-        if ($data['status'] === 'published' && !empty($data['permissions'])) {
+        if ($reportData['status'] === 'published' && !empty($reportData['permissions'])) {
             $this->sendNotifications($reportId, 'create');
         }
 
@@ -446,6 +623,7 @@ class DailyReportController extends Controller
     {
         $userId = $this->auth->id();
         $id = $params['id'] ?? null;
+        $data = $this->resolveApiPayload($data);
 
         if (!$id) {
             return [
@@ -462,6 +640,12 @@ class DailyReportController extends Controller
                 'error' => '指定された日報が見つかりません'
             ];
         }
+        if (!$this->canReadReport($report, $userId)) {
+            return [
+                'success' => false,
+                'error' => 'この日報を閲覧する権限がありません'
+            ];
+        }
 
         // 権限チェック（自分の日報のみ編集可能）
         if ($report['user_id'] != $userId) {
@@ -472,7 +656,7 @@ class DailyReportController extends Controller
         }
 
         // バリデーション
-        $errors = $this->validateReportData($data);
+        $errors = $this->validateReportData($data, (int)$userId);
         if (!empty($errors)) {
             return [
                 'success' => false,
@@ -482,30 +666,34 @@ class DailyReportController extends Controller
         }
 
         // 日報データを整形
-        $reportData = [
-            'user_id' => $userId,
-            'report_date' => $data['report_date'],
-            'title' => $data['title'],
-            'content' => $data['content'],
-            'status' => $data['status'] ?? $report['status'],
-            'tags' => $data['tags'] ?? [],
-            'permissions' => $data['permissions'] ?? [],
-            'schedules' => $data['schedules'] ?? [],
-            'tasks' => $data['tasks'] ?? []
-        ];
+        $reportData = $this->prepareReportPayload($data, $userId, $report);
+        $uploadedFiles = $this->processReportAttachments($_FILES['attachments'] ?? null);
+        $reportData['attachments'] = $uploadedFiles;
 
         // 日報を更新
         $result = $this->reportModel->update($id, $reportData);
 
         if (!$result) {
+            $this->rollbackUploadedFiles($uploadedFiles);
             return [
                 'success' => false,
                 'error' => '日報の更新に失敗しました'
             ];
         }
 
+        $deleteAttachmentIds = $data['delete_attachment_ids'] ?? [];
+        if (is_string($deleteAttachmentIds)) {
+            $decoded = json_decode($deleteAttachmentIds, true);
+            if (json_last_error() === JSON_ERROR_NONE) {
+                $deleteAttachmentIds = $decoded;
+            }
+        }
+        if (is_array($deleteAttachmentIds) && !empty($deleteAttachmentIds)) {
+            $this->reportModel->deleteAttachments((int)$id, $deleteAttachmentIds);
+        }
+
         // ステータスが下書きから公開に変わった場合は通知を送信
-        if ($report['status'] === 'draft' && $data['status'] === 'published') {
+        if ($report['status'] === 'draft' && $reportData['status'] === 'published') {
             $this->sendNotifications($id, 'create');
         }
 
@@ -540,6 +728,12 @@ class DailyReportController extends Controller
             return [
                 'success' => false,
                 'error' => '指定された日報が見つかりません'
+            ];
+        }
+        if (!$this->canReadReport($report, $userId)) {
+            return [
+                'success' => false,
+                'error' => 'この日報を閲覧する権限がありません'
             ];
         }
 
@@ -686,6 +880,7 @@ class DailyReportController extends Controller
     public function apiSaveTemplate($params, $data)
     {
         $userId = $this->auth->id();
+        $data = $this->resolveApiPayload($data);
         $id = $params['id'] ?? null;
 
         // デバッグ情報
@@ -694,19 +889,27 @@ class DailyReportController extends Controller
         //     'data' => print_r($data, true)
         // ];
 
-        // バリデーション
-        if (empty($data['title']) || empty($data['content'])) {
+        $validation = $this->validateTemplateData($data);
+        if (!empty($validation)) {
             return [
                 'success' => false,
-                'error' => 'タイトルと内容は必須です'
+                'error' => '入力内容に誤りがあります',
+                'validation' => $validation,
+                'code' => 400
             ];
         }
 
+        // バリデーション済みセクション
+        $sections = is_array($data['sections'] ?? null) ? $data['sections'] : [];
+
         $templateData = [
-            'title' => $data['title'],
-            'content' => $data['content'],
+            'title' => trim((string)$data['title']),
+            'content' => $this->sanitizeRichText((string)($data['content'] ?? '')),
+            'content_format' => ($data['content_format'] ?? 'text') === 'html' ? 'html' : 'text',
             'user_id' => $userId,
-            'is_public' => isset($data['is_public']) && $data['is_public'] ? 1 : 0
+            'is_public' => isset($data['is_public']) && $data['is_public'] ? 1 : 0,
+            'description' => isset($data['description']) ? trim((string)$data['description']) : null,
+            'sections' => $sections
         ];
 
         // isEdit情報があればそれを使用
@@ -857,6 +1060,153 @@ class DailyReportController extends Controller
         ];
     }
 
+    public function apiGetAnalysisMasters($params)
+    {
+        return [
+            'success' => true,
+            'data' => $this->reportModel->getAnalysisMasterSet()
+        ];
+    }
+
+    public function apiSaveMaster($params, $data)
+    {
+        if (!$this->auth->isAdmin()) {
+            return ['success' => false, 'error' => '権限がありません', 'code' => 403];
+        }
+
+        $data = $this->resolveApiPayload($data);
+        $type = (string)($params['type'] ?? '');
+        $validation = $this->validateMasterPayload($type, $data);
+        if (!empty($validation)) {
+            return [
+                'success' => false,
+                'error' => '入力内容に誤りがあります',
+                'validation' => $validation,
+                'code' => 400
+            ];
+        }
+        $savedId = $this->reportModel->saveMasterItem($type, $data, $this->auth->id());
+        if (!$savedId) {
+            return ['success' => false, 'error' => 'マスタの保存に失敗しました', 'code' => 500];
+        }
+
+        return [
+            'success' => true,
+            'message' => 'マスタを保存しました',
+            'data' => [
+                'id' => $savedId,
+                'items' => $this->reportModel->getMasterItems($type)
+            ]
+        ];
+    }
+
+    public function apiDeleteMaster($params)
+    {
+        if (!$this->auth->isAdmin()) {
+            return ['success' => false, 'error' => '権限がありません', 'code' => 403];
+        }
+        $type = (string)($params['type'] ?? '');
+        $id = (int)($params['id'] ?? 0);
+        if ($id <= 0) {
+            return ['success' => false, 'error' => 'IDが不正です', 'code' => 400];
+        }
+        $result = $this->reportModel->deleteMasterItem($type, $id);
+        if (!$result) {
+            return ['success' => false, 'error' => 'マスタの削除に失敗しました', 'code' => 500];
+        }
+        return ['success' => true, 'message' => 'マスタを削除しました'];
+    }
+
+    public function apiSaveMonthlyTarget($params, $data)
+    {
+        $data = $this->resolveApiPayload($data);
+        $userId = $this->auth->id();
+        if ($this->auth->isAdmin() && !empty($data['user_id'])) {
+            $userId = (int)$data['user_id'];
+        }
+
+        $validation = $this->validateMonthlyTargetPayload($data);
+        if (!empty($validation)) {
+            return [
+                'success' => false,
+                'error' => '入力内容に誤りがあります',
+                'validation' => $validation,
+                'code' => 400
+            ];
+        }
+
+        $ok = $this->reportModel->saveMonthlyTarget($userId, $data);
+        if (!$ok) {
+            return ['success' => false, 'error' => '月次目標の保存に失敗しました', 'code' => 500];
+        }
+
+        $targetMonth = $data['target_month'] ?? date('Y-m');
+        return [
+            'success' => true,
+            'message' => '月次目標を保存しました',
+            'data' => [
+                'targets' => $this->reportModel->getMonthlyTargets($userId, $targetMonth)
+            ]
+        ];
+    }
+
+    public function apiDeleteMonthlyTarget($params)
+    {
+        $userId = $this->auth->id();
+        $targetId = (int)($params['id'] ?? 0);
+        if ($targetId <= 0) {
+            return ['success' => false, 'error' => 'IDが不正です', 'code' => 400];
+        }
+        $ok = $this->reportModel->deleteMonthlyTarget($userId, $targetId);
+        if (!$ok) {
+            return ['success' => false, 'error' => '月次目標の削除に失敗しました', 'code' => 500];
+        }
+        return ['success' => true, 'message' => '月次目標を削除しました'];
+    }
+
+    public function apiExportCsv($params)
+    {
+        $currentUserId = $this->auth->id();
+        $targetUserId = $currentUserId;
+        if ($this->auth->isAdmin() && !empty($params['user_id'])) {
+            $targetUserId = (int)$params['user_id'];
+        }
+
+        $filters = [
+            'user_id' => $targetUserId,
+            'start_date' => $params['start_date'] ?? null,
+            'end_date' => $params['end_date'] ?? null,
+            'project_id' => $params['project_id'] ?? null,
+            'industry_id' => $params['industry_id'] ?? null,
+            'product_id' => $params['product_id'] ?? null,
+            'process_id' => $params['process_id'] ?? null
+        ];
+        $rows = $this->reportModel->getCsvExportRows($filters);
+
+        $filename = 'daily_report_analysis_' . date('Ymd_His') . '.csv';
+        header('Content-Type: text/csv; charset=UTF-8');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        echo "\xEF\xBB\xBF";
+        $fp = fopen('php://output', 'w');
+        fputcsv($fp, ['日報ID', '日付', '作成者', 'タイトル', '状態', '計画金額', '実績金額', '計画時間', '実績時間', '数量']);
+        foreach ($rows as $row) {
+            fputcsv($fp, [
+                $row['id'],
+                $row['report_date'],
+                $row['creator_name'],
+                $row['title'],
+                $row['status'],
+                $row['planned_amount_total'],
+                $row['actual_amount_total'],
+                $row['planned_hours_total'],
+                $row['actual_hours_total'],
+                $row['quantity_total']
+            ]);
+        }
+        fclose($fp);
+        exit;
+    }
+
     /**
      * 日報データのバリデーション
      * 
@@ -877,8 +1227,16 @@ class DailyReportController extends Controller
             $errors['title'] = 'タイトルは100文字以内で入力してください';
         }
 
-        if (empty($data['content'])) {
-            $errors['content'] = '内容は必須です';
+        $content = trim((string)($data['content'] ?? ''));
+        $summary = trim((string)($data['summary_text'] ?? ''));
+        $issues = trim((string)($data['issues_text'] ?? ''));
+        $tomorrow = trim((string)($data['tomorrow_plan_text'] ?? ''));
+        $detailItems = $this->normalizeDetailItems($data['detail_items'] ?? []);
+        $activities = $this->normalizeActivities($data['activities'] ?? ($data['activity_logs'] ?? []));
+        $analysisEntries = $this->normalizeAnalysisEntries($data['analysis_entries'] ?? []);
+
+        if ($content === '' && $summary === '' && $issues === '' && $tomorrow === '' && empty($detailItems) && empty($activities) && empty($analysisEntries)) {
+            $errors['content'] = '内容・活動ログ・分析明細のいずれかを入力してください';
         }
 
         return $errors;
@@ -930,7 +1288,7 @@ class DailyReportController extends Controller
             $organizationIds = $userModel->getUserOrganizationIds($userId);
 
             $placeholders = '';
-            $params = [$userId];
+            $params = [$userId, $userId];
             if (!empty($organizationIds)) {
                 $placeholders = implode(',', array_fill(0, count($organizationIds), '?'));
                 $params = array_merge($params, $organizationIds);
@@ -957,7 +1315,6 @@ class DailyReportController extends Controller
                    ORDER BY r.created_at DESC
                    LIMIT ?";
 
-            $params[] = $userId; // p.target_id = ? の部分用
             $params[] = $limit;
 
             return $this->db->fetchAll($sql, $params);
@@ -1108,6 +1465,364 @@ class DailyReportController extends Controller
             $this->notificationModel->create($notificationData);
         } catch (\Exception $e) {
         }
+    }
+
+    private function prepareReportPayload($data, $userId, $existingReport = null)
+    {
+        $detailItems = $this->normalizeDetailItems($data['detail_items'] ?? []);
+        $activities = $this->normalizeActivities($data['activities'] ?? ($data['activity_logs'] ?? []));
+        $analysisEntries = $this->normalizeAnalysisEntries($data['analysis_entries'] ?? []);
+
+        $summaryText = trim((string)($data['summary_text'] ?? ''));
+        $issuesText = trim((string)($data['issues_text'] ?? ''));
+        $tomorrowPlanText = trim((string)($data['tomorrow_plan_text'] ?? ''));
+        $reflectionText = trim((string)($data['reflection_text'] ?? ''));
+        $content = trim((string)($data['content'] ?? ''));
+        $contentFormat = ($data['content_format'] ?? (($existingReport['content_format'] ?? 'text'))) === 'html' ? 'html' : 'text';
+
+        if ($contentFormat === 'html') {
+            $content = $this->sanitizeRichText($content);
+        }
+
+        if ($content === '') {
+            $content = $this->buildContentFromStructured($summaryText, $issuesText, $tomorrowPlanText, $reflectionText, $detailItems, $activities);
+            $contentFormat = 'text';
+        }
+
+        return [
+            'user_id' => $userId,
+            'report_date' => $data['report_date'],
+            'title' => trim((string)$data['title']),
+            'content' => $content,
+            'content_format' => $contentFormat,
+            'status' => $data['status'] ?? ($existingReport['status'] ?? 'published'),
+            'tags' => is_array($data['tags'] ?? null) ? $data['tags'] : [],
+            'permissions' => is_array($data['permissions'] ?? null) ? $data['permissions'] : [],
+            'schedules' => is_array($data['schedules'] ?? null) ? $data['schedules'] : [],
+            'tasks' => is_array($data['tasks'] ?? null) ? $data['tasks'] : [],
+            'summary_text' => $summaryText !== '' ? $summaryText : null,
+            'issues_text' => $issuesText !== '' ? $issuesText : null,
+            'tomorrow_plan_text' => $tomorrowPlanText !== '' ? $tomorrowPlanText : null,
+            'reflection_text' => $reflectionText !== '' ? $reflectionText : null,
+            'work_minutes' => max(0, (int)($data['work_minutes'] ?? 0)),
+            'template_id' => !empty($data['template_id']) ? (int)$data['template_id'] : null,
+            'detail_items' => $detailItems,
+            'activities' => $activities,
+            'analysis_entries' => $analysisEntries
+        ];
+    }
+
+    private function normalizeDetailItems($items)
+    {
+        if (!is_array($items)) {
+            return [];
+        }
+        $result = [];
+        foreach ($items as $item) {
+            if (!is_array($item)) {
+                continue;
+            }
+            $title = trim((string)($item['title'] ?? ''));
+            $value = trim((string)($item['value'] ?? ''));
+            if ($title === '' && $value === '') {
+                continue;
+            }
+            $result[] = [
+                'section_key' => trim((string)($item['section_key'] ?? '')),
+                'title' => $title,
+                'value' => $value,
+                'input_type' => trim((string)($item['input_type'] ?? 'textarea'))
+            ];
+        }
+        return $result;
+    }
+
+    private function normalizeActivities($activities)
+    {
+        if (!is_array($activities)) {
+            return [];
+        }
+        $result = [];
+        foreach ($activities as $activity) {
+            if (!is_array($activity)) {
+                continue;
+            }
+            $start = trim((string)($activity['start_time'] ?? ''));
+            $end = trim((string)($activity['end_time'] ?? ''));
+            $type = trim((string)($activity['activity_type'] ?? ''));
+            $subject = trim((string)($activity['subject'] ?? ''));
+            $outcome = trim((string)($activity['result'] ?? ''));
+            $memo = trim((string)($activity['memo'] ?? ''));
+            if ($start === '' && $end === '' && $type === '' && $subject === '' && $outcome === '' && $memo === '') {
+                continue;
+            }
+            $result[] = [
+                'start_time' => $start,
+                'end_time' => $end,
+                'activity_type' => $type,
+                'subject' => $subject,
+                'result' => $outcome,
+                'memo' => $memo
+            ];
+        }
+        return $result;
+    }
+
+    private function normalizeAnalysisEntries($entries)
+    {
+        if (!is_array($entries)) {
+            return [];
+        }
+
+        $normalized = [];
+        foreach ($entries as $entry) {
+            if (!is_array($entry)) {
+                continue;
+            }
+
+            $projectId = max(0, (int)($entry['project_id'] ?? 0));
+            $industryId = max(0, (int)($entry['industry_id'] ?? 0));
+            $productId = max(0, (int)($entry['product_id'] ?? 0));
+            $processId = max(0, (int)($entry['process_id'] ?? 0));
+            $activityType = trim((string)($entry['activity_type'] ?? ''));
+            $memo = trim((string)($entry['memo'] ?? ''));
+            $plannedAmount = $this->normalizeDecimalValue($entry['planned_amount'] ?? 0);
+            $actualAmount = $this->normalizeDecimalValue($entry['actual_amount'] ?? 0);
+            $plannedHours = $this->normalizeDecimalValue($entry['planned_hours'] ?? 0);
+            $actualHours = $this->normalizeDecimalValue($entry['actual_hours'] ?? 0);
+            $quantity = $this->normalizeDecimalValue($entry['quantity'] ?? 0);
+
+            if (
+                $projectId <= 0 && $industryId <= 0 && $productId <= 0 && $processId <= 0
+                && $activityType === '' && $memo === ''
+                && $plannedAmount == 0.0 && $actualAmount == 0.0 && $plannedHours == 0.0 && $actualHours == 0.0 && $quantity == 0.0
+            ) {
+                continue;
+            }
+
+            $normalized[] = [
+                'project_id' => $projectId > 0 ? $projectId : null,
+                'industry_id' => $industryId > 0 ? $industryId : null,
+                'product_id' => $productId > 0 ? $productId : null,
+                'process_id' => $processId > 0 ? $processId : null,
+                'activity_type' => $activityType,
+                'planned_amount' => $plannedAmount,
+                'actual_amount' => $actualAmount,
+                'planned_hours' => $plannedHours,
+                'actual_hours' => $actualHours,
+                'quantity' => $quantity,
+                'memo' => $memo
+            ];
+        }
+        return $normalized;
+    }
+
+    private function normalizeDecimalValue($value)
+    {
+        if ($value === null || $value === '') {
+            return 0.0;
+        }
+        if (is_string($value)) {
+            $value = str_replace([',', ' '], '', $value);
+        }
+        return is_numeric($value) ? (float)$value : 0.0;
+    }
+
+    private function resolveApiPayload($data)
+    {
+        if (is_array($data) && isset($data['payload']) && is_string($data['payload'])) {
+            $decoded = json_decode($data['payload'], true);
+            if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                return $decoded;
+            }
+        }
+        return is_array($data) ? $data : [];
+    }
+
+    private function processReportAttachments($fileBag)
+    {
+        if (!is_array($fileBag) || empty($fileBag['name'])) {
+            return [];
+        }
+
+        $uploadConfig = require __DIR__ . '/../config/config.php';
+        $allowedExtensions = $uploadConfig['upload']['allowed_extensions'] ?? [];
+        $maxSize = (int)($uploadConfig['upload']['max_size'] ?? 10485760);
+
+        $uploadDir = realpath(__DIR__ . '/../public/uploads');
+        if ($uploadDir === false) {
+            return [];
+        }
+        $uploadDir .= '/daily-report';
+        if (!is_dir($uploadDir)) {
+            @mkdir($uploadDir, 0775, true);
+        }
+
+        $names = is_array($fileBag['name']) ? $fileBag['name'] : [$fileBag['name']];
+        $types = is_array($fileBag['type']) ? $fileBag['type'] : [$fileBag['type']];
+        $tmpNames = is_array($fileBag['tmp_name']) ? $fileBag['tmp_name'] : [$fileBag['tmp_name']];
+        $errors = is_array($fileBag['error']) ? $fileBag['error'] : [$fileBag['error']];
+        $sizes = is_array($fileBag['size']) ? $fileBag['size'] : [$fileBag['size']];
+
+        $uploaded = [];
+        foreach ($names as $idx => $originalName) {
+            if (!isset($errors[$idx]) || (int)$errors[$idx] !== UPLOAD_ERR_OK) {
+                continue;
+            }
+
+            $tmpName = $tmpNames[$idx] ?? '';
+            $size = (int)($sizes[$idx] ?? 0);
+            if ($tmpName === '' || $size <= 0 || !is_uploaded_file($tmpName) || $size > $maxSize) {
+                continue;
+            }
+
+            $ext = strtolower((string)pathinfo((string)$originalName, PATHINFO_EXTENSION));
+            if (!empty($allowedExtensions) && $ext !== '' && !in_array($ext, $allowedExtensions, true)) {
+                continue;
+            }
+
+            $safeBase = preg_replace('/[^A-Za-z0-9_.-]/', '_', (string)pathinfo((string)$originalName, PATHINFO_FILENAME));
+            if ($safeBase === '') {
+                $safeBase = 'file';
+            }
+            $storedName = date('YmdHis') . '_' . bin2hex(random_bytes(4)) . '_' . $safeBase . ($ext !== '' ? '.' . $ext : '');
+            $destPath = $uploadDir . '/' . $storedName;
+            if (!move_uploaded_file($tmpName, $destPath)) {
+                continue;
+            }
+
+            $uploaded[] = [
+                'original_name' => (string)$originalName,
+                'stored_name' => $storedName,
+                'file_path' => 'uploads/daily-report/' . $storedName,
+                'mime_type' => (string)($types[$idx] ?? ''),
+                'file_size' => $size
+            ];
+        }
+
+        return $uploaded;
+    }
+
+    private function rollbackUploadedFiles($uploadedFiles)
+    {
+        if (!is_array($uploadedFiles) || empty($uploadedFiles)) {
+            return;
+        }
+        $publicDir = realpath(__DIR__ . '/../public');
+        if ($publicDir === false) {
+            return;
+        }
+        foreach ($uploadedFiles as $file) {
+            $relative = (string)($file['file_path'] ?? '');
+            if ($relative === '') {
+                continue;
+            }
+            $fullPath = $publicDir . '/' . ltrim($relative, '/');
+            if (is_file($fullPath)) {
+                @unlink($fullPath);
+            }
+        }
+    }
+
+    private function sanitizeRichText($html)
+    {
+        $html = trim((string)$html);
+        if ($html === '') {
+            return '';
+        }
+        $allowed = '<p><br><strong><b><em><i><u><ul><ol><li><blockquote><a><h1><h2><h3><h4><h5><h6><span><div>';
+        $clean = strip_tags($html, $allowed);
+        $clean = preg_replace('/on[a-z]+\s*=\s*"[^"]*"/i', '', $clean);
+        $clean = preg_replace("/on[a-z]+\s*=\s*'[^']*'/i", '', $clean);
+        $clean = preg_replace('/javascript:/i', '', $clean);
+        return $clean;
+    }
+
+    private function buildContentFromStructured($summaryText, $issuesText, $tomorrowPlanText, $reflectionText, $detailItems, $activities)
+    {
+        $lines = [];
+        if ($summaryText !== '') {
+            $lines[] = "## 本日の成果";
+            $lines[] = $summaryText;
+            $lines[] = "";
+        }
+        if ($issuesText !== '') {
+            $lines[] = "## 課題";
+            $lines[] = $issuesText;
+            $lines[] = "";
+        }
+        if ($tomorrowPlanText !== '') {
+            $lines[] = "## 明日の予定";
+            $lines[] = $tomorrowPlanText;
+            $lines[] = "";
+        }
+        if ($reflectionText !== '') {
+            $lines[] = "## 所感";
+            $lines[] = $reflectionText;
+            $lines[] = "";
+        }
+
+        foreach ($detailItems as $item) {
+            $title = trim((string)($item['title'] ?? ''));
+            $value = trim((string)($item['value'] ?? ''));
+            if ($title === '' && $value === '') {
+                continue;
+            }
+            $lines[] = "## " . ($title !== '' ? $title : '詳細');
+            if ($value !== '') {
+                $lines[] = $value;
+            }
+            $lines[] = "";
+        }
+
+        if (!empty($activities)) {
+            $lines[] = "## 活動ログ";
+            foreach ($activities as $activity) {
+                $range = trim(($activity['start_time'] ?? '') . ' - ' . ($activity['end_time'] ?? ''), ' -');
+                $subject = trim((string)($activity['subject'] ?? ''));
+                $type = trim((string)($activity['activity_type'] ?? ''));
+                $memo = trim((string)($activity['memo'] ?? ''));
+                $oneLine = trim($range . ' ' . $type . ' ' . $subject);
+                if ($oneLine !== '') {
+                    $lines[] = "- " . $oneLine;
+                }
+                if ($memo !== '') {
+                    $lines[] = "  " . $memo;
+                }
+            }
+            $lines[] = "";
+        }
+
+        return trim(implode("\n", $lines));
+    }
+
+    private function canReadReport($report, $userId)
+    {
+        if (!$report) {
+            return false;
+        }
+        if ((int)$report['user_id'] === (int)$userId) {
+            return true;
+        }
+        if (($report['status'] ?? '') !== 'published') {
+            return false;
+        }
+
+        $permissions = $report['permissions'] ?? [];
+        if (empty($permissions)) {
+            return false;
+        }
+
+        $orgIds = $this->userModel->getUserOrganizationIds($userId);
+        foreach ($permissions as $permission) {
+            if (($permission['target_type'] ?? '') === 'user' && (int)$permission['target_id'] === (int)$userId) {
+                return true;
+            }
+            if (($permission['target_type'] ?? '') === 'organization' && in_array((int)$permission['target_id'], array_map('intval', $orgIds), true)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private function normalizeOrganizationIds($organizationIds)

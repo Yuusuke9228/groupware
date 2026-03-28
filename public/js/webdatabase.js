@@ -52,6 +52,35 @@ const WebDatabase = {
             WebDatabase.loadDatabases();
         });
 
+        $('#setup-demo-samples-btn').on('click', function () {
+            if (!confirm('Webデータベースのデモ業務サンプルを投入します。既存データは削除せず、同名があれば再利用します。実行しますか？')) {
+                return;
+            }
+
+            const btn = $(this);
+            btn.prop('disabled', true);
+            $.ajax({
+                url: BASE_PATH + '/api/webdatabase/setup-demo-samples',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({}),
+                success: function (response) {
+                    if (response.success) {
+                        App.showNotification(response.message || 'サンプルを投入しました', 'success');
+                        WebDatabase.loadDatabases();
+                    } else {
+                        App.showNotification(response.error || 'サンプル投入に失敗しました', 'error');
+                    }
+                },
+                error: function () {
+                    App.showNotification('通信エラーが発生しました', 'error');
+                },
+                complete: function () {
+                    btn.prop('disabled', false);
+                }
+            });
+        });
+
         // レコード検索
         $('#search-records').on('input', function () {
             WebDatabase.searchTerm = $(this).val();

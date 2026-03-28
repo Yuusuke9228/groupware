@@ -10,8 +10,21 @@ if (!file_exists(__DIR__ . '/../config/database.php') && file_exists(__DIR__ . '
 // 基本設定
 session_start();
 date_default_timezone_set('Asia/Tokyo');
-ini_set('display_errors', true);
-error_reporting(E_ALL);
+
+// エラー表示設定（本番ホストは常に非表示）
+$host = strtolower((string)($_SERVER['HTTP_HOST'] ?? ''));
+$isProductionHost = in_array($host, [
+    'groupware.yuus-program.com',
+    'www.groupware.yuus-program.com'
+], true);
+$appDebug = false;
+if (file_exists(__DIR__ . '/../config/config.php')) {
+    $tmpConfig = require __DIR__ . '/../config/config.php';
+    $appDebug = !empty($tmpConfig['app']['debug']);
+}
+$displayErrors = $appDebug && !$isProductionHost;
+ini_set('display_errors', $displayErrors ? '1' : '0');
+error_reporting($displayErrors ? E_ALL : (E_ALL & ~E_DEPRECATED & ~E_STRICT));
 mb_internal_encoding('UTF-8');
 
 // アプリケーションのベースパスを設定
@@ -843,6 +856,11 @@ $router->apiPost('/webdatabase', function ($params, $data) {
     return $controller->apiCreateDatabase($params, $data);
 }, true);
 
+$router->apiPost('/webdatabase/setup-demo-samples', function ($params, $data) {
+    $controller = new Controllers\WebDatabaseController();
+    return $controller->apiSetupDemoSamples($params, $data);
+}, true);
+
 $router->apiGet('/webdatabase/:id/records', function ($params) {
     // error_log('Routerr: apiGetRecords' . json_encode(['params: ' . $params]));
     $controller = new Controllers\WebDatabaseController();
@@ -946,6 +964,21 @@ $router->apiGet('/webdatabase/reverse-relations/:record_id', function ($params) 
 $router->apiGet('/webdatabase/all-databases', function () {
     $controller = new Controllers\WebDatabaseController();
     return $controller->apiGetAllDatabases();
+}, true);
+
+$router->apiGet('/webdatabase/:id/views', function ($params) {
+    $controller = new Controllers\WebDatabaseController();
+    return $controller->apiGetViews($params);
+}, true);
+
+$router->apiPost('/webdatabase/:id/views', function ($params, $data) {
+    $controller = new Controllers\WebDatabaseController();
+    return $controller->apiSaveView($params, $data);
+}, true);
+
+$router->apiDelete('/webdatabase/views/:view_id', function ($params) {
+    $controller = new Controllers\WebDatabaseController();
+    return $controller->apiDeleteView($params);
 }, true);
 
 // タスク管理ルーティング
@@ -1206,6 +1239,21 @@ $router->get('/daily-report/list', function () {
     $controller->list();
 }, true);
 
+$router->get('/daily-report/week', function () {
+    $controller = new Controllers\DailyReportController();
+    $controller->week();
+}, true);
+
+$router->get('/daily-report/month', function () {
+    $controller = new Controllers\DailyReportController();
+    $controller->month();
+}, true);
+
+$router->get('/daily-report/timeline', function () {
+    $controller = new Controllers\DailyReportController();
+    $controller->timeline();
+}, true);
+
 $router->get('/daily-report/create', function () {
     $controller = new Controllers\DailyReportController();
     $controller->create();
@@ -1236,6 +1284,11 @@ $router->get('/daily-report/stats', function () {
     $controller->stats();
 }, true);
 
+$router->get('/daily-report/analysis', function () {
+    $controller = new Controllers\DailyReportController();
+    $controller->analysis();
+}, true);
+
 // 日報機能用API
 $router->apiPost('/daily-report', function ($params, $data) {
     $controller = new Controllers\DailyReportController();
@@ -1250,6 +1303,11 @@ $router->apiPost('/daily-report/template/:id', function ($params, $data) {
 $router->apiPost('/daily-report/template', function ($params, $data) {
     $controller = new Controllers\DailyReportController();
     return $controller->apiSaveTemplate($params, $data);
+}, true);
+
+$router->apiPost('/daily-report/targets', function ($params, $data) {
+    $controller = new Controllers\DailyReportController();
+    return $controller->apiSaveMonthlyTarget($params, $data);
 }, true);
 
 $router->apiPost('/daily-report/:id', function ($params, $data) {
@@ -1298,6 +1356,31 @@ $router->apiDelete('/daily-report/template/:id', function ($params) {
 $router->apiGet('/daily-report/stats', function ($params) {
     $controller = new Controllers\DailyReportController();
     return $controller->apiGetStats($params);
+}, true);
+
+$router->apiGet('/daily-report/analysis-masters', function ($params) {
+    $controller = new Controllers\DailyReportController();
+    return $controller->apiGetAnalysisMasters($params);
+}, true);
+
+$router->apiPost('/daily-report/master/:type', function ($params, $data) {
+    $controller = new Controllers\DailyReportController();
+    return $controller->apiSaveMaster($params, $data);
+}, true);
+
+$router->apiDelete('/daily-report/master/:type/:id', function ($params) {
+    $controller = new Controllers\DailyReportController();
+    return $controller->apiDeleteMaster($params);
+}, true);
+
+$router->apiDelete('/daily-report/targets/:id', function ($params) {
+    $controller = new Controllers\DailyReportController();
+    return $controller->apiDeleteMonthlyTarget($params);
+}, true);
+
+$router->apiGet('/daily-report/export-csv', function ($params) {
+    $controller = new Controllers\DailyReportController();
+    return $controller->apiExportCsv($params);
 }, true);
 
 // 全文検索

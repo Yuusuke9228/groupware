@@ -8,6 +8,12 @@
                         <a href="<?= BASE_PATH ?>/daily-report/template/edit" class="btn btn-primary">
                             <i class="fas fa-plus me-2"></i>新規テンプレート
                         </a>
+                        <a href="<?= BASE_PATH ?>/daily-report/week" class="btn btn-outline-secondary ms-2">
+                            <i class="fas fa-calendar-week me-2"></i>週間
+                        </a>
+                        <a href="<?= BASE_PATH ?>/daily-report/timeline" class="btn btn-outline-secondary ms-2">
+                            <i class="fas fa-stream me-2"></i>タイムライン
+                        </a>
                         <a href="<?= BASE_PATH ?>/daily-report" class="btn btn-secondary ms-2">
                             <i class="fas fa-arrow-left me-2"></i>戻る
                         </a>
@@ -25,6 +31,8 @@
                                 <thead>
                                     <tr>
                                         <th>タイトル</th>
+                                        <th>説明</th>
+                                        <th>構造化項目</th>
                                         <th>公開状態</th>
                                         <th>作成日時</th>
                                         <th>操作</th>
@@ -33,12 +41,23 @@
                                 <tbody>
                                     <?php if (empty($templates)): ?>
                                         <tr>
-                                            <td colspan="4" class="text-center">テンプレートがありません</td>
+                                            <td colspan="6" class="text-center">テンプレートがありません</td>
                                         </tr>
                                     <?php else: ?>
                                         <?php foreach ($templates as $template): ?>
+                                            <?php
+                                            $sectionCount = 0;
+                                            if (!empty($template['section_schema_json'])) {
+                                                $decoded = json_decode($template['section_schema_json'], true);
+                                                if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                                                    $sectionCount = count($decoded);
+                                                }
+                                            }
+                                            ?>
                                             <tr>
                                                 <td><?= htmlspecialchars($template['title']) ?></td>
+                                                <td class="small text-muted"><?= htmlspecialchars($template['description'] ?? '') ?></td>
+                                                <td><span class="badge bg-info"><?= $sectionCount ?>項目</span></td>
                                                 <td>
                                                     <?php if ($template['is_public']): ?>
                                                         <span class="badge bg-success">公開</span>

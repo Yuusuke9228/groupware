@@ -453,12 +453,16 @@ CREATE TABLE IF NOT EXISTS web_database_views (
     description TEXT COMMENT '説明',
     type ENUM('list', 'kanban', 'calendar', 'gantt', 'custom') NOT NULL DEFAULT 'list' COMMENT 'ビュータイプ',
     settings TEXT COMMENT 'ビュー設定（JSON形式）',
+    scope_type ENUM('private', 'organization', 'global') NOT NULL DEFAULT 'private' COMMENT 'ビュー範囲',
+    organization_id INT NULL COMMENT '対象組織ID(scope=organization)',
     is_default BOOLEAN NOT NULL DEFAULT 0 COMMENT 'デフォルトビューフラグ',
     creator_id INT NOT NULL COMMENT '作成者ID',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '作成日時',
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新日時',
     FOREIGN KEY (database_id) REFERENCES web_databases(id) ON DELETE CASCADE,
-    FOREIGN KEY (creator_id) REFERENCES users(id) ON DELETE RESTRICT
+    FOREIGN KEY (creator_id) REFERENCES users(id) ON DELETE RESTRICT,
+    FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE SET NULL,
+    INDEX idx_web_database_views_scope (database_id, scope_type, organization_id)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = 'WEBデータベースビュー';
 
 -- タスクボード（カンバンボード）テーブル
@@ -650,11 +654,21 @@ CREATE TABLE IF NOT EXISTS daily_reports (
     report_date DATE NOT NULL COMMENT '日報の日付',
     title VARCHAR(255) NOT NULL COMMENT '日報のタイトル',
     content TEXT NOT NULL COMMENT '日報の内容',
+    content_format ENUM('text', 'html') NOT NULL DEFAULT 'text' COMMENT '本文形式',
     status ENUM('draft', 'published') NOT NULL DEFAULT 'published' COMMENT '公開状態',
     is_template BOOLEAN NOT NULL DEFAULT 0 COMMENT 'テンプレートフラグ',
+    summary_text TEXT NULL COMMENT '本日の成果',
+    issues_text TEXT NULL COMMENT '課題・問題点',
+    tomorrow_plan_text TEXT NULL COMMENT '明日の予定',
+    reflection_text TEXT NULL COMMENT '所感',
+    work_minutes INT UNSIGNED NOT NULL DEFAULT 0 COMMENT '実働分数',
+    detail_json LONGTEXT NULL COMMENT '構造化入力JSON',
+    template_id INT NULL COMMENT '利用テンプレートID',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '作成日時',
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新日時',
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_daily_reports_report_date (report_date),
+    INDEX idx_daily_reports_template_id (template_id)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = '日報';
 
 -- 日報タグテーブル
@@ -725,12 +739,33 @@ CREATE TABLE IF NOT EXISTS daily_report_templates (
     id INT AUTO_INCREMENT PRIMARY KEY,
     title VARCHAR(255) NOT NULL COMMENT 'テンプレート名',
     content TEXT NOT NULL COMMENT 'テンプレート内容',
+    content_format ENUM('text', 'html') NOT NULL DEFAULT 'text' COMMENT '本文形式',
+    description VARCHAR(255) NULL COMMENT 'テンプレート説明',
+    section_schema_json LONGTEXT NULL COMMENT '構造化項目JSON',
     user_id INT NOT NULL COMMENT '作成者ID',
     is_public BOOLEAN NOT NULL DEFAULT 0 COMMENT '公開フラグ',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '作成日時',
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新日時',
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = '日報テンプレート';
+
+-- 日報テンプレート構造化項目テーブル
+CREATE TABLE IF NOT EXISTS daily_report_template_sections (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    template_id INT NOT NULL COMMENT 'テンプレートID',
+    section_key VARCHAR(80) NOT NULL COMMENT '項目キー',
+    title VARCHAR(120) NOT NULL COMMENT '項目名',
+    input_type ENUM('text', 'textarea', 'checklist', 'number', 'rating', 'toggle') NOT NULL DEFAULT 'textarea' COMMENT '入力種別',
+    is_required BOOLEAN NOT NULL DEFAULT 0 COMMENT '必須フラグ',
+    placeholder_text VARCHAR(255) NULL COMMENT '入力ヒント',
+    default_value_text TEXT NULL COMMENT '初期値',
+    options_json LONGTEXT NULL COMMENT '選択肢JSON',
+    sort_order INT NOT NULL DEFAULT 1 COMMENT '表示順',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '作成日時',
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新日時',
+    FOREIGN KEY (template_id) REFERENCES daily_report_templates(id) ON DELETE CASCADE,
+    UNIQUE KEY uniq_daily_report_template_sections (template_id, section_key)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = '日報テンプレート構造化項目';
 
 -- 日報関連スケジュールテーブル
 CREATE TABLE IF NOT EXISTS daily_report_schedules (
@@ -751,6 +786,157 @@ CREATE TABLE IF NOT EXISTS daily_report_tasks (
     FOREIGN KEY (report_id) REFERENCES daily_reports(id) ON DELETE CASCADE,
     FOREIGN KEY (task_id) REFERENCES task_cards(id) ON DELETE CASCADE
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = '日報関連タスク';
+
+-- 日報活動ログテーブル
+CREATE TABLE IF NOT EXISTS daily_report_activity_logs (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    report_id INT NOT NULL COMMENT '日報ID',
+    start_time TIME NULL COMMENT '開始時刻',
+    end_time TIME NULL COMMENT '終了時刻',
+    activity_type VARCHAR(100) NULL COMMENT '活動分類',
+    subject VARCHAR(255) NULL COMMENT '件名',
+    result VARCHAR(255) NULL COMMENT '結果',
+    memo TEXT NULL COMMENT 'メモ',
+    sort_order INT NOT NULL DEFAULT 1 COMMENT '表示順',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '作成日時',
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新日時',
+    FOREIGN KEY (report_id) REFERENCES daily_reports(id) ON DELETE CASCADE,
+    INDEX idx_daily_report_activity_logs_report_sort (report_id, sort_order)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = '日報活動ログ';
+
+-- 日報添付ファイルテーブル
+CREATE TABLE IF NOT EXISTS daily_report_attachments (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    report_id INT NOT NULL COMMENT '日報ID',
+    uploaded_by INT NOT NULL COMMENT 'アップロードユーザーID',
+    original_name VARCHAR(255) NOT NULL COMMENT '元ファイル名',
+    stored_name VARCHAR(255) NOT NULL COMMENT '保存ファイル名',
+    file_path VARCHAR(255) NOT NULL COMMENT '公開相対パス',
+    mime_type VARCHAR(150) NULL COMMENT 'MIMEタイプ',
+    file_size INT UNSIGNED NOT NULL DEFAULT 0 COMMENT 'ファイルサイズ',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '作成日時',
+    FOREIGN KEY (report_id) REFERENCES daily_reports(id) ON DELETE CASCADE,
+    FOREIGN KEY (uploaded_by) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_daily_report_attachments_report (report_id)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = '日報添付ファイル';
+
+-- 日報分析マスタ：業種
+CREATE TABLE IF NOT EXISTS daily_report_industries (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    code VARCHAR(50) NULL COMMENT '業種コード',
+    name VARCHAR(120) NOT NULL COMMENT '業種名',
+    sort_order INT NOT NULL DEFAULT 1 COMMENT '表示順',
+    is_active TINYINT(1) NOT NULL DEFAULT 1 COMMENT '有効フラグ',
+    created_by INT NULL COMMENT '作成者',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uniq_daily_report_industries_name (name),
+    FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = '日報 業種マスタ';
+
+-- 日報分析マスタ：商品
+CREATE TABLE IF NOT EXISTS daily_report_products (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    code VARCHAR(50) NULL COMMENT '商品コード',
+    name VARCHAR(120) NOT NULL COMMENT '商品名',
+    industry_id INT NULL COMMENT '業種ID',
+    sort_order INT NOT NULL DEFAULT 1 COMMENT '表示順',
+    is_active TINYINT(1) NOT NULL DEFAULT 1 COMMENT '有効フラグ',
+    created_by INT NULL COMMENT '作成者',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uniq_daily_report_products_name (name),
+    FOREIGN KEY (industry_id) REFERENCES daily_report_industries(id) ON DELETE SET NULL,
+    FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = '日報 商品マスタ';
+
+-- 日報分析マスタ：プロセス
+CREATE TABLE IF NOT EXISTS daily_report_processes (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    code VARCHAR(50) NULL COMMENT 'プロセスコード',
+    name VARCHAR(120) NOT NULL COMMENT 'プロセス名',
+    sort_order INT NOT NULL DEFAULT 1 COMMENT '表示順',
+    is_active TINYINT(1) NOT NULL DEFAULT 1 COMMENT '有効フラグ',
+    created_by INT NULL COMMENT '作成者',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uniq_daily_report_processes_name (name),
+    FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = '日報 プロセスマスタ';
+
+-- 日報分析マスタ：案件
+CREATE TABLE IF NOT EXISTS daily_report_projects (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    code VARCHAR(50) NULL COMMENT '案件コード',
+    name VARCHAR(150) NOT NULL COMMENT '案件名',
+    industry_id INT NULL COMMENT '業種ID',
+    product_id INT NULL COMMENT '商品ID',
+    process_id INT NULL COMMENT '主プロセスID',
+    sort_order INT NOT NULL DEFAULT 1 COMMENT '表示順',
+    is_active TINYINT(1) NOT NULL DEFAULT 1 COMMENT '有効フラグ',
+    created_by INT NULL COMMENT '作成者',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uniq_daily_report_projects_name (name),
+    FOREIGN KEY (industry_id) REFERENCES daily_report_industries(id) ON DELETE SET NULL,
+    FOREIGN KEY (product_id) REFERENCES daily_report_products(id) ON DELETE SET NULL,
+    FOREIGN KEY (process_id) REFERENCES daily_report_processes(id) ON DELETE SET NULL,
+    FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = '日報 案件マスタ';
+
+-- 日報分析明細（1日報に複数行）
+CREATE TABLE IF NOT EXISTS daily_report_analysis_entries (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    report_id INT NOT NULL COMMENT '日報ID',
+    project_id INT NULL COMMENT '案件ID',
+    industry_id INT NULL COMMENT '業種ID',
+    product_id INT NULL COMMENT '商品ID',
+    process_id INT NULL COMMENT 'プロセスID',
+    activity_type VARCHAR(100) NULL COMMENT '活動分類',
+    planned_amount DECIMAL(15, 2) NOT NULL DEFAULT 0 COMMENT '計画金額',
+    actual_amount DECIMAL(15, 2) NOT NULL DEFAULT 0 COMMENT '実績金額',
+    planned_hours DECIMAL(10, 2) NOT NULL DEFAULT 0 COMMENT '計画時間',
+    actual_hours DECIMAL(10, 2) NOT NULL DEFAULT 0 COMMENT '実績時間',
+    quantity DECIMAL(15, 2) NOT NULL DEFAULT 0 COMMENT '実績数量',
+    memo TEXT NULL COMMENT 'メモ',
+    sort_order INT NOT NULL DEFAULT 1 COMMENT '表示順',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (report_id) REFERENCES daily_reports(id) ON DELETE CASCADE,
+    FOREIGN KEY (project_id) REFERENCES daily_report_projects(id) ON DELETE SET NULL,
+    FOREIGN KEY (industry_id) REFERENCES daily_report_industries(id) ON DELETE SET NULL,
+    FOREIGN KEY (product_id) REFERENCES daily_report_products(id) ON DELETE SET NULL,
+    FOREIGN KEY (process_id) REFERENCES daily_report_processes(id) ON DELETE SET NULL,
+    INDEX idx_daily_report_analysis_entries_report (report_id),
+    INDEX idx_daily_report_analysis_entries_project (project_id),
+    INDEX idx_daily_report_analysis_entries_product (product_id),
+    INDEX idx_daily_report_analysis_entries_process (process_id)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = '日報分析明細';
+
+-- 日報 月次目標（予実）
+CREATE TABLE IF NOT EXISTS daily_report_monthly_targets (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL COMMENT '対象ユーザー',
+    target_month CHAR(7) NOT NULL COMMENT '対象月(YYYY-MM)',
+    dimension_key VARCHAR(191) NOT NULL COMMENT '軸キー',
+    project_id INT NULL COMMENT '案件ID',
+    industry_id INT NULL COMMENT '業種ID',
+    product_id INT NULL COMMENT '商品ID',
+    process_id INT NULL COMMENT 'プロセスID',
+    target_amount DECIMAL(15, 2) NOT NULL DEFAULT 0 COMMENT '目標金額',
+    target_hours DECIMAL(10, 2) NOT NULL DEFAULT 0 COMMENT '目標時間',
+    target_quantity DECIMAL(15, 2) NOT NULL DEFAULT 0 COMMENT '目標数量',
+    memo TEXT NULL COMMENT 'メモ',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (project_id) REFERENCES daily_report_projects(id) ON DELETE SET NULL,
+    FOREIGN KEY (industry_id) REFERENCES daily_report_industries(id) ON DELETE SET NULL,
+    FOREIGN KEY (product_id) REFERENCES daily_report_products(id) ON DELETE SET NULL,
+    FOREIGN KEY (process_id) REFERENCES daily_report_processes(id) ON DELETE SET NULL,
+    UNIQUE KEY uniq_daily_report_monthly_targets (user_id, target_month, dimension_key),
+    INDEX idx_daily_report_monthly_targets_month (target_month)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = '日報 月次目標';
 
 -- ワークフローテンプレートの組織配布
 CREATE TABLE IF NOT EXISTS workflow_template_organizations (

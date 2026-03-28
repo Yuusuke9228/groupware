@@ -11,6 +11,18 @@
                         <a href="<?= BASE_PATH ?>/daily-report" class="btn btn-secondary ms-2">
                             <i class="fas fa-home me-2"></i>ダッシュボード
                         </a>
+                        <a href="<?= BASE_PATH ?>/daily-report/week" class="btn btn-outline-secondary ms-2">
+                            <i class="fas fa-calendar-week me-2"></i>週間
+                        </a>
+                        <a href="<?= BASE_PATH ?>/daily-report/month" class="btn btn-outline-secondary ms-2">
+                            <i class="fas fa-calendar-alt me-2"></i>月間
+                        </a>
+                        <a href="<?= BASE_PATH ?>/daily-report/timeline" class="btn btn-outline-secondary ms-2">
+                            <i class="fas fa-stream me-2"></i>タイムライン
+                        </a>
+                        <a href="<?= BASE_PATH ?>/daily-report/analysis" class="btn btn-outline-success ms-2">
+                            <i class="fas fa-chart-line me-2"></i>分析
+                        </a>
                     </div>
                 </div>
 
@@ -76,6 +88,50 @@
                                 <div class="col-md-6 mb-3">
                                     <label for="search" class="form-label">キーワード</label>
                                     <input type="text" class="form-control" id="search" name="search" placeholder="タイトルや内容を検索" value="<?= $filters['search'] ?? '' ?>">
+                                </div>
+                                <div class="col-md-3 mb-3">
+                                    <label for="project_id" class="form-label">案件</label>
+                                    <select class="form-select" id="project_id" name="project_id">
+                                        <option value="">すべて</option>
+                                        <?php foreach (($analysisMasters['projects'] ?? []) as $item): ?>
+                                            <option value="<?= (int)$item['id'] ?>" <?= (string)($filters['project_id'] ?? '') === (string)$item['id'] ? 'selected' : '' ?>>
+                                                <?= htmlspecialchars($item['name']) ?>
+                                            </option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </div>
+                                <div class="col-md-3 mb-3">
+                                    <label for="industry_id" class="form-label">業種</label>
+                                    <select class="form-select" id="industry_id" name="industry_id">
+                                        <option value="">すべて</option>
+                                        <?php foreach (($analysisMasters['industries'] ?? []) as $item): ?>
+                                            <option value="<?= (int)$item['id'] ?>" <?= (string)($filters['industry_id'] ?? '') === (string)$item['id'] ? 'selected' : '' ?>>
+                                                <?= htmlspecialchars($item['name']) ?>
+                                            </option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </div>
+                                <div class="col-md-3 mb-3">
+                                    <label for="product_id" class="form-label">商品</label>
+                                    <select class="form-select" id="product_id" name="product_id">
+                                        <option value="">すべて</option>
+                                        <?php foreach (($analysisMasters['products'] ?? []) as $item): ?>
+                                            <option value="<?= (int)$item['id'] ?>" <?= (string)($filters['product_id'] ?? '') === (string)$item['id'] ? 'selected' : '' ?>>
+                                                <?= htmlspecialchars($item['name']) ?>
+                                            </option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </div>
+                                <div class="col-md-3 mb-3">
+                                    <label for="process_id" class="form-label">プロセス</label>
+                                    <select class="form-select" id="process_id" name="process_id">
+                                        <option value="">すべて</option>
+                                        <?php foreach (($analysisMasters['processes'] ?? []) as $item): ?>
+                                            <option value="<?= (int)$item['id'] ?>" <?= (string)($filters['process_id'] ?? '') === (string)$item['id'] ? 'selected' : '' ?>>
+                                                <?= htmlspecialchars($item['name']) ?>
+                                            </option>
+                                        <?php endforeach; ?>
+                                    </select>
                                 </div>
                                 <div class="col-md-6 d-flex align-items-end mb-3">
                                     <button type="submit" class="btn btn-primary me-2">
@@ -205,6 +261,10 @@
             document.getElementById('user_id').value = '';
             document.getElementById('tag_id').value = '';
             document.getElementById('search').value = '';
+            document.getElementById('project_id').value = '';
+            document.getElementById('industry_id').value = '';
+            document.getElementById('product_id').value = '';
+            document.getElementById('process_id').value = '';
             document.getElementById('filterForm').submit();
         });
 

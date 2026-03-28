@@ -13,6 +13,12 @@ const DailyReport = {
             this.initForm();
         } else if (path.includes('/daily-report/view')) {
             this.initView();
+        } else if (path.includes('/daily-report/timeline')) {
+            this.initTimeline();
+        } else if (path.includes('/daily-report/week')) {
+            this.initWeek();
+        } else if (path.includes('/daily-report/month')) {
+            this.initMonth();
         } else if (path.includes('/daily-report/list')) {
             this.initList();
         } else if (path.includes('/daily-report/templates')) {
@@ -453,6 +459,18 @@ const DailyReport = {
         $('#templateModal').on('show.bs.modal', function () {
             // 必要に応じてテンプレート一覧をAPIで取得
         });
+    },
+
+    initWeek: function () {
+        // 現状はサーバー描画中心。必要になったら週次フィルタのJSを追加。
+    },
+
+    initMonth: function () {
+        // 現状はサーバー描画中心。必要になったら月次統計のJSを追加。
+    },
+
+    initTimeline: function () {
+        // 現状はサーバー描画中心。必要になったら無限スクロール等を追加。
     }
 };
 

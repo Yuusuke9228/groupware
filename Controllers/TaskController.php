@@ -658,7 +658,10 @@ class TaskController extends Controller
      */
     public function apiCreateTeam($params, $data)
     {
-        $userId = $this->auth->id();
+        $userId = (int)$this->auth->id();
+        if ($userId <= 0) {
+            return ['error' => '認証情報が不正です。再ログインしてください', 'code' => 401];
+        }
 
         // バリデーション
         if (empty($data['name'])) {

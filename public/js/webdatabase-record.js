@@ -13,6 +13,7 @@ const WebDatabaseRecord = {
     filters: {},
     sortField: null,
     sortOrder: 'asc',
+    viewId: null,
 
     // 初期化
     init: function () {
@@ -35,6 +36,12 @@ const WebDatabaseRecord = {
     initRecordList: function () {
         // イベントリスナー設定
         this.setupRecordListEventListeners();
+        const selectedViewId = ($('#view-selector').val() || '').trim();
+        if (selectedViewId) {
+            this.viewId = selectedViewId;
+            $('#view-selector').trigger('change');
+            return;
+        }
         // レコード一覧を読み込み
         this.loadRecords();
     },
@@ -88,7 +95,39 @@ const WebDatabaseRecord = {
         $('#reset-filter-btn').on('click', function () {
             $('#filter-form')[0].reset();
             WebDatabaseRecord.filters = {};
+            WebDatabaseRecord.currentPage = 1;
             WebDatabaseRecord.loadRecords();
+        });
+
+        $('#view-selector').on('change', function () {
+            const selected = $(this).find('option:selected');
+            const id = selected.val() || '';
+            WebDatabaseRecord.viewId = id || null;
+            if (!id) {
+                return;
+            }
+
+            const settingsText = selected.attr('data-settings') || '{}';
+            let settings = {};
+            try {
+                settings = JSON.parse(settingsText);
+            } catch (e) {
+                settings = {};
+            }
+            WebDatabaseRecord.applyViewSettings(settings);
+
+            const selectedText = selected.text() || '';
+            $('#view-name').val(selectedText.replace(/\s*\[.*\]\s*$/, '').trim());
+            $('#view-scope').val(selected.attr('data-scope') || 'private');
+            $('#view-organization').val((selected.attr('data-organization-id') || '').toString());
+        });
+
+        $('#save-view-btn').on('click', function () {
+            WebDatabaseRecord.saveCurrentView();
+        });
+
+        $('#delete-view-btn').on('click', function () {
+            WebDatabaseRecord.deleteSelectedView();
         });
 
         // 削除ボタンのイベント処理（動的に追加される要素）
@@ -200,6 +239,9 @@ const WebDatabaseRecord = {
         if (this.sortField) {
             params.sort = this.sortField;
             params.order = this.sortOrder;
+        }
+        if (this.viewId) {
+            params.view_id = this.viewId;
         }
 
         // デバッグログ
@@ -327,6 +369,122 @@ const WebDatabaseRecord = {
             const page = parseInt($(this).data('page'));
             WebDatabaseRecord.currentPage = page;
             WebDatabaseRecord.loadRecords();
+        });
+    },
+
+    applyViewSettings: function (settings) {
+        if (!settings || typeof settings !== 'object') {
+            return;
+        }
+
+        const search = settings.search || '';
+        this.searchTerm = search;
+        $('#search-records').val(search);
+
+        this.filters = {};
+        $('.filter-field').each(function () {
+            $(this).val('');
+        });
+        const filters = settings.filters || {};
+        Object.keys(filters).forEach((fieldId) => {
+            const value = filters[fieldId];
+            this.filters[fieldId] = value;
+            $(`#filter-${fieldId}`).val(value);
+        });
+
+        this.sortField = settings.sort || null;
+        this.sortOrder = (settings.order || 'asc') === 'desc' ? 'desc' : 'asc';
+        this.currentPage = 1;
+        this.loadRecords();
+    },
+
+    collectCurrentSettings: function () {
+        const filters = {};
+        $('.filter-field').each(function () {
+            const input = $(this);
+            const value = input.val();
+            if (!value) {
+                return;
+            }
+            const fieldId = (input.attr('id') || '').replace('filter-', '');
+            if (!fieldId) {
+                return;
+            }
+            filters[fieldId] = value;
+        });
+
+        return {
+            search: this.searchTerm || '',
+            filters: filters,
+            sort: this.sortField || null,
+            order: this.sortOrder || 'asc'
+        };
+    },
+
+    saveCurrentView: function () {
+        const pathParts = window.location.pathname.split('/');
+        const databaseId = pathParts[pathParts.length - 1];
+        const name = ($('#view-name').val() || '').trim();
+        if (!name) {
+            App.showNotification('保存名を入力してください', 'error');
+            return;
+        }
+
+        const selectedId = $('#view-selector').val() || null;
+        const scopeType = ($('#view-scope').val() || 'private').trim();
+        const organizationId = ($('#view-organization').val() || '').trim();
+        const payload = {
+            id: selectedId ? parseInt(selectedId, 10) : null,
+            name: name,
+            type: 'list',
+            scope_type: scopeType,
+            organization_id: organizationId || null,
+            settings: this.collectCurrentSettings()
+        };
+
+        $.ajax({
+            url: `${BASE_PATH}/api/webdatabase/${databaseId}/views`,
+            type: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify(payload),
+            success: function (response) {
+                if (response.success) {
+                    App.showNotification(response.message || 'ビューを保存しました', 'success');
+                    window.location.reload();
+                } else {
+                    App.showNotification(response.error || 'ビュー保存に失敗しました', 'error');
+                }
+            },
+            error: function () {
+                App.showNotification('通信エラーが発生しました', 'error');
+            }
+        });
+    },
+
+    deleteSelectedView: function () {
+        const selectedId = $('#view-selector').val() || '';
+        if (!selectedId) {
+            App.showNotification('削除対象のビューを選択してください', 'error');
+            return;
+        }
+        if (!confirm('このビューを削除しますか？')) {
+            return;
+        }
+
+        $.ajax({
+            url: `${BASE_PATH}/api/webdatabase/views/${selectedId}`,
+            type: 'DELETE',
+            success: function (response) {
+                if (response.success) {
+                    App.showNotification(response.message || 'ビューを削除しました', 'success');
+                    window.location.reload();
+                } else {
+                    App.showNotification(response.error || 'ビュー削除に失敗しました', 'error');
+                }
+            },
+            error: function () {
+                App.showNotification('通信エラーが発生しました', 'error');
+            }
         });
     },
 

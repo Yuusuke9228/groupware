@@ -24,21 +24,39 @@ class DailyReport
         try {
             $this->db->beginTransaction();
 
+            $structuredData = $this->normalizeStructuredData($data);
+
             // 日報を作成
             $sql = "INSERT INTO daily_reports (
                 user_id,
                 report_date,
                 title,
                 content,
-                status
-            ) VALUES (?, ?, ?, ?, ?)";
+                content_format,
+                status,
+                summary_text,
+                issues_text,
+                tomorrow_plan_text,
+                reflection_text,
+                work_minutes,
+                detail_json,
+                template_id
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
             $this->db->execute($sql, [
                 $data['user_id'],
                 $data['report_date'],
                 $data['title'],
                 $data['content'],
-                $data['status'] ?? 'published'
+                $data['content_format'] ?? 'text',
+                $data['status'] ?? 'published',
+                $structuredData['summary_text'],
+                $structuredData['issues_text'],
+                $structuredData['tomorrow_plan_text'],
+                $structuredData['reflection_text'],
+                $structuredData['work_minutes'],
+                $structuredData['detail_json'],
+                $structuredData['template_id']
             ]);
 
             $reportId = $this->db->lastInsertId();
@@ -63,6 +81,18 @@ class DailyReport
                 throw new \Exception('関連タスクの保存に失敗しました');
             }
 
+            if (!$this->saveActivityLogs($reportId, $structuredData['activities'])) {
+                throw new \Exception('活動ログの保存に失敗しました');
+            }
+
+            if (!$this->saveAnalysisEntries($reportId, $structuredData['analysis_entries'])) {
+                throw new \Exception('分析明細の保存に失敗しました');
+            }
+
+            if (!empty($data['attachments']) && !$this->saveAttachments($reportId, (int)$data['user_id'], $data['attachments'])) {
+                throw new \Exception('添付ファイルの保存に失敗しました');
+            }
+
             $this->db->commit();
             return $reportId;
         } catch (\Exception $e) {
@@ -84,6 +114,8 @@ class DailyReport
         try {
             $this->db->beginTransaction();
 
+            $structuredData = $this->normalizeStructuredData($data);
+
             // 更新フィールドと値の準備
             $fields = [];
             $values = [];
@@ -93,13 +125,31 @@ class DailyReport
                 'report_date',
                 'title',
                 'content',
-                'status'
+                'content_format',
+                'status',
+                'summary_text',
+                'issues_text',
+                'tomorrow_plan_text',
+                'reflection_text',
+                'work_minutes',
+                'detail_json',
+                'template_id'
             ];
 
+            $mergedData = array_merge($data, [
+                'summary_text' => $structuredData['summary_text'],
+                'issues_text' => $structuredData['issues_text'],
+                'tomorrow_plan_text' => $structuredData['tomorrow_plan_text'],
+                'reflection_text' => $structuredData['reflection_text'],
+                'work_minutes' => $structuredData['work_minutes'],
+                'detail_json' => $structuredData['detail_json'],
+                'template_id' => $structuredData['template_id']
+            ]);
+
             foreach ($updateableFields as $field) {
-                if (array_key_exists($field, $data)) {
+                if (array_key_exists($field, $mergedData)) {
                     $fields[] = "$field = ?";
-                    $values[] = $data[$field];
+                    $values[] = $mergedData[$field];
                 }
             }
 
@@ -166,6 +216,24 @@ class DailyReport
                 }
             }
 
+            if (array_key_exists('activities', $data) || isset($data['detail_items']) || isset($data['activity_logs'])) {
+                if (!$this->saveActivityLogs($id, $structuredData['activities'])) {
+                    throw new \Exception('活動ログの保存に失敗しました');
+                }
+            }
+
+            if (array_key_exists('analysis_entries', $data)) {
+                if (!$this->saveAnalysisEntries($id, $structuredData['analysis_entries'])) {
+                    throw new \Exception('分析明細の保存に失敗しました');
+                }
+            }
+
+            if (!empty($data['attachments'])) {
+                if (!$this->saveAttachments($id, (int)($data['user_id'] ?? 0), $data['attachments'])) {
+                    throw new \Exception('添付ファイルの保存に失敗しました');
+                }
+            }
+
             $this->db->commit();
             return true;
         } catch (\Exception $e) {
@@ -184,6 +252,10 @@ class DailyReport
     public function delete($id)
     {
         try {
+            $attachments = $this->getAttachments($id);
+            foreach ($attachments as $attachment) {
+                $this->deleteAttachmentFileByPath((string)($attachment['file_path'] ?? ''));
+            }
             return $this->db->execute("DELETE FROM daily_reports WHERE id = ?", [$id]);
         } catch (\Exception $e) {
             error_log("Error deleting daily report: " . $e->getMessage());
@@ -208,6 +280,12 @@ class DailyReport
             $report = $this->db->fetch($sql, [$id]);
 
             if ($report) {
+                $report['detail_items'] = $this->decodeDetailJson($report['detail_json'] ?? null);
+                $report['activity_logs'] = $this->getActivityLogs($id);
+                $report['analysis_entries'] = $this->getAnalysisEntries($id);
+                $report['attachments'] = $this->getAttachments($id);
+                $report['work_minutes'] = (int)($report['work_minutes'] ?? 0);
+
                 // タグを取得
                 $report['tags'] = $this->getReportTags($id);
 
@@ -273,10 +351,38 @@ class DailyReport
             }
 
             if (!empty($filters['search'])) {
-                $sql .= " AND (r.title LIKE ? OR r.content LIKE ?)";
+                $sql .= " AND (r.title LIKE ? OR r.content LIKE ? OR r.summary_text LIKE ? OR r.issues_text LIKE ? OR r.tomorrow_plan_text LIKE ? OR r.reflection_text LIKE ?)";
                 $searchTerm = "%" . $filters['search'] . "%";
                 $params[] = $searchTerm;
                 $params[] = $searchTerm;
+                $params[] = $searchTerm;
+                $params[] = $searchTerm;
+                $params[] = $searchTerm;
+                $params[] = $searchTerm;
+            }
+
+            if (!empty($filters['project_id']) || !empty($filters['industry_id']) || !empty($filters['product_id']) || !empty($filters['process_id'])) {
+                $sql .= " AND EXISTS (
+                    SELECT 1
+                    FROM daily_report_analysis_entries ae
+                    WHERE ae.report_id = r.id";
+                if (!empty($filters['project_id'])) {
+                    $sql .= " AND ae.project_id = ?";
+                    $params[] = (int)$filters['project_id'];
+                }
+                if (!empty($filters['industry_id'])) {
+                    $sql .= " AND ae.industry_id = ?";
+                    $params[] = (int)$filters['industry_id'];
+                }
+                if (!empty($filters['product_id'])) {
+                    $sql .= " AND ae.product_id = ?";
+                    $params[] = (int)$filters['product_id'];
+                }
+                if (!empty($filters['process_id'])) {
+                    $sql .= " AND ae.process_id = ?";
+                    $params[] = (int)$filters['process_id'];
+                }
+                $sql .= ")";
             }
 
             // 並び順（デフォルトは日付の降順）
@@ -353,8 +459,12 @@ class DailyReport
             }
 
             if (!empty($filters['search'])) {
-                $sql .= " AND (r.title LIKE ? OR r.content LIKE ?)";
+                $sql .= " AND (r.title LIKE ? OR r.content LIKE ? OR r.summary_text LIKE ? OR r.issues_text LIKE ? OR r.tomorrow_plan_text LIKE ? OR r.reflection_text LIKE ?)";
                 $searchTerm = "%" . $filters['search'] . "%";
+                $params[] = $searchTerm;
+                $params[] = $searchTerm;
+                $params[] = $searchTerm;
+                $params[] = $searchTerm;
                 $params[] = $searchTerm;
                 $params[] = $searchTerm;
             }
@@ -366,6 +476,30 @@ class DailyReport
                     WHERE tr.report_id = r.id AND tr.tag_id = ?
                 )";
                 $params[] = $filters['tag_id'];
+            }
+
+            if (!empty($filters['project_id']) || !empty($filters['industry_id']) || !empty($filters['product_id']) || !empty($filters['process_id'])) {
+                $sql .= " AND EXISTS (
+                    SELECT 1
+                    FROM daily_report_analysis_entries ae
+                    WHERE ae.report_id = r.id";
+                if (!empty($filters['project_id'])) {
+                    $sql .= " AND ae.project_id = ?";
+                    $params[] = (int)$filters['project_id'];
+                }
+                if (!empty($filters['industry_id'])) {
+                    $sql .= " AND ae.industry_id = ?";
+                    $params[] = (int)$filters['industry_id'];
+                }
+                if (!empty($filters['product_id'])) {
+                    $sql .= " AND ae.product_id = ?";
+                    $params[] = (int)$filters['product_id'];
+                }
+                if (!empty($filters['process_id'])) {
+                    $sql .= " AND ae.process_id = ?";
+                    $params[] = (int)$filters['process_id'];
+                }
+                $sql .= ")";
             }
 
             // 並び順（デフォルトは日付の降順）
@@ -418,10 +552,38 @@ class DailyReport
             }
 
             if (!empty($filters['search'])) {
-                $sql .= " AND (title LIKE ? OR content LIKE ?)";
+                $sql .= " AND (title LIKE ? OR content LIKE ? OR summary_text LIKE ? OR issues_text LIKE ? OR tomorrow_plan_text LIKE ? OR reflection_text LIKE ?)";
                 $searchTerm = "%" . $filters['search'] . "%";
                 $params[] = $searchTerm;
                 $params[] = $searchTerm;
+                $params[] = $searchTerm;
+                $params[] = $searchTerm;
+                $params[] = $searchTerm;
+                $params[] = $searchTerm;
+            }
+
+            if (!empty($filters['project_id']) || !empty($filters['industry_id']) || !empty($filters['product_id']) || !empty($filters['process_id'])) {
+                $sql .= " AND EXISTS (
+                    SELECT 1
+                    FROM daily_report_analysis_entries ae
+                    WHERE ae.report_id = daily_reports.id";
+                if (!empty($filters['project_id'])) {
+                    $sql .= " AND ae.project_id = ?";
+                    $params[] = (int)$filters['project_id'];
+                }
+                if (!empty($filters['industry_id'])) {
+                    $sql .= " AND ae.industry_id = ?";
+                    $params[] = (int)$filters['industry_id'];
+                }
+                if (!empty($filters['product_id'])) {
+                    $sql .= " AND ae.product_id = ?";
+                    $params[] = (int)$filters['product_id'];
+                }
+                if (!empty($filters['process_id'])) {
+                    $sql .= " AND ae.process_id = ?";
+                    $params[] = (int)$filters['process_id'];
+                }
+                $sql .= ")";
             }
 
             $result = $this->db->fetch($sql, $params);
@@ -648,37 +810,57 @@ class DailyReport
      */
     public function createTemplate($data)
     {
+        $startedTransaction = false;
         try {
-            error_log("createTemplate called with data: " . print_r($data, true));
+            $this->db->beginTransaction();
+            $startedTransaction = true;
+
+            $normalizedSections = $this->normalizeTemplateSections($data['sections'] ?? []);
+            $sectionSchemaJson = !empty($normalizedSections) ? json_encode($normalizedSections, JSON_UNESCAPED_UNICODE) : null;
 
             $sql = "INSERT INTO daily_report_templates (
-                title, content, user_id, is_public
-                ) VALUES (?, ?, ?, ?)";
+                title, content, content_format, user_id, is_public, description, section_schema_json
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)";
 
             $params = [
                 $data['title'],
                 $data['content'],
+                $data['content_format'] ?? 'text',
                 $data['user_id'],
-                $data['is_public']
+                $data['is_public'],
+                $data['description'] ?? null,
+                $sectionSchemaJson
             ];
-
-            error_log("SQL: " . $sql);
-            error_log("Params: " . print_r($params, true));
 
             $result = $this->db->execute($sql, $params);
 
             if (!$result) {
-                error_log("Failed to execute SQL in createTemplate");
+                $this->db->rollBack();
                 return false;
             }
 
-            $lastId = $this->db->lastInsertId();
-            error_log("New template created with ID: " . $lastId);
+            $lastId = (int)$this->db->lastInsertId();
+            if ($lastId <= 0) {
+                $this->db->rollBack();
+                return false;
+            }
+
+            if (!$this->saveTemplateSections($lastId, $normalizedSections)) {
+                $this->db->rollBack();
+                return false;
+            }
+
+            $this->db->commit();
 
             return $lastId;
         } catch (\Exception $e) {
+            if ($startedTransaction) {
+                try {
+                    $this->db->rollBack();
+                } catch (\Throwable $ignore) {
+                }
+            }
             error_log("Error creating template: " . $e->getMessage());
-            error_log("Stack trace: " . $e->getTraceAsString());
             return false;
         }
     }
@@ -693,7 +875,15 @@ class DailyReport
     {
         try {
             $sql = "SELECT * FROM daily_report_templates WHERE id = ?";
-            return $this->db->fetch($sql, [$id]);
+            $template = $this->db->fetch($sql, [$id]);
+            if (!$template) {
+                return null;
+            }
+            $template['sections'] = $this->getTemplateSections($id);
+            if (empty($template['sections'])) {
+                $template['sections'] = $this->decodeDetailJson($template['section_schema_json'] ?? null);
+            }
+            return $template;
         } catch (\Exception $e) {
             error_log("Error getting template: " . $e->getMessage());
             return null;
@@ -1114,21 +1304,51 @@ class DailyReport
      */
     public function updateTemplate($id, $data)
     {
+        $startedTransaction = false;
         try {
+            $this->db->beginTransaction();
+            $startedTransaction = true;
+
+            $normalizedSections = $this->normalizeTemplateSections($data['sections'] ?? []);
+            $sectionSchemaJson = !empty($normalizedSections) ? json_encode($normalizedSections, JSON_UNESCAPED_UNICODE) : null;
             $sql = "UPDATE daily_report_templates SET 
                 title = ?, 
                 content = ?, 
+                content_format = ?,
                 is_public = ?,
+                description = ?,
+                section_schema_json = ?,
                 updated_at = CURRENT_TIMESTAMP
                 WHERE id = ?";
 
-            return $this->db->execute($sql, [
+            $result = $this->db->execute($sql, [
                 $data['title'],
                 $data['content'],
+                $data['content_format'] ?? 'text',
                 $data['is_public'] ? 1 : 0,
+                $data['description'] ?? null,
+                $sectionSchemaJson,
                 $id
             ]);
+            if (!$result) {
+                $this->db->rollBack();
+                return false;
+            }
+
+            if (!$this->saveTemplateSections($id, $normalizedSections)) {
+                $this->db->rollBack();
+                return false;
+            }
+
+            $this->db->commit();
+            return true;
         } catch (\Exception $e) {
+            if ($startedTransaction) {
+                try {
+                    $this->db->rollBack();
+                } catch (\Throwable $ignore) {
+                }
+            }
             error_log("Error updating template: " . $e->getMessage());
             return false;
         }
@@ -1176,5 +1396,906 @@ class DailyReport
         }
 
         return true;
+    }
+
+    private function normalizeStructuredData($data)
+    {
+        $detailItems = [];
+        if (isset($data['detail_items']) && is_array($data['detail_items'])) {
+            $detailItems = $data['detail_items'];
+        } elseif (isset($data['detail_json']) && is_string($data['detail_json'])) {
+            $decoded = json_decode($data['detail_json'], true);
+            if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                $detailItems = $decoded;
+            }
+        }
+
+        $activities = $data['activities'] ?? ($data['activity_logs'] ?? []);
+        if (!is_array($activities)) {
+            $activities = [];
+        }
+        $analysisEntries = $data['analysis_entries'] ?? [];
+        if (!is_array($analysisEntries)) {
+            $analysisEntries = [];
+        }
+
+        return [
+            'summary_text' => $data['summary_text'] ?? null,
+            'issues_text' => $data['issues_text'] ?? null,
+            'tomorrow_plan_text' => $data['tomorrow_plan_text'] ?? null,
+            'reflection_text' => $data['reflection_text'] ?? null,
+            'work_minutes' => max(0, (int)($data['work_minutes'] ?? 0)),
+            'template_id' => !empty($data['template_id']) ? (int)$data['template_id'] : null,
+            'detail_json' => !empty($detailItems) ? json_encode(array_values($detailItems), JSON_UNESCAPED_UNICODE) : null,
+            'activities' => $activities,
+            'analysis_entries' => $analysisEntries
+        ];
+    }
+
+    private function decodeDetailJson($json)
+    {
+        if (!$json || !is_string($json)) {
+            return [];
+        }
+        $decoded = json_decode($json, true);
+        if (json_last_error() !== JSON_ERROR_NONE || !is_array($decoded)) {
+            return [];
+        }
+        return $decoded;
+    }
+
+    private function saveActivityLogs($reportId, $activities)
+    {
+        try {
+            $this->db->execute("DELETE FROM daily_report_activity_logs WHERE report_id = ?", [$reportId]);
+            if (empty($activities)) {
+                return true;
+            }
+
+            $sql = "INSERT INTO daily_report_activity_logs (
+                        report_id, start_time, end_time, activity_type, subject, result, memo, sort_order
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+
+            $sortOrder = 1;
+            foreach ($activities as $activity) {
+                if (!is_array($activity)) {
+                    continue;
+                }
+                $subject = trim((string)($activity['subject'] ?? ''));
+                $activityType = trim((string)($activity['activity_type'] ?? ''));
+                $memo = trim((string)($activity['memo'] ?? ''));
+                if ($subject === '' && $activityType === '' && $memo === '') {
+                    continue;
+                }
+
+                $this->db->execute($sql, [
+                    $reportId,
+                    $this->normalizeTimeValue($activity['start_time'] ?? null),
+                    $this->normalizeTimeValue($activity['end_time'] ?? null),
+                    $activityType !== '' ? $activityType : null,
+                    $subject !== '' ? $subject : null,
+                    trim((string)($activity['result'] ?? '')) ?: null,
+                    $memo !== '' ? $memo : null,
+                    $sortOrder++
+                ]);
+            }
+
+            return true;
+        } catch (\Exception $e) {
+            error_log("Error saving activity logs: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    private function normalizeTimeValue($value)
+    {
+        $value = trim((string)$value);
+        if ($value === '') {
+            return null;
+        }
+        if (preg_match('/^\d{2}:\d{2}$/', $value) === 1) {
+            return $value . ':00';
+        }
+        if (preg_match('/^\d{2}:\d{2}:\d{2}$/', $value) === 1) {
+            return $value;
+        }
+        return null;
+    }
+
+    private function getActivityLogs($reportId)
+    {
+        try {
+            $rows = $this->db->fetchAll(
+                "SELECT id, start_time, end_time, activity_type, subject, result, memo, sort_order
+                 FROM daily_report_activity_logs
+                 WHERE report_id = ?
+                 ORDER BY sort_order ASC, id ASC",
+                [$reportId]
+            );
+            foreach ($rows as &$row) {
+                $row['start_time'] = $row['start_time'] ? substr($row['start_time'], 0, 5) : '';
+                $row['end_time'] = $row['end_time'] ? substr($row['end_time'], 0, 5) : '';
+            }
+            return $rows;
+        } catch (\Exception $e) {
+            return [];
+        }
+    }
+
+    private function normalizeTemplateSections($sections)
+    {
+        if (!is_array($sections)) {
+            return [];
+        }
+
+        $normalized = [];
+        $usedSectionKeys = [];
+        $sortOrder = 1;
+        foreach ($sections as $section) {
+            if (!is_array($section)) {
+                continue;
+            }
+            $title = trim((string)($section['title'] ?? ''));
+            if ($title === '') {
+                continue;
+            }
+            $inputType = trim((string)($section['input_type'] ?? 'textarea'));
+            if (!in_array($inputType, ['text', 'textarea', 'checklist', 'number', 'rating', 'toggle'], true)) {
+                $inputType = 'textarea';
+            }
+
+            $rawSectionKey = trim((string)($section['section_key'] ?? ''));
+            $sanitizedKey = preg_replace('/[^A-Za-z0-9_-]/', '_', $rawSectionKey);
+            if ($sanitizedKey === '' || $sanitizedKey === null) {
+                $sanitizedKey = 'section_' . $sortOrder;
+            }
+            $baseSectionKey = $sanitizedKey;
+            $suffix = 2;
+            while (isset($usedSectionKeys[$sanitizedKey])) {
+                $sanitizedKey = $baseSectionKey . '_' . $suffix;
+                $suffix++;
+            }
+            $usedSectionKeys[$sanitizedKey] = true;
+
+            $normalized[] = [
+                'section_key' => $sanitizedKey,
+                'title' => $title,
+                'input_type' => $inputType,
+                'is_required' => !empty($section['is_required']) ? 1 : 0,
+                'placeholder_text' => trim((string)($section['placeholder_text'] ?? '')),
+                'default_value_text' => trim((string)($section['default_value_text'] ?? '')),
+                'options_json' => isset($section['options_json']) ? (is_string($section['options_json']) ? $section['options_json'] : json_encode($section['options_json'], JSON_UNESCAPED_UNICODE)) : null,
+                'sort_order' => $sortOrder++
+            ];
+        }
+
+        return $normalized;
+    }
+
+    private function saveTemplateSections($templateId, $sections)
+    {
+        try {
+            $this->db->execute("DELETE FROM daily_report_template_sections WHERE template_id = ?", [$templateId]);
+            if (empty($sections)) {
+                return true;
+            }
+
+            $sql = "INSERT INTO daily_report_template_sections (
+                        template_id, section_key, title, input_type, is_required, placeholder_text, default_value_text, options_json, sort_order
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+            foreach ($sections as $section) {
+                $this->db->execute($sql, [
+                    $templateId,
+                    $section['section_key'],
+                    $section['title'],
+                    $section['input_type'],
+                    $section['is_required'],
+                    $section['placeholder_text'] !== '' ? $section['placeholder_text'] : null,
+                    $section['default_value_text'] !== '' ? $section['default_value_text'] : null,
+                    $section['options_json'],
+                    $section['sort_order']
+                ]);
+            }
+            return true;
+        } catch (\Exception $e) {
+            error_log("Error saving template sections: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    private function getTemplateSections($templateId)
+    {
+        try {
+            return $this->db->fetchAll(
+                "SELECT section_key, title, input_type, is_required, placeholder_text, default_value_text, options_json, sort_order
+                 FROM daily_report_template_sections
+                 WHERE template_id = ?
+                 ORDER BY sort_order ASC, id ASC",
+                [$templateId]
+            );
+        } catch (\Exception $e) {
+            return [];
+        }
+    }
+
+    private function saveAnalysisEntries($reportId, $entries)
+    {
+        try {
+            $this->db->execute("DELETE FROM daily_report_analysis_entries WHERE report_id = ?", [$reportId]);
+            if (empty($entries) || !is_array($entries)) {
+                return true;
+            }
+
+            $sql = "INSERT INTO daily_report_analysis_entries (
+                        report_id, project_id, industry_id, product_id, process_id, activity_type,
+                        planned_amount, actual_amount, planned_hours, actual_hours, quantity, memo, sort_order
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+
+            $sortOrder = 1;
+            foreach ($entries as $entry) {
+                if (!is_array($entry)) {
+                    continue;
+                }
+
+                $projectId = (int)($entry['project_id'] ?? 0);
+                $industryId = (int)($entry['industry_id'] ?? 0);
+                $productId = (int)($entry['product_id'] ?? 0);
+                $processId = (int)($entry['process_id'] ?? 0);
+                $activityType = trim((string)($entry['activity_type'] ?? ''));
+                $memo = trim((string)($entry['memo'] ?? ''));
+                $plannedAmount = $this->normalizeDecimal($entry['planned_amount'] ?? 0);
+                $actualAmount = $this->normalizeDecimal($entry['actual_amount'] ?? 0);
+                $plannedHours = $this->normalizeDecimal($entry['planned_hours'] ?? 0, 2);
+                $actualHours = $this->normalizeDecimal($entry['actual_hours'] ?? 0, 2);
+                $quantity = $this->normalizeDecimal($entry['quantity'] ?? 0);
+
+                if (
+                    $projectId <= 0 && $industryId <= 0 && $productId <= 0 && $processId <= 0
+                    && $activityType === '' && $memo === ''
+                    && $plannedAmount == 0.0 && $actualAmount == 0.0 && $plannedHours == 0.0 && $actualHours == 0.0 && $quantity == 0.0
+                ) {
+                    continue;
+                }
+
+                $this->db->execute($sql, [
+                    $reportId,
+                    $projectId > 0 ? $projectId : null,
+                    $industryId > 0 ? $industryId : null,
+                    $productId > 0 ? $productId : null,
+                    $processId > 0 ? $processId : null,
+                    $activityType !== '' ? $activityType : null,
+                    $plannedAmount,
+                    $actualAmount,
+                    $plannedHours,
+                    $actualHours,
+                    $quantity,
+                    $memo !== '' ? $memo : null,
+                    $sortOrder++
+                ]);
+            }
+
+            return true;
+        } catch (\Exception $e) {
+            error_log("Error saving analysis entries: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    private function getAnalysisEntries($reportId)
+    {
+        try {
+            $sql = "SELECT ae.*,
+                           p.name AS project_name,
+                           i.name AS industry_name,
+                           pr.name AS product_name,
+                           ps.name AS process_name
+                    FROM daily_report_analysis_entries ae
+                    LEFT JOIN daily_report_projects p ON p.id = ae.project_id
+                    LEFT JOIN daily_report_industries i ON i.id = ae.industry_id
+                    LEFT JOIN daily_report_products pr ON pr.id = ae.product_id
+                    LEFT JOIN daily_report_processes ps ON ps.id = ae.process_id
+                    WHERE ae.report_id = ?
+                    ORDER BY ae.sort_order ASC, ae.id ASC";
+            return $this->db->fetchAll($sql, [$reportId]);
+        } catch (\Exception $e) {
+            return [];
+        }
+    }
+
+    private function normalizeDecimal($value, $scale = 2)
+    {
+        if ($value === null || $value === '') {
+            return 0.0;
+        }
+        if (is_string($value)) {
+            $value = str_replace([',', ' '], '', $value);
+        }
+        $num = is_numeric($value) ? (float)$value : 0.0;
+        return round($num, $scale);
+    }
+
+    public function saveAttachments($reportId, $uploadedBy, $attachments)
+    {
+        if (empty($attachments) || !is_array($attachments)) {
+            return true;
+        }
+
+        try {
+            $sql = "INSERT INTO daily_report_attachments (
+                        report_id, uploaded_by, original_name, stored_name, file_path, mime_type, file_size
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?)";
+
+            foreach ($attachments as $file) {
+                if (!is_array($file)) {
+                    continue;
+                }
+                $this->db->execute($sql, [
+                    $reportId,
+                    $uploadedBy,
+                    (string)($file['original_name'] ?? ''),
+                    (string)($file['stored_name'] ?? ''),
+                    (string)($file['file_path'] ?? ''),
+                    (string)($file['mime_type'] ?? ''),
+                    (int)($file['file_size'] ?? 0)
+                ]);
+            }
+
+            return true;
+        } catch (\Exception $e) {
+            error_log("Error saving report attachments: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    public function getAttachments($reportId)
+    {
+        try {
+            return $this->db->fetchAll(
+                "SELECT a.*, u.display_name AS uploader_name
+                 FROM daily_report_attachments a
+                 LEFT JOIN users u ON u.id = a.uploaded_by
+                 WHERE a.report_id = ?
+                 ORDER BY a.id ASC",
+                [$reportId]
+            );
+        } catch (\Exception $e) {
+            return [];
+        }
+    }
+
+    public function deleteAttachments($reportId, $attachmentIds = [])
+    {
+        if (empty($attachmentIds) || !is_array($attachmentIds)) {
+            return true;
+        }
+
+        $ids = [];
+        foreach ($attachmentIds as $id) {
+            $num = (int)$id;
+            if ($num > 0) {
+                $ids[] = $num;
+            }
+        }
+        if (empty($ids)) {
+            return true;
+        }
+
+        try {
+            $placeholders = implode(',', array_fill(0, count($ids), '?'));
+            $params = array_merge([$reportId], $ids);
+            $rows = $this->db->fetchAll(
+                "SELECT id, file_path FROM daily_report_attachments WHERE report_id = ? AND id IN ({$placeholders})",
+                $params
+            );
+            foreach ($rows as $row) {
+                $this->deleteAttachmentFileByPath((string)$row['file_path']);
+            }
+            return $this->db->execute(
+                "DELETE FROM daily_report_attachments WHERE report_id = ? AND id IN ({$placeholders})",
+                $params
+            );
+        } catch (\Exception $e) {
+            error_log("Error deleting report attachments: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    private function deleteAttachmentFileByPath($relativePath)
+    {
+        if ($relativePath === '') {
+            return;
+        }
+        $fullPath = realpath(__DIR__ . '/../public') . '/' . ltrim($relativePath, '/');
+        if ($fullPath && is_file($fullPath)) {
+            @unlink($fullPath);
+        }
+    }
+
+    public function getMasterItems($type)
+    {
+        $meta = $this->getMasterMeta($type);
+        if ($meta === null) {
+            return [];
+        }
+
+        try {
+            return $this->db->fetchAll($meta['list_sql']);
+        } catch (\Exception $e) {
+            return [];
+        }
+    }
+
+    public function saveMasterItem($type, $data, $userId)
+    {
+        $meta = $this->getMasterMeta($type);
+        if ($meta === null) {
+            return false;
+        }
+
+        $id = (int)($data['id'] ?? 0);
+        $name = trim((string)($data['name'] ?? ''));
+        if ($name === '') {
+            return false;
+        }
+        $code = trim((string)($data['code'] ?? ''));
+        $sortOrder = max(1, (int)($data['sort_order'] ?? 1));
+        $isActive = !isset($data['is_active']) || (int)$data['is_active'] === 1 ? 1 : 0;
+        $industryId = max(0, (int)($data['industry_id'] ?? 0));
+        $productId = max(0, (int)($data['product_id'] ?? 0));
+        $processId = max(0, (int)($data['process_id'] ?? 0));
+
+        try {
+            if ($id > 0) {
+                switch ($type) {
+                    case 'industry':
+                    case 'process':
+                        $this->db->execute($meta['update_sql'], [
+                            $code !== '' ? $code : null,
+                            $name,
+                            $sortOrder,
+                            $isActive,
+                            $id
+                        ]);
+                        break;
+                    case 'product':
+                        $this->db->execute($meta['update_sql'], [
+                            $code !== '' ? $code : null,
+                            $name,
+                            $sortOrder,
+                            $isActive,
+                            $industryId > 0 ? $industryId : null,
+                            $id
+                        ]);
+                        break;
+                    case 'project':
+                        $this->db->execute($meta['update_sql'], [
+                            $code !== '' ? $code : null,
+                            $name,
+                            $sortOrder,
+                            $isActive,
+                            $industryId > 0 ? $industryId : null,
+                            $productId > 0 ? $productId : null,
+                            $processId > 0 ? $processId : null,
+                            $id
+                        ]);
+                        break;
+                }
+                return $id;
+            }
+
+            switch ($type) {
+                case 'industry':
+                case 'process':
+                    $this->db->execute($meta['insert_sql'], [
+                        $code !== '' ? $code : null,
+                        $name,
+                        $sortOrder,
+                        $isActive,
+                        (int)$userId
+                    ]);
+                    break;
+                case 'product':
+                    $this->db->execute($meta['insert_sql'], [
+                        $code !== '' ? $code : null,
+                        $name,
+                        $sortOrder,
+                        $isActive,
+                        $industryId > 0 ? $industryId : null,
+                        (int)$userId
+                    ]);
+                    break;
+                case 'project':
+                    $this->db->execute($meta['insert_sql'], [
+                        $code !== '' ? $code : null,
+                        $name,
+                        $sortOrder,
+                        $isActive,
+                        $industryId > 0 ? $industryId : null,
+                        $productId > 0 ? $productId : null,
+                        $processId > 0 ? $processId : null,
+                        (int)$userId
+                    ]);
+                    break;
+            }
+            return (int)$this->db->lastInsertId();
+        } catch (\Exception $e) {
+            error_log("Error saving master item: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    public function deleteMasterItem($type, $id)
+    {
+        $meta = $this->getMasterMeta($type);
+        if ($meta === null) {
+            return false;
+        }
+
+        try {
+            return $this->db->execute("DELETE FROM {$meta['table']} WHERE id = ?", [(int)$id]);
+        } catch (\Exception $e) {
+            return false;
+        }
+    }
+
+    private function getMasterMeta($type)
+    {
+        switch ($type) {
+            case 'industry':
+                return [
+                    'table' => 'daily_report_industries',
+                    'list_sql' => "SELECT id, code, name, sort_order, is_active, NULL AS industry_id, NULL AS product_id, NULL AS process_id
+                                   FROM daily_report_industries ORDER BY is_active DESC, sort_order ASC, id ASC",
+                    'insert_sql' => "INSERT INTO daily_report_industries (code, name, sort_order, is_active, created_by)
+                                     VALUES (?, ?, ?, ?, ?)",
+                    'update_sql' => "UPDATE daily_report_industries
+                                     SET code = ?, name = ?, sort_order = ?, is_active = ?, updated_at = CURRENT_TIMESTAMP
+                                     WHERE id = ?"
+                ];
+            case 'product':
+                return [
+                    'table' => 'daily_report_products',
+                    'list_sql' => "SELECT p.id, p.code, p.name, p.sort_order, p.is_active, p.industry_id, NULL AS product_id, NULL AS process_id
+                                   FROM daily_report_products p
+                                   ORDER BY p.is_active DESC, p.sort_order ASC, p.id ASC",
+                    'insert_sql' => "INSERT INTO daily_report_products (code, name, sort_order, is_active, industry_id, created_by)
+                                     VALUES (?, ?, ?, ?, ?, ?)",
+                    'update_sql' => "UPDATE daily_report_products
+                                     SET code = ?, name = ?, sort_order = ?, is_active = ?, industry_id = ?, updated_at = CURRENT_TIMESTAMP
+                                     WHERE id = ?"
+                ];
+            case 'process':
+                return [
+                    'table' => 'daily_report_processes',
+                    'list_sql' => "SELECT id, code, name, sort_order, is_active, NULL AS industry_id, NULL AS product_id, NULL AS process_id
+                                   FROM daily_report_processes ORDER BY is_active DESC, sort_order ASC, id ASC",
+                    'insert_sql' => "INSERT INTO daily_report_processes (code, name, sort_order, is_active, created_by)
+                                     VALUES (?, ?, ?, ?, ?)",
+                    'update_sql' => "UPDATE daily_report_processes
+                                     SET code = ?, name = ?, sort_order = ?, is_active = ?, updated_at = CURRENT_TIMESTAMP
+                                     WHERE id = ?"
+                ];
+            case 'project':
+                return [
+                    'table' => 'daily_report_projects',
+                    'list_sql' => "SELECT id, code, name, sort_order, is_active, industry_id, product_id, process_id
+                                   FROM daily_report_projects ORDER BY is_active DESC, sort_order ASC, id ASC",
+                    'insert_sql' => "INSERT INTO daily_report_projects (
+                                        code, name, sort_order, is_active, industry_id, product_id, process_id, created_by
+                                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                    'update_sql' => "UPDATE daily_report_projects
+                                     SET code = ?, name = ?, sort_order = ?, is_active = ?,
+                                         industry_id = ?, product_id = ?, process_id = ?, updated_at = CURRENT_TIMESTAMP
+                                     WHERE id = ?"
+                ];
+            default:
+                return null;
+        }
+    }
+
+    public function getAnalysisMasterSet()
+    {
+        try {
+            return [
+                'industries' => $this->db->fetchAll("SELECT id, code, name FROM daily_report_industries WHERE is_active = 1 ORDER BY sort_order, id"),
+                'products' => $this->db->fetchAll("SELECT id, code, name, industry_id FROM daily_report_products WHERE is_active = 1 ORDER BY sort_order, id"),
+                'processes' => $this->db->fetchAll("SELECT id, code, name FROM daily_report_processes WHERE is_active = 1 ORDER BY sort_order, id"),
+                'projects' => $this->db->fetchAll("SELECT id, code, name, industry_id, product_id, process_id FROM daily_report_projects WHERE is_active = 1 ORDER BY sort_order, id")
+            ];
+        } catch (\Exception $e) {
+            return [
+                'industries' => [],
+                'products' => [],
+                'processes' => [],
+                'projects' => []
+            ];
+        }
+    }
+
+    public function saveMonthlyTarget($userId, $data)
+    {
+        $targetMonth = trim((string)($data['target_month'] ?? ''));
+        if (preg_match('/^\d{4}-\d{2}$/', $targetMonth) !== 1) {
+            return false;
+        }
+
+        $projectId = max(0, (int)($data['project_id'] ?? 0));
+        $industryId = max(0, (int)($data['industry_id'] ?? 0));
+        $productId = max(0, (int)($data['product_id'] ?? 0));
+        $processId = max(0, (int)($data['process_id'] ?? 0));
+        $dimensionKey = sprintf(
+            'p:%d|i:%d|pr:%d|ps:%d',
+            $projectId,
+            $industryId,
+            $productId,
+            $processId
+        );
+
+        $targetAmount = $this->normalizeDecimal($data['target_amount'] ?? 0);
+        $targetHours = $this->normalizeDecimal($data['target_hours'] ?? 0, 2);
+        $targetQuantity = $this->normalizeDecimal($data['target_quantity'] ?? 0);
+        $memo = trim((string)($data['memo'] ?? ''));
+
+        try {
+            $sql = "INSERT INTO daily_report_monthly_targets (
+                        user_id, target_month, dimension_key, project_id, industry_id, product_id, process_id,
+                        target_amount, target_hours, target_quantity, memo
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ON DUPLICATE KEY UPDATE
+                        target_amount = VALUES(target_amount),
+                        target_hours = VALUES(target_hours),
+                        target_quantity = VALUES(target_quantity),
+                        memo = VALUES(memo),
+                        updated_at = CURRENT_TIMESTAMP";
+            $this->db->execute($sql, [
+                (int)$userId,
+                $targetMonth,
+                $dimensionKey,
+                $projectId > 0 ? $projectId : null,
+                $industryId > 0 ? $industryId : null,
+                $productId > 0 ? $productId : null,
+                $processId > 0 ? $processId : null,
+                $targetAmount,
+                $targetHours,
+                $targetQuantity,
+                $memo !== '' ? $memo : null
+            ]);
+            return true;
+        } catch (\Exception $e) {
+            error_log("Error saving monthly target: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    public function getMonthlyTargets($userId, $targetMonth)
+    {
+        if (preg_match('/^\d{4}-\d{2}$/', (string)$targetMonth) !== 1) {
+            return [];
+        }
+
+        try {
+            $sql = "SELECT t.*,
+                           p.name AS project_name,
+                           i.name AS industry_name,
+                           pr.name AS product_name,
+                           ps.name AS process_name
+                    FROM daily_report_monthly_targets t
+                    LEFT JOIN daily_report_projects p ON p.id = t.project_id
+                    LEFT JOIN daily_report_industries i ON i.id = t.industry_id
+                    LEFT JOIN daily_report_products pr ON pr.id = t.product_id
+                    LEFT JOIN daily_report_processes ps ON ps.id = t.process_id
+                    WHERE t.user_id = ? AND t.target_month = ?
+                    ORDER BY t.id DESC";
+            return $this->db->fetchAll($sql, [(int)$userId, $targetMonth]);
+        } catch (\Exception $e) {
+            return [];
+        }
+    }
+
+    public function deleteMonthlyTarget($userId, $targetId)
+    {
+        try {
+            return $this->db->execute(
+                "DELETE FROM daily_report_monthly_targets WHERE id = ? AND user_id = ?",
+                [(int)$targetId, (int)$userId]
+            );
+        } catch (\Exception $e) {
+            return false;
+        }
+    }
+
+    public function getAnalysisSummary($filters)
+    {
+        $params = [];
+        $sql = "SELECT
+                    COALESCE(SUM(ae.planned_amount), 0) AS planned_amount_total,
+                    COALESCE(SUM(ae.actual_amount), 0) AS actual_amount_total,
+                    COALESCE(SUM(ae.planned_hours), 0) AS planned_hours_total,
+                    COALESCE(SUM(ae.actual_hours), 0) AS actual_hours_total,
+                    COALESCE(SUM(ae.quantity), 0) AS quantity_total,
+                    COUNT(DISTINCT r.id) AS reports_count
+                FROM daily_report_analysis_entries ae
+                JOIN daily_reports r ON r.id = ae.report_id
+                WHERE 1=1";
+        $this->appendAnalysisFilters($sql, $params, $filters);
+        return $this->db->fetch($sql, $params) ?: [
+            'planned_amount_total' => 0,
+            'actual_amount_total' => 0,
+            'planned_hours_total' => 0,
+            'actual_hours_total' => 0,
+            'quantity_total' => 0,
+            'reports_count' => 0
+        ];
+    }
+
+    public function getAnalysisBreakdown($filters, $axis = 'project')
+    {
+        $axisMap = [
+            'project' => ['column' => 'ae.project_id', 'name_sql' => 'COALESCE(p.name, "(未設定)")'],
+            'industry' => ['column' => 'ae.industry_id', 'name_sql' => 'COALESCE(i.name, "(未設定)")'],
+            'product' => ['column' => 'ae.product_id', 'name_sql' => 'COALESCE(pr.name, "(未設定)")'],
+            'process' => ['column' => 'ae.process_id', 'name_sql' => 'COALESCE(ps.name, "(未設定)")']
+        ];
+        if (!isset($axisMap[$axis])) {
+            $axis = 'project';
+        }
+
+        $params = [];
+        $column = $axisMap[$axis]['column'];
+        $nameSql = $axisMap[$axis]['name_sql'];
+        $sql = "SELECT {$column} AS axis_id,
+                       {$nameSql} AS axis_name,
+                       COALESCE(SUM(ae.planned_amount), 0) AS planned_amount_total,
+                       COALESCE(SUM(ae.actual_amount), 0) AS actual_amount_total,
+                       COALESCE(SUM(ae.planned_hours), 0) AS planned_hours_total,
+                       COALESCE(SUM(ae.actual_hours), 0) AS actual_hours_total,
+                       COALESCE(SUM(ae.quantity), 0) AS quantity_total,
+                       COUNT(*) AS entries_count
+                FROM daily_report_analysis_entries ae
+                JOIN daily_reports r ON r.id = ae.report_id
+                LEFT JOIN daily_report_projects p ON p.id = ae.project_id
+                LEFT JOIN daily_report_industries i ON i.id = ae.industry_id
+                LEFT JOIN daily_report_products pr ON pr.id = ae.product_id
+                LEFT JOIN daily_report_processes ps ON ps.id = ae.process_id
+                WHERE 1=1";
+        $this->appendAnalysisFilters($sql, $params, $filters);
+        $sql .= " GROUP BY {$column}, {$nameSql}
+                  ORDER BY actual_amount_total DESC, axis_name ASC
+                  LIMIT 100";
+        return $this->db->fetchAll($sql, $params);
+    }
+
+    public function getAnalysisMonthlyTrend($filters)
+    {
+        $params = [];
+        $sql = "SELECT DATE_FORMAT(r.report_date, '%Y-%m') AS target_month,
+                       COALESCE(SUM(ae.planned_amount), 0) AS planned_amount_total,
+                       COALESCE(SUM(ae.actual_amount), 0) AS actual_amount_total,
+                       COALESCE(SUM(ae.planned_hours), 0) AS planned_hours_total,
+                       COALESCE(SUM(ae.actual_hours), 0) AS actual_hours_total,
+                       COALESCE(SUM(ae.quantity), 0) AS quantity_total
+                FROM daily_report_analysis_entries ae
+                JOIN daily_reports r ON r.id = ae.report_id
+                WHERE 1=1";
+        $this->appendAnalysisFilters($sql, $params, $filters);
+        $sql .= " GROUP BY DATE_FORMAT(r.report_date, '%Y-%m')
+                  ORDER BY target_month ASC";
+        return $this->db->fetchAll($sql, $params);
+    }
+
+    public function getAnalysisTargetVsActual($userId, $targetMonth, $filters = [])
+    {
+        if (preg_match('/^\d{4}-\d{2}$/', (string)$targetMonth) !== 1) {
+            return [];
+        }
+
+        $targets = $this->getMonthlyTargets($userId, $targetMonth);
+        if (empty($targets)) {
+            return [];
+        }
+
+        $result = [];
+        foreach ($targets as $target) {
+            $calcFilters = array_merge($filters, [
+                'user_id' => (int)$userId,
+                'month' => $targetMonth,
+                'project_id' => $target['project_id'] ?? null,
+                'industry_id' => $target['industry_id'] ?? null,
+                'product_id' => $target['product_id'] ?? null,
+                'process_id' => $target['process_id'] ?? null
+            ]);
+            $actual = $this->getAnalysisSummary($calcFilters);
+            $result[] = [
+                'target' => $target,
+                'actual' => $actual
+            ];
+        }
+        return $result;
+    }
+
+    private function appendAnalysisFilters(&$sql, array &$params, $filters)
+    {
+        if (!empty($filters['user_id'])) {
+            $sql .= " AND r.user_id = ?";
+            $params[] = (int)$filters['user_id'];
+        }
+        if (!empty($filters['start_date'])) {
+            $sql .= " AND r.report_date >= ?";
+            $params[] = $filters['start_date'];
+        }
+        if (!empty($filters['end_date'])) {
+            $sql .= " AND r.report_date <= ?";
+            $params[] = $filters['end_date'];
+        }
+        if (!empty($filters['month']) && preg_match('/^\d{4}-\d{2}$/', (string)$filters['month']) === 1) {
+            $sql .= " AND DATE_FORMAT(r.report_date, '%Y-%m') = ?";
+            $params[] = $filters['month'];
+        }
+        if (!empty($filters['project_id'])) {
+            $sql .= " AND ae.project_id = ?";
+            $params[] = (int)$filters['project_id'];
+        }
+        if (!empty($filters['industry_id'])) {
+            $sql .= " AND ae.industry_id = ?";
+            $params[] = (int)$filters['industry_id'];
+        }
+        if (!empty($filters['product_id'])) {
+            $sql .= " AND ae.product_id = ?";
+            $params[] = (int)$filters['product_id'];
+        }
+        if (!empty($filters['process_id'])) {
+            $sql .= " AND ae.process_id = ?";
+            $params[] = (int)$filters['process_id'];
+        }
+    }
+
+    public function getCsvExportRows($filters)
+    {
+        $params = [];
+        $sql = "SELECT r.id,
+                       r.report_date,
+                       u.display_name AS creator_name,
+                       r.title,
+                       r.status,
+                       COALESCE(SUM(ae.planned_amount), 0) AS planned_amount_total,
+                       COALESCE(SUM(ae.actual_amount), 0) AS actual_amount_total,
+                       COALESCE(SUM(ae.planned_hours), 0) AS planned_hours_total,
+                       COALESCE(SUM(ae.actual_hours), 0) AS actual_hours_total,
+                       COALESCE(SUM(ae.quantity), 0) AS quantity_total
+                FROM daily_reports r
+                JOIN users u ON u.id = r.user_id
+                LEFT JOIN daily_report_analysis_entries ae ON ae.report_id = r.id
+                WHERE 1=1";
+        if (!empty($filters['user_id'])) {
+            $sql .= " AND r.user_id = ?";
+            $params[] = (int)$filters['user_id'];
+        }
+        if (!empty($filters['start_date'])) {
+            $sql .= " AND r.report_date >= ?";
+            $params[] = $filters['start_date'];
+        }
+        if (!empty($filters['end_date'])) {
+            $sql .= " AND r.report_date <= ?";
+            $params[] = $filters['end_date'];
+        }
+        if (!empty($filters['project_id'])) {
+            $sql .= " AND ae.project_id = ?";
+            $params[] = (int)$filters['project_id'];
+        }
+        if (!empty($filters['industry_id'])) {
+            $sql .= " AND ae.industry_id = ?";
+            $params[] = (int)$filters['industry_id'];
+        }
+        if (!empty($filters['product_id'])) {
+            $sql .= " AND ae.product_id = ?";
+            $params[] = (int)$filters['product_id'];
+        }
+        if (!empty($filters['process_id'])) {
+            $sql .= " AND ae.process_id = ?";
+            $params[] = (int)$filters['process_id'];
+        }
+        $sql .= " GROUP BY r.id, r.report_date, u.display_name, r.title, r.status
+                  ORDER BY r.report_date DESC, r.id DESC";
+        return $this->db->fetchAll($sql, $params);
     }
 }

@@ -11,6 +11,18 @@
                         <a href="<?= BASE_PATH ?>/daily-report" class="btn btn-secondary">
                             <i class="fas fa-arrow-left me-2"></i>戻る
                         </a>
+                        <a href="<?= BASE_PATH ?>/daily-report/week?date=<?= urlencode($report['report_date']) ?>" class="btn btn-outline-secondary ms-2">
+                            <i class="fas fa-calendar-week me-1"></i>週間
+                        </a>
+                        <a href="<?= BASE_PATH ?>/daily-report/month?month=<?= date('Y-m', strtotime($report['report_date'])) ?>" class="btn btn-outline-secondary ms-2">
+                            <i class="fas fa-calendar-alt me-1"></i>月間
+                        </a>
+                        <a href="<?= BASE_PATH ?>/daily-report/timeline?date=<?= urlencode($report['report_date']) ?>" class="btn btn-outline-secondary ms-2">
+                            <i class="fas fa-stream me-1"></i>タイムライン
+                        </a>
+                        <a href="<?= BASE_PATH ?>/daily-report/analysis" class="btn btn-outline-secondary ms-2">
+                            <i class="fas fa-chart-line me-1"></i>分析
+                        </a>
                         <?php if ($report['user_id'] == $this->auth->id()): ?>
                             <a href="<?= BASE_PATH ?>/daily-report/edit/<?= $report['id'] ?>" class="btn btn-primary ms-2">
                                 <i class="fas fa-edit me-2"></i>編集
@@ -45,10 +57,154 @@
                             </div>
                         <?php endif; ?>
 
+                        <?php if (!empty($report['summary_text']) || !empty($report['issues_text']) || !empty($report['tomorrow_plan_text']) || !empty($report['reflection_text'])): ?>
+                            <div class="row g-3 mb-4">
+                                <?php if (!empty($report['summary_text'])): ?>
+                                    <div class="col-md-6">
+                                        <div class="border rounded p-3 h-100">
+                                            <h6 class="text-primary mb-2">本日の成果</h6>
+                                            <div><?= nl2br(htmlspecialchars($report['summary_text'])) ?></div>
+                                        </div>
+                                    </div>
+                                <?php endif; ?>
+                                <?php if (!empty($report['issues_text'])): ?>
+                                    <div class="col-md-6">
+                                        <div class="border rounded p-3 h-100">
+                                            <h6 class="text-danger mb-2">課題・問題点</h6>
+                                            <div><?= nl2br(htmlspecialchars($report['issues_text'])) ?></div>
+                                        </div>
+                                    </div>
+                                <?php endif; ?>
+                                <?php if (!empty($report['tomorrow_plan_text'])): ?>
+                                    <div class="col-md-6">
+                                        <div class="border rounded p-3 h-100">
+                                            <h6 class="text-success mb-2">明日の予定</h6>
+                                            <div><?= nl2br(htmlspecialchars($report['tomorrow_plan_text'])) ?></div>
+                                        </div>
+                                    </div>
+                                <?php endif; ?>
+                                <?php if (!empty($report['reflection_text'])): ?>
+                                    <div class="col-md-6">
+                                        <div class="border rounded p-3 h-100">
+                                            <h6 class="text-secondary mb-2">所感・連絡事項</h6>
+                                            <div><?= nl2br(htmlspecialchars($report['reflection_text'])) ?></div>
+                                        </div>
+                                    </div>
+                                <?php endif; ?>
+                            </div>
+                        <?php endif; ?>
+
+                        <?php if (!empty($report['detail_items']) && is_array($report['detail_items'])): ?>
+                            <div class="mt-3 mb-4">
+                                <h5 class="mb-3">テンプレート項目</h5>
+                                <div class="row g-3">
+                                    <?php foreach ($report['detail_items'] as $item): ?>
+                                        <?php if (empty($item['title']) && empty($item['value'])) continue; ?>
+                                        <div class="col-md-6">
+                                            <div class="border rounded p-3 h-100">
+                                                <h6 class="mb-2"><?= htmlspecialchars($item['title'] ?: '項目') ?></h6>
+                                                <div><?= nl2br(htmlspecialchars((string)($item['value'] ?? ''))) ?></div>
+                                            </div>
+                                        </div>
+                                    <?php endforeach; ?>
+                                </div>
+                            </div>
+                        <?php endif; ?>
+
+                        <?php if (!empty($report['activity_logs']) && is_array($report['activity_logs'])): ?>
+                            <div class="mt-4 mb-4">
+                                <h5 class="mb-3">活動ログ</h5>
+                                <div class="table-responsive">
+                                    <table class="table table-sm table-bordered">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th>時間</th>
+                                                <th>分類</th>
+                                                <th>件名</th>
+                                                <th>結果</th>
+                                                <th>メモ</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <?php foreach ($report['activity_logs'] as $log): ?>
+                                                <tr>
+                                                    <td><?= htmlspecialchars(trim(($log['start_time'] ?? '') . ' - ' . ($log['end_time'] ?? ''), ' -')) ?></td>
+                                                    <td><?= htmlspecialchars((string)($log['activity_type'] ?? '')) ?></td>
+                                                    <td><?= htmlspecialchars((string)($log['subject'] ?? '')) ?></td>
+                                                    <td><?= htmlspecialchars((string)($log['result'] ?? '')) ?></td>
+                                                    <td><?= htmlspecialchars((string)($log['memo'] ?? '')) ?></td>
+                                                </tr>
+                                            <?php endforeach; ?>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        <?php endif; ?>
+
+                        <?php if (!empty($report['analysis_entries']) && is_array($report['analysis_entries'])): ?>
+                            <div class="mt-4 mb-4">
+                                <h5 class="mb-3">分析明細</h5>
+                                <div class="table-responsive">
+                                    <table class="table table-sm table-bordered">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th>案件</th>
+                                                <th>業種</th>
+                                                <th>商品</th>
+                                                <th>プロセス</th>
+                                                <th>分類</th>
+                                                <th class="text-end">計画金額</th>
+                                                <th class="text-end">実績金額</th>
+                                                <th class="text-end">計画時間</th>
+                                                <th class="text-end">実績時間</th>
+                                                <th class="text-end">数量</th>
+                                                <th>メモ</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <?php foreach ($report['analysis_entries'] as $entry): ?>
+                                                <tr>
+                                                    <td><?= htmlspecialchars((string)($entry['project_name'] ?? '')) ?></td>
+                                                    <td><?= htmlspecialchars((string)($entry['industry_name'] ?? '')) ?></td>
+                                                    <td><?= htmlspecialchars((string)($entry['product_name'] ?? '')) ?></td>
+                                                    <td><?= htmlspecialchars((string)($entry['process_name'] ?? '')) ?></td>
+                                                    <td><?= htmlspecialchars((string)($entry['activity_type'] ?? '')) ?></td>
+                                                    <td class="text-end"><?= number_format((float)($entry['planned_amount'] ?? 0), 2) ?></td>
+                                                    <td class="text-end"><?= number_format((float)($entry['actual_amount'] ?? 0), 2) ?></td>
+                                                    <td class="text-end"><?= number_format((float)($entry['planned_hours'] ?? 0), 2) ?></td>
+                                                    <td class="text-end"><?= number_format((float)($entry['actual_hours'] ?? 0), 2) ?></td>
+                                                    <td class="text-end"><?= number_format((float)($entry['quantity'] ?? 0), 2) ?></td>
+                                                    <td><?= htmlspecialchars((string)($entry['memo'] ?? '')) ?></td>
+                                                </tr>
+                                            <?php endforeach; ?>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        <?php endif; ?>
+
                         <!-- 日報本文 -->
                         <div class="daily-report-content mb-4">
-                            <?= nl2br(htmlspecialchars($report['content'])) ?>
+                            <?php if (($report['content_format'] ?? 'text') === 'html'): ?>
+                                <?= (string)($report['content'] ?? '') ?>
+                            <?php else: ?>
+                                <?= nl2br(htmlspecialchars((string)($report['content'] ?? ''))) ?>
+                            <?php endif; ?>
                         </div>
+
+                        <?php if (!empty($report['attachments']) && is_array($report['attachments'])): ?>
+                            <div class="mt-4">
+                                <h5>添付ファイル</h5>
+                                <div class="list-group">
+                                    <?php foreach ($report['attachments'] as $attachment): ?>
+                                        <a href="<?= BASE_PATH . '/' . ltrim((string)$attachment['file_path'], '/') ?>" target="_blank" rel="noopener noreferrer" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                                            <span><?= htmlspecialchars((string)($attachment['original_name'] ?? '添付ファイル')) ?></span>
+                                            <small class="text-muted"><?= number_format((int)($attachment['file_size'] ?? 0) / 1024, 1) ?> KB</small>
+                                        </a>
+                                    <?php endforeach; ?>
+                                </div>
+                            </div>
+                        <?php endif; ?>
 
                         <!-- 関連スケジュール -->
                         <?php if (!empty($report['schedules'])): ?>

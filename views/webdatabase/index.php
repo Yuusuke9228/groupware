@@ -8,6 +8,11 @@
             <a href="<?= BASE_PATH ?>/webdatabase/create" class="btn btn-primary">
                 <i class="fas fa-plus"></i> 新規データベース作成
             </a>
+            <?php if ($this->auth->isAdmin()): ?>
+                <button type="button" id="setup-demo-samples-btn" class="btn btn-outline-success ms-2">
+                    <i class="fas fa-magic"></i> デモ業務サンプル投入
+                </button>
+            <?php endif; ?>
         </div>
     </div>
 
