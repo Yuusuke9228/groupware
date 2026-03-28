@@ -8,6 +8,7 @@ const WebDatabaseField = {
     // 初期化
     init: function() {
         this.setupEventListeners();
+        this.initLayoutBuilder();
     },
 
     // イベントリスナーを設定
@@ -16,7 +17,6 @@ const WebDatabaseField = {
         $('#field-type, #edit-field-type').on('change', function() {
             const fieldType = $(this).val();
             const isEdit = $(this).attr('id') === 'edit-field-type';
-            const prefix = isEdit ? '#edit-' : '#';
             const optionsContainer = isEdit ? '#edit-options-container' : '#options-container';
 
             // すべての条件付きコンテナを非表示
@@ -38,6 +38,20 @@ const WebDatabaseField = {
             } else if (fieldType === 'calc') {
                 const container = isEdit ? '#edit-calc-container' : '#calc-container';
                 $(container).removeClass('d-none');
+            }
+        });
+
+        $('#field-lookup-relation').on('change', function() {
+            const relationFieldId = $(this).val();
+            if (relationFieldId) {
+                WebDatabaseField.loadRelationFields(relationFieldId, '#field-lookup-target');
+            }
+        });
+
+        $('#edit-field-lookup-relation').on('change', function() {
+            const relationFieldId = $(this).val();
+            if (relationFieldId) {
+                WebDatabaseField.loadRelationFields(relationFieldId, '#edit-field-lookup-target');
             }
         });
 
@@ -63,6 +77,10 @@ const WebDatabaseField = {
         // フィールド更新ボタン
         $('#update-field-btn').off('click').on('click', function() {
             WebDatabaseField.updateField();
+        });
+
+        $('#save-field-layout-btn').on('click', function() {
+            WebDatabaseField.saveFieldLayout();
         });
 
         // タイトルフィールドの制御（排他的に選択できるようにする）
@@ -174,6 +192,22 @@ const WebDatabaseField = {
         $('#edit-field-title').prop('checked', field.is_title_field == 1);
         $('#edit-field-filterable').prop('checked', field.is_filterable == 1);
         $('#edit-field-sortable').prop('checked', field.is_sortable == 1);
+        $('#edit-field-relation-type').val(field.relation_type || 'one_to_many');
+        $('#edit-field-calc-formula').val(field.calc_formula || '');
+
+        if (field.relation_database_id) {
+            WebDatabaseField.loadDatabaseList('#edit-field-relation-database');
+            setTimeout(function() {
+                $('#edit-field-relation-database').val(field.relation_database_id);
+            }, 100);
+        }
+        if (field.lookup_relation_field_id) {
+            $('#edit-field-lookup-relation').val(field.lookup_relation_field_id);
+            WebDatabaseField.loadRelationFields(field.lookup_relation_field_id, '#edit-field-lookup-target');
+            setTimeout(function() {
+                $('#edit-field-lookup-target').val(field.lookup_target_field_id || '');
+            }, 100);
+        }
 
         // 選択肢の設定
         if (['select', 'radio', 'checkbox'].includes(field.type) && field.options) {
@@ -259,7 +293,7 @@ const WebDatabaseField = {
 
                         // フィールドがなくなった場合のメッセージを表示
                         if ($('#field-list tr').length === 0) {
-                            $('#field-list').html('<tr><td colspan="6" class="text-center">フィールドがありません。フィールドを追加してください。</td></tr>');
+                            $('#field-list').html('<tr><td colspan="7" class="text-center">フィールドがありません。フィールドを追加してください。</td></tr>');
                         }
                     });
                 } else {
@@ -346,6 +380,88 @@ const WebDatabaseField = {
                         });
                     }
                 }
+            }
+        });
+    },
+
+    initLayoutBuilder: function() {
+        const tbody = document.getElementById('field-list');
+        if (!tbody) {
+            return;
+        }
+
+        if (window.Sortable) {
+            Sortable.create(tbody, {
+                handle: '.drag-handle',
+                animation: 120,
+                onEnd: function() {
+                    WebDatabaseField.renumberFieldRows();
+                }
+            });
+        }
+        this.renumberFieldRows();
+    },
+
+    renumberFieldRows: function() {
+        $('#field-list tr[data-field-id]').each(function(index) {
+            $(this).find('.field-order').text(index + 1);
+        });
+    },
+
+    collectLayoutItems: function() {
+        const items = [];
+        $('#field-list tr[data-field-id]').each(function(index) {
+            const row = $(this);
+            const fieldId = parseInt(row.data('field-id'), 10);
+            const fieldType = (row.data('field-type') || '').toString();
+            if (!fieldId) {
+                return;
+            }
+            items.push({
+                field_id: fieldId,
+                sort_order: index + 1,
+                section: (row.find('.layout-section-input').val() || '基本情報').toString().trim() || '基本情報',
+                hidden: row.find('.layout-hidden-input').is(':checked') ? 1 : 0,
+                required: row.find('.layout-required-input').is(':checked') ? 1 : 0,
+                child_table: fieldType === 'relation' && row.find('.layout-child-table-input').is(':checked') ? 1 : 0,
+                child_summary_field_id: fieldType === 'relation' ? (parseInt(row.find('.layout-child-summary-input').val() || '0', 10) || null) : null,
+                relation_filter_field_id: fieldType === 'relation' ? (parseInt(row.find('.layout-relation-filter-input').val() || '0', 10) || null) : null
+            });
+        });
+        return items;
+    },
+
+    saveFieldLayout: function() {
+        const pathParts = window.location.pathname.split('/');
+        const databaseId = pathParts[pathParts.length - 1];
+        const items = this.collectLayoutItems();
+        if (!items.length) {
+            App.showNotification('保存対象のフィールドがありません', 'error');
+            return;
+        }
+
+        const btn = $('#save-field-layout-btn');
+        btn.prop('disabled', true);
+        $.ajax({
+            url: `${BASE_PATH}/api/webdatabase/${databaseId}/fields/layout`,
+            type: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({ items }),
+            success: function(response) {
+                if (response.success) {
+                    App.showNotification(response.message || 'フォームレイアウトを保存しました', 'success');
+                    setTimeout(function() {
+                        window.location.reload();
+                    }, 300);
+                } else {
+                    App.showNotification(response.error || 'フォームレイアウト保存に失敗しました', 'error');
+                }
+            },
+            error: function() {
+                App.showNotification('フォームレイアウト保存中に通信エラーが発生しました', 'error');
+            },
+            complete: function() {
+                btn.prop('disabled', false);
             }
         });
     }

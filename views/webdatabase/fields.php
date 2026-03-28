@@ -5,6 +5,9 @@
             <h1><?= htmlspecialchars($database['name']) ?> - フィールド設定</h1>
         </div>
         <div class="col-md-4 text-end">
+            <button class="btn btn-outline-success me-2" id="save-field-layout-btn">
+                <i class="fas fa-save"></i> フォームビルダー保存
+            </button>
             <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#add-field-modal">
                 <i class="fas fa-plus"></i> 新規フィールド追加
             </button>
@@ -17,27 +20,47 @@
                 <i class="fas fa-info-circle"></i> フィールドを追加して、データベースの構造を定義します。少なくとも1つのフィールドを追加してください。
             </div>
 
+            <?php
+            $layoutItems = $formLayout['items'] ?? [];
+            $layoutByFieldId = [];
+            foreach ($layoutItems as $layoutItem) {
+                $layoutByFieldId[(int)$layoutItem['field_id']] = $layoutItem;
+            }
+            ?>
+            <div class="alert alert-warning py-2 mb-3">
+                <i class="fas fa-grip-lines me-1"></i> 行をドラッグして並び替えできます。セクション名、表示/非表示、子テーブル指定を調整して「フォームビルダー保存」を押してください。
+            </div>
             <div class="table-responsive">
-                <table class="table table-striped">
+                <table class="table table-striped align-middle" id="field-builder-table">
                     <thead>
                         <tr>
-                            <th width="5%">#</th>
-                            <th width="20%">フィールド名</th>
-                            <th width="15%">タイプ</th>
-                            <th width="30%">説明</th>
-                            <th width="15%">属性</th>
-                            <th width="15%">操作</th>
+                            <th width="4%"></th>
+                            <th width="4%">#</th>
+                            <th width="18%">フィールド名</th>
+                            <th width="12%">タイプ</th>
+                            <th width="20%">説明</th>
+                            <th width="26%">フォーム設定</th>
+                            <th width="16%">操作</th>
                         </tr>
                     </thead>
                     <tbody id="field-list">
                         <?php if (empty($fields)): ?>
                             <tr>
-                                <td colspan="6" class="text-center">フィールドがありません。フィールドを追加してください。</td>
+                                <td colspan="7" class="text-center">フィールドがありません。フィールドを追加してください。</td>
                             </tr>
                         <?php else: ?>
                             <?php foreach ($fields as $index => $field): ?>
-                                <tr id="field-<?= $field['id'] ?>">
-                                    <td><?= $index + 1 ?></td>
+                                <?php
+                                $layout = $layoutByFieldId[(int)$field['id']] ?? [];
+                                $section = $layout['section'] ?? '基本情報';
+                                $isHidden = !empty($layout['hidden']);
+                                $isChildTable = !empty($layout['child_table']);
+                                $childSummaryFieldId = isset($layout['child_summary_field_id']) ? (int)$layout['child_summary_field_id'] : 0;
+                                $relationFilterFieldId = isset($layout['relation_filter_field_id']) ? (int)$layout['relation_filter_field_id'] : 0;
+                                ?>
+                                <tr id="field-<?= $field['id'] ?>" data-field-id="<?= (int)$field['id'] ?>" data-field-type="<?= htmlspecialchars((string)$field['type']) ?>" draggable="true">
+                                    <td class="text-muted drag-handle" style="cursor: move;"><i class="fas fa-grip-vertical"></i></td>
+                                    <td class="field-order"><?= $index + 1 ?></td>
                                     <td><?= htmlspecialchars($field['name']) ?></td>
                                     <td>
                                         <?php
@@ -68,21 +91,43 @@
                                     </td>
                                     <td><?= htmlspecialchars($field['description'] ?? '') ?></td>
                                     <td>
-                                        <?php if ($field['required']): ?>
-                                            <span class="badge bg-danger me-1">必須</span>
-                                        <?php endif; ?>
-                                        <?php if ($field['unique_value']): ?>
-                                            <span class="badge bg-warning me-1">ユニーク</span>
-                                        <?php endif; ?>
-                                        <?php if ($field['is_title_field']): ?>
-                                            <span class="badge bg-primary me-1">タイトル</span>
-                                        <?php endif; ?>
+                                        <div class="row g-2">
+                                            <div class="col-12">
+                                                <input type="text" class="form-control form-control-sm layout-section-input" value="<?= htmlspecialchars((string)$section) ?>" placeholder="セクション名（例: 基本情報）">
+                                            </div>
+                                            <div class="col-6">
+                                                <div class="form-check">
+                                                    <input class="form-check-input layout-hidden-input" type="checkbox" <?= $isHidden ? 'checked' : '' ?>>
+                                                    <label class="form-check-label small">フォームで非表示</label>
+                                                </div>
+                                            </div>
+                                            <div class="col-6">
+                                                <div class="form-check">
+                                                    <input class="form-check-input layout-required-input" type="checkbox" <?= !empty($field['required']) ? 'checked' : '' ?>>
+                                                    <label class="form-check-label small">必須</label>
+                                                </div>
+                                            </div>
+                                            <?php if ($field['type'] === 'relation'): ?>
+                                                <div class="col-6">
+                                                    <div class="form-check">
+                                                        <input class="form-check-input layout-child-table-input" type="checkbox" <?= $isChildTable ? 'checked' : '' ?>>
+                                                        <label class="form-check-label small">子テーブル入力</label>
+                                                    </div>
+                                                </div>
+                                                <div class="col-6">
+                                                    <input type="number" min="0" class="form-control form-control-sm layout-child-summary-input" value="<?= $childSummaryFieldId > 0 ? $childSummaryFieldId : '' ?>" placeholder="明細合計対象field_id">
+                                                </div>
+                                                <div class="col-12">
+                                                    <input type="number" min="0" class="form-control form-control-sm layout-relation-filter-input" value="<?= $relationFilterFieldId > 0 ? $relationFilterFieldId : '' ?>" placeholder="参照先絞込field_id（任意）">
+                                                </div>
+                                            <?php endif; ?>
+                                        </div>
                                     </td>
                                     <td>
-                                        <button class="btn btn-sm btn-outline-primary edit-field-btn" data-field-id="<?= $field['id'] ?>">
+                                        <button class="btn btn-sm btn-outline-primary edit-field-btn mb-1 w-100" data-field-id="<?= $field['id'] ?>">
                                             <i class="fas fa-edit"></i> 編集
                                         </button>
-                                        <button class="btn btn-sm btn-outline-danger delete-field-btn" data-field-id="<?= $field['id'] ?>">
+                                        <button class="btn btn-sm btn-outline-danger delete-field-btn w-100" data-field-id="<?= $field['id'] ?>">
                                             <i class="fas fa-trash"></i> 削除
                                         </button>
                                     </td>
@@ -305,6 +350,7 @@
             </div>
             <div class="modal-body">
                 <form id="edit-field-form" action="" method="POST">
+                    <input type="hidden" name="id" value="">
                     <input type="hidden" name="database_id" value="<?= $database['id'] ?>">
 
                     <!-- 編集フォームのフィールド（追加フォームと同じ） -->
@@ -363,6 +409,68 @@
                         </div>
                         <textarea class="form-control" id="edit-field-options" name="options" rows="5"></textarea>
                         <div class="invalid-feedback"></div>
+                    </div>
+
+                    <!-- リレーション設定（relation型用） -->
+                    <div class="mb-3 d-none" id="edit-relation-container">
+                        <div class="card bg-light">
+                            <div class="card-body">
+                                <h6 class="card-title"><i class="fas fa-link"></i> リレーション設定</h6>
+                                <div class="mb-2">
+                                    <label class="form-label">参照先データベース <span class="text-danger">*</span></label>
+                                    <select class="form-select" id="edit-field-relation-database" name="relation_database_id">
+                                        <option value="">データベースを選択</option>
+                                    </select>
+                                </div>
+                                <div class="mb-2">
+                                    <label class="form-label">リレーションタイプ</label>
+                                    <select class="form-select" id="edit-field-relation-type" name="relation_type">
+                                        <option value="one_to_many">1対多</option>
+                                        <option value="many_to_many">多対多</option>
+                                        <option value="one_to_one">1対1</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ルックアップ設定（lookup型用） -->
+                    <div class="mb-3 d-none" id="edit-lookup-container">
+                        <div class="card bg-light">
+                            <div class="card-body">
+                                <h6 class="card-title"><i class="fas fa-eye"></i> ルックアップ設定</h6>
+                                <div class="mb-2">
+                                    <label class="form-label">リレーションフィールド <span class="text-danger">*</span></label>
+                                    <select class="form-select" id="edit-field-lookup-relation" name="lookup_relation_field_id">
+                                        <option value="">リレーションフィールドを選択</option>
+                                        <?php foreach ($fields as $f): ?>
+                                            <?php if ($f['type'] === 'relation'): ?>
+                                                <option value="<?= $f['id'] ?>"><?= htmlspecialchars($f['name']) ?></option>
+                                            <?php endif; ?>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </div>
+                                <div class="mb-2">
+                                    <label class="form-label">参照先フィールド <span class="text-danger">*</span></label>
+                                    <select class="form-select" id="edit-field-lookup-target" name="lookup_target_field_id">
+                                        <option value="">フィールドを選択</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 計算式設定（calc型用） -->
+                    <div class="mb-3 d-none" id="edit-calc-container">
+                        <div class="card bg-light">
+                            <div class="card-body">
+                                <h6 class="card-title"><i class="fas fa-calculator"></i> 計算式設定</h6>
+                                <div class="mb-2">
+                                    <label class="form-label">計算式</label>
+                                    <input type="text" class="form-control" id="edit-field-calc-formula" name="calc_formula" placeholder="例: {フィールド1} * {フィールド2}">
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     <div class="mb-3">

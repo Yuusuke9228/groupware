@@ -151,6 +151,8 @@ $appName = $settingModel->getAppName();
             <li><a href="#sec-csv-import"><i class="fas fa-file-csv"></i> 8. CSV 一括インポート</a></li>
             <li><a href="#sec-backup"><i class="fas fa-database"></i> 9. バックアップと復元</a></li>
             <li><a href="#sec-security"><i class="fas fa-shield-alt"></i> 10. セキュリティ設定の推奨事項</a></li>
+            <li><a href="#sec-daily-report-admin"><i class="fas fa-file-alt"></i> 11. 日報機能の管理運用</a></li>
+            <li><a href="#sec-webdb-admin"><i class="fas fa-database"></i> 12. WEBデータベース運用設計</a></li>
         </ul>
     </div>
 
@@ -184,6 +186,8 @@ $appName = $settingModel->getAppName();
                         <tr><td><strong>掲示板カテゴリ</strong></td><td>掲示板のカテゴリ管理</td></tr>
                         <tr><td><strong>システム設定</strong></td><td>アプリケーション名、会社名、メール設定など</td></tr>
                         <tr><td><strong>CSV インポート</strong></td><td>ユーザーや組織の一括登録</td></tr>
+                        <tr><td><strong>日報管理</strong></td><td>テンプレート配布、分析マスタ管理、予実確認</td></tr>
+                        <tr><td><strong>WEBデータベース管理</strong></td><td>業務アプリ定義、リレーション設定、ビュー共有設計</td></tr>
                     </tbody>
                 </table>
 
@@ -610,6 +614,80 @@ tar -xzf uploads_backup_20260326.tar.gz</pre>
                         <li><code>config/database.php</code> が Web から直接アクセスできないこと</li>
                     </ul>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== 11. 日報機能の管理運用 ===== -->
+    <div class="manual-section" id="sec-daily-report-admin">
+        <div class="manual-card">
+            <div class="manual-card-head">
+                <span class="sec-icon"><i class="fas fa-file-alt"></i></span>
+                <h2>11. 日報機能の管理運用</h2>
+            </div>
+            <div class="manual-card-body">
+                <p>日報は単なる報告機能ではなく、案件別分析・予実管理・共有ナレッジ基盤として運用します。管理者は、入力ルールの標準化と分析マスタの整備を担当してください。</p>
+
+                <h4>テンプレート運用の基本</h4>
+                <ul>
+                    <li><strong>共通テンプレートを公開</strong>：部署共通の項目（成果、課題、次日予定）を必須化します。</li>
+                    <li><strong>入力タイプを揃える</strong>：短文はテキスト、自由記述は複数行で統一し、分析精度を高めます。</li>
+                    <li><strong>改定時は新規テンプレートで対応</strong>：既存運用に影響を与えないよう、運用開始後の大幅変更は避けてください。</li>
+                </ul>
+
+                <h4>分析マスタ（案件/業種/商品/プロセス）管理</h4>
+                <p>「日報 > 分析」画面下部の管理エリアで、分析軸マスタを追加・更新します。コードと並び順を運用ルール化すると、集計の読みやすさが向上します。</p>
+
+                <h4>予実管理の運用手順</h4>
+                <div class="manual-step"><span class="manual-step-num">1</span><span class="manual-step-text">月初に「月目標」を登録します（目標金額/目標時間/目標数量）。</span></div>
+                <div class="manual-step"><span class="manual-step-num">2</span><span class="manual-step-text">月中は分析画面で実績推移を確認し、乖離が大きい軸を把握します。</span></div>
+                <div class="manual-step"><span class="manual-step-num">3</span><span class="manual-step-text">必要に応じて対象者・対象軸を絞り込み、改善アクションを決定します。</span></div>
+                <div class="manual-step"><span class="manual-step-num">4</span><span class="manual-step-text">月末に CSV 出力し、会議資料や外部帳票と照合します。</span></div>
+
+                <h4>監査・品質チェック</h4>
+                <ul>
+                    <li>必須項目未入力の投稿が発生していないか確認する</li>
+                    <li>分析明細に「未指定」項目が多すぎないか確認する</li>
+                    <li>添付ファイルの機密情報取り扱いルールを周知する</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== 12. WEBデータベース運用設計 ===== -->
+    <div class="manual-section" id="sec-webdb-admin">
+        <div class="manual-card">
+            <div class="manual-card-head">
+                <span class="sec-icon"><i class="fas fa-database"></i></span>
+                <h2>12. WEBデータベース運用設計</h2>
+            </div>
+            <div class="manual-card-body">
+                <p>WEBデータベースは、ノーコード業務アプリ基盤として運用できます。管理者は「項目設計」「参照設計」「表示設計」を段階的に行うことで、現場ユーザーの入力負荷を減らせます。</p>
+
+                <h4>推奨構築フロー</h4>
+                <div class="manual-step"><span class="manual-step-num">1</span><span class="manual-step-text">データベースを作成し、業務の主テーブルを定義します。</span></div>
+                <div class="manual-step"><span class="manual-step-num">2</span><span class="manual-step-text">フィールド設定で入力タイプ、必須、初期値、フィルタ可否を設定します。</span></div>
+                <div class="manual-step"><span class="manual-step-num">3</span><span class="manual-step-text">フォームビルダーで順序・セクション・表示/非表示を調整します。</span></div>
+                <div class="manual-step"><span class="manual-step-num">4</span><span class="manual-step-text">必要に応じてリレーションと子テーブル入力を有効化し、親子データを一画面で登録できるようにします。</span></div>
+                <div class="manual-step"><span class="manual-step-num">5</span><span class="manual-step-text">一覧ビュー（表示カラム・フィルタ・並び順）を保存し、共有範囲を設定します。</span></div>
+                <div class="manual-step"><span class="manual-step-num">6</span><span class="manual-step-text">集計ビュー/グラフビューを作成し、運用会議用の可視化を標準化します。</span></div>
+
+                <h4>共有範囲（ビュー権限）</h4>
+                <ul>
+                    <li><strong>ユーザー</strong>：個人専用の作業ビュー</li>
+                    <li><strong>組織</strong>：部署共通の運用ビュー</li>
+                    <li><strong>全体</strong>：全社標準ビュー</li>
+                </ul>
+
+                <h4>運用で避けるべき設定</h4>
+                <ul>
+                    <li>運用開始後に既存必須項目を頻繁に変更する</li>
+                    <li>リレーション先の設計が未確定のまま子テーブル運用を開始する</li>
+                    <li>同じ用途のビューを大量に作成し、命名規則を持たない</li>
+                </ul>
+
+                <h4>サンプルアプリの活用</h4>
+                <p>管理者は「デモ業務サンプル投入」で売上・売上明細の構成を投入し、親子入力、集計、グラフ表示、CSV連携の運用イメージを社内説明に活用できます。</p>
             </div>
         </div>
     </div>

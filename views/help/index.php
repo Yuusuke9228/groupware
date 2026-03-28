@@ -487,26 +487,30 @@ $pageTitle = 'ご利用ガイド';
                 <i class="fas fa-chevron-down toggle-icon"></i>
             </div>
             <div class="help-card-body">
-                <p>日々の業務内容を報告するための機能です。上司やチームメンバーへの業務報告を効率的に行うことができます。</p>
+                <p>日報は、日々の活動記録だけでなく、案件・業種・商品・プロセス単位の分析や予実管理まで行える報告機能です。</p>
 
-                <h4>日報の作成</h4>
-                <div class="help-step"><span class="help-step-num">1</span><span class="help-step-text">メニューの「日報」を開きます。</span></div>
-                <div class="help-step"><span class="help-step-num">2</span><span class="help-step-text">「<i class="fas fa-plus"></i> 新規作成」ボタンをクリックします。</span></div>
-                <div class="help-step"><span class="help-step-num">3</span><span class="help-step-text">テンプレートが用意されている場合は、適切なテンプレートを選択してください。入力の手間が軽減されます。</span></div>
-                <div class="help-step"><span class="help-step-num">4</span><span class="help-step-text">本日の業務内容、翌日の予定、所感などを入力します。</span></div>
-                <div class="help-step"><span class="help-step-num">5</span><span class="help-step-text">「保存」ボタンをクリックして提出します。</span></div>
+                <h4>日報の作成（標準入力）</h4>
+                <div class="help-step"><span class="help-step-num">1</span><span class="help-step-text">メニューの「日報」を開き、「<i class="fas fa-plus"></i> 新規作成」をクリックします。</span></div>
+                <div class="help-step"><span class="help-step-num">2</span><span class="help-step-text">日付・タイトル・実働時間を入力します。</span></div>
+                <div class="help-step"><span class="help-step-num">3</span><span class="help-step-text">「業務サマリー」に本日の成果、課題、明日の予定、所感を入力します。</span></div>
+                <div class="help-step"><span class="help-step-num">4</span><span class="help-step-text">必要に応じて活動ログ（開始/終了時刻・件名・結果）と分析明細（案件/業種/商品/プロセス）を追加します。</span></div>
+                <div class="help-step"><span class="help-step-num">5</span><span class="help-step-text">添付ファイルを追加し、「保存」または「下書き保存」を実行します。</span></div>
 
-                <h4>他のメンバーの日報の閲覧</h4>
-                <p>「一覧」タブから、同じ組織やチームに所属するメンバーの日報をお読みいただけます。日付やユーザー名での絞り込みも可能です。</p>
+                <h4>テンプレートとリッチテキスト</h4>
+                <p>テンプレートには、固定項目（必須/任意・入力タイプ）と本文のひな型を設定できます。本文はリッチテキスト入力に対応しており、読みやすいレポートを作成できます。</p>
 
-                <h4>「いいね」とコメント</h4>
-                <p>他のメンバーの日報に対して <i class="fas fa-thumbs-up" style="color:#4e73df;"></i>「いいね」を付けたり、コメントを投稿したりすることができます。チーム内のコミュニケーション促進にお役立てください。</p>
+                <h4>分析・予実管理</h4>
+                <p>「分析」画面では、日付・ユーザー・案件・業種・商品・プロセスで絞り込み、月次推移、軸別集計、月目標と実績比較を確認できます。分析結果は CSV 出力できます。</p>
 
-                <h4>テンプレートの活用</h4>
-                <p>毎日同じフォーマットで日報を記入する場合は、テンプレートを作成しておくと便利です。「テンプレート」タブから作成・管理が行えます。</p>
+                <h4>一覧・タイムライン・コメント</h4>
+                <p>日報は一覧、週間、月間、タイムラインで確認できます。検索・絞り込みのほか、<i class="fas fa-thumbs-up" style="color:#4e73df;"></i>いいね・コメントでチーム内コミュニケーションが可能です。</p>
 
-                <h4>統計情報</h4>
-                <p>「統計」タブでは、日報の提出状況をグラフやデータで確認することができます。提出日数や提出率などの把握にご活用ください。</p>
+                <h4>入力時の注意</h4>
+                <ul>
+                    <li>必須項目が未入力の場合は保存できません。</li>
+                    <li>日時や数値の形式が不正な場合は、エラーメッセージが表示されます。</li>
+                    <li>添付ファイルは編集時に差し替え・削除できます。</li>
+                </ul>
             </div>
         </div>
     </div>
@@ -558,31 +562,34 @@ $pageTitle = 'ご利用ガイド';
                 <i class="fas fa-chevron-down toggle-icon"></i>
             </div>
             <div class="help-card-body">
-                <p>Excelの表のような独自のデータベースを、ブラウザ上で作成・管理できる機能です。顧客リスト、在庫管理表、問い合わせ記録など、業務にあわせた自由な構成でデータを管理できます。</p>
+                <p>WEBデータベースは、ノーコードで業務アプリを構築できる機能です。台帳管理だけでなく、フォーム設計、親子明細、集計ビュー、グラフ表示まで一つの画面群で運用できます。</p>
 
-                <h4>データベースの作成</h4>
-                <div class="help-step"><span class="help-step-num">1</span><span class="help-step-text">メニューの「WEBデータベース」を開きます。</span></div>
-                <div class="help-step"><span class="help-step-num">2</span><span class="help-step-text">「<i class="fas fa-plus"></i> 新規データベース」ボタンをクリックします。</span></div>
-                <div class="help-step"><span class="help-step-num">3</span><span class="help-step-text">データベースの名前と説明を入力し、作成します。</span></div>
+                <h4>1. アプリ（データベース）の作成</h4>
+                <div class="help-step"><span class="help-step-num">1</span><span class="help-step-text">「WEBデータベース」→「<i class="fas fa-plus"></i> 新規データベース作成」をクリックします。</span></div>
+                <div class="help-step"><span class="help-step-num">2</span><span class="help-step-text">名前・説明・表示アイコンなどを設定して保存します。</span></div>
+                <div class="help-step"><span class="help-step-num">3</span><span class="help-step-text">「フィールド設定」へ進み、入力項目を追加します。</span></div>
 
-                <h4>フィールド（項目）の設定</h4>
-                <p>データベースの「列」にあたるフィールドを定義します。以下のフィールドタイプをご利用いただけます。</p>
+                <h4>2. フォームビルダー（GUI設定）</h4>
+                <p>フィールド設定画面では、ドラッグで並び替え、セクション分割、表示/非表示、必須、子テーブル指定を GUI で設定できます。</p>
                 <ul>
-                    <li><strong>テキスト</strong> ― 文字列の入力（氏名、住所など）</li>
-                    <li><strong>数値</strong> ― 数字の入力（金額、数量など）</li>
-                    <li><strong>日付</strong> ― カレンダーから日付を選択</li>
-                    <li><strong>選択肢</strong> ― あらかじめ設定した項目から選択</li>
-                    <li><strong>チェックボックス</strong> ― はい・いいえの二択</li>
-                    <li><strong>テキストエリア</strong> ― 複数行の長い文章</li>
-                    <li><strong>リレーション</strong> ― 他のデータベースとの関連付け</li>
-                    <li><strong>ルックアップ</strong> ― 関連付けたデータベースから値を自動取得</li>
+                    <li>対応フィールド例：テキスト、数値、日付、選択、ユーザー、組織、ファイル</li>
+                    <li>高度フィールド：リレーション、ルックアップ、計算、通貨、パーセント、自動採番</li>
+                    <li>各項目に説明文・初期値・フィルタ可否を設定可能</li>
                 </ul>
 
-                <h4>レコード（データ）の登録</h4>
-                <p>「レコード追加」ボタンをクリックし、各フィールドにデータを入力して保存します。Excelでいう「行」に相当するものです。</p>
+                <h4>3. リレーションと親子明細</h4>
+                <p>他テーブル参照（リレーション）を設定すると、参照先名称を自然に表示できます。さらに「子テーブル入力」を有効化すると、ヘッダ + 明細の入力が可能です（例：売上ヘッダ + 売上明細）。</p>
 
-                <h4>CSVインポート・エクスポート</h4>
-                <p>Excel等で作成したデータをCSVファイルとして一括取り込み（インポート）することが可能です。また、データベースの内容をCSVファイルとして書き出し（エクスポート）することもできます。既存データの移行や集計作業にご活用ください。</p>
+                <h4>4. 一覧ビュー / 集計ビュー / グラフビュー</h4>
+                <p>レコード一覧では、用途別に保存ビューを作成できます。表示カラム、フィルタ、並び順、共有範囲（ユーザー/組織/全体）を設定でき、集計・グラフ表示にも切り替えられます。</p>
+                <ul>
+                    <li>集計：件数 / 合計 / 平均</li>
+                    <li>グループ化：任意項目 + 日付単位（日/月）</li>
+                    <li>グラフ：棒 / 折れ線 / 円</li>
+                </ul>
+
+                <h4>5. CSV入出力とサンプル</h4>
+                <p>CSV インポート/エクスポートで既存データを活用できます。管理者は「デモ業務サンプル投入」から、売上・売上明細を含むサンプルアプリを投入してすぐに検証できます。</p>
             </div>
         </div>
     </div>

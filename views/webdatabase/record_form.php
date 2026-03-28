@@ -1,4 +1,57 @@
 <!-- views/webdatabase/record_form.php -->
+<?php
+$layoutItems = $formLayout['items'] ?? [];
+$layoutByFieldId = [];
+foreach ($layoutItems as $item) {
+    $layoutByFieldId[(int)$item['field_id']] = $item;
+}
+$fieldById = [];
+foreach ($fields as $field) {
+    $fieldById[(int)$field['id']] = $field;
+}
+$orderedFields = [];
+foreach ($layoutItems as $item) {
+    $fid = (int)($item['field_id'] ?? 0);
+    if ($fid > 0 && isset($fieldById[$fid])) {
+        $orderedFields[] = $fieldById[$fid];
+    }
+}
+foreach ($fields as $field) {
+    $fid = (int)$field['id'];
+    $exists = false;
+    foreach ($orderedFields as $ordered) {
+        if ((int)$ordered['id'] === $fid) {
+            $exists = true;
+            break;
+        }
+    }
+    if (!$exists) {
+        $orderedFields[] = $field;
+    }
+}
+$sections = [];
+foreach ($orderedFields as $field) {
+    $fid = (int)$field['id'];
+    $layout = $layoutByFieldId[$fid] ?? [];
+    if (!empty($layout['hidden'])) {
+        continue;
+    }
+    $sectionName = trim((string)($layout['section'] ?? '基本情報'));
+    if ($sectionName === '') {
+        $sectionName = '基本情報';
+    }
+    if (!isset($sections[$sectionName])) {
+        $sections[$sectionName] = [];
+    }
+    $sections[$sectionName][] = ['field' => $field, 'layout' => $layout];
+}
+if (empty($sections)) {
+    $sections['基本情報'] = [];
+    foreach ($fields as $field) {
+        $sections['基本情報'][] = ['field' => $field, 'layout' => $layoutByFieldId[(int)$field['id']] ?? []];
+    }
+}
+?>
 <div class="container-fluid mt-4">
     <div class="row mb-3">
         <div class="col">
@@ -7,263 +60,189 @@
         </div>
     </div>
 
-    <div class="card">
-        <div class="card-body">
-            <form id="record-form" action="<?= BASE_PATH ?>/api/webdatabase/record/<?= $database['id'] ?><?= isset($record) ? '/' . $record['id'] : '' ?>" method="POST" enctype="multipart/form-data">
-                <!-- フィールドを順番に表示 -->
-                <?php foreach ($fields as $field): ?>
-                    <div class="mb-3">
-                        <label for="field-<?= $field['id'] ?>" class="form-label">
-                            <?= htmlspecialchars($field['name']) ?>
-                            <?php if ($field['required']): ?>
-                                <span class="text-danger">*</span>
-                            <?php endif; ?>
-                        </label>
+    <form id="record-form" action="<?= BASE_PATH ?>/api/webdatabase/record/<?= $database['id'] ?><?= isset($record) ? '/' . $record['id'] : '' ?>" method="POST" enctype="multipart/form-data">
+        <?php foreach ($sections as $sectionName => $sectionFields): ?>
+            <div class="card mb-3">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0"><?= htmlspecialchars((string)$sectionName) ?></h6>
+                    <span class="badge bg-light text-dark"><?= count($sectionFields) ?>項目</span>
+                </div>
+                <div class="card-body">
+                    <?php foreach ($sectionFields as $entry): ?>
+                        <?php
+                        $field = $entry['field'];
+                        $layout = $entry['layout'];
+                        $fieldId = (int)$field['id'];
+                        $fieldType = (string)$field['type'];
+                        $value = $recordData[$fieldId] ?? $field['default_value'] ?? '';
+                        ?>
+                        <div class="mb-3" data-field-id="<?= $fieldId ?>" data-field-type="<?= htmlspecialchars($fieldType) ?>">
+                            <label for="field-<?= $fieldId ?>" class="form-label">
+                                <?= htmlspecialchars((string)$field['name']) ?>
+                                <?php if (!empty($field['required'])): ?><span class="text-danger">*</span><?php endif; ?>
+                            </label>
 
-                        <?php if ($field['type'] === 'text'): ?>
-                            <input type="text" class="form-control" id="field-<?= $field['id'] ?>" name="fields[<?= $field['id'] ?>]"
-                                value="<?= isset($recordData[$field['id']]) ? htmlspecialchars($recordData[$field['id']]) : $field['default_value'] ?>"
-                                <?= $field['required'] ? 'required' : '' ?>>
+                            <?php if ($fieldType === 'text'): ?>
+                                <input type="text" class="form-control" id="field-<?= $fieldId ?>" name="fields[<?= $fieldId ?>]" value="<?= htmlspecialchars((string)$value) ?>" <?= !empty($field['required']) ? 'required' : '' ?>>
 
-                        <?php elseif ($field['type'] === 'textarea'): ?>
-                            <textarea class="form-control" id="field-<?= $field['id'] ?>" name="fields[<?= $field['id'] ?>]" rows="4"
-                                <?= $field['required'] ? 'required' : '' ?>><?= isset($recordData[$field['id']]) ? htmlspecialchars($recordData[$field['id']]) : $field['default_value'] ?></textarea>
+                            <?php elseif ($fieldType === 'textarea'): ?>
+                                <textarea class="form-control" id="field-<?= $fieldId ?>" name="fields[<?= $fieldId ?>]" rows="4" <?= !empty($field['required']) ? 'required' : '' ?>><?= htmlspecialchars((string)$value) ?></textarea>
 
-                        <?php elseif ($field['type'] === 'number'): ?>
-                            <input type="number" class="form-control" id="field-<?= $field['id'] ?>" name="fields[<?= $field['id'] ?>]"
-                                value="<?= isset($recordData[$field['id']]) ? htmlspecialchars($recordData[$field['id']]) : $field['default_value'] ?>"
-                                <?= $field['required'] ? 'required' : '' ?>>
+                            <?php elseif ($fieldType === 'number'): ?>
+                                <input type="number" class="form-control" id="field-<?= $fieldId ?>" name="fields[<?= $fieldId ?>]" value="<?= htmlspecialchars((string)$value) ?>" <?= !empty($field['required']) ? 'required' : '' ?>>
 
-                        <?php elseif ($field['type'] === 'date'): ?>
-                            <input type="date" class="form-control" id="field-<?= $field['id'] ?>" name="fields[<?= $field['id'] ?>]"
-                                value="<?= isset($recordData[$field['id']]) ? htmlspecialchars($recordData[$field['id']]) : $field['default_value'] ?>"
-                                <?= $field['required'] ? 'required' : '' ?>>
+                            <?php elseif ($fieldType === 'date'): ?>
+                                <input type="date" class="form-control" id="field-<?= $fieldId ?>" name="fields[<?= $fieldId ?>]" value="<?= htmlspecialchars((string)$value) ?>" <?= !empty($field['required']) ? 'required' : '' ?>>
 
-                        <?php elseif ($field['type'] === 'datetime'): ?>
-                            <input type="datetime-local" class="form-control" id="field-<?= $field['id'] ?>" name="fields[<?= $field['id'] ?>]"
-                                value="<?= isset($recordData[$field['id']]) ? htmlspecialchars($recordData[$field['id']]) : $field['default_value'] ?>"
-                                <?= $field['required'] ? 'required' : '' ?>>
+                            <?php elseif ($fieldType === 'datetime'): ?>
+                                <input type="datetime-local" class="form-control" id="field-<?= $fieldId ?>" name="fields[<?= $fieldId ?>]" value="<?= htmlspecialchars((string)$value) ?>" <?= !empty($field['required']) ? 'required' : '' ?>>
 
-                        <?php elseif ($field['type'] === 'select'): ?>
-                            <select class="form-select" id="field-<?= $field['id'] ?>" name="fields[<?= $field['id'] ?>]" <?= $field['required'] ? 'required' : '' ?>>
-                                <option value="">選択してください</option>
+                            <?php elseif ($fieldType === 'select'): ?>
+                                <select class="form-select" id="field-<?= $fieldId ?>" name="fields[<?= $fieldId ?>]" <?= !empty($field['required']) ? 'required' : '' ?>>
+                                    <option value="">選択してください</option>
+                                    <?php $options = json_decode((string)$field['options'], true); if (is_array($options)) { foreach ($options as $option) {
+                                        $selected = ((string)$value === (string)$option['value']) ? 'selected' : '';
+                                        echo '<option value="' . htmlspecialchars((string)$option['value']) . '" ' . $selected . '>' . htmlspecialchars((string)$option['label']) . '</option>';
+                                    }} ?>
+                                </select>
+
+                            <?php elseif ($fieldType === 'radio'): ?>
+                                <?php $options = json_decode((string)$field['options'], true); if (is_array($options)) { foreach ($options as $option) {
+                                    $checked = ((string)$value === (string)$option['value']) ? 'checked' : '';
+                                    echo '<div class="form-check">';
+                                    echo '<input class="form-check-input" type="radio" name="fields[' . $fieldId . ']" id="field-' . $fieldId . '-' . htmlspecialchars((string)$option['value']) . '" value="' . htmlspecialchars((string)$option['value']) . '" ' . $checked . ' ' . (!empty($field['required']) ? 'required' : '') . '>';
+                                    echo '<label class="form-check-label" for="field-' . $fieldId . '-' . htmlspecialchars((string)$option['value']) . '">' . htmlspecialchars((string)$option['label']) . '</label>';
+                                    echo '</div>';
+                                }} ?>
+
+                            <?php elseif ($fieldType === 'checkbox'): ?>
                                 <?php
-                                $options = json_decode($field['options'], true);
-                                $currentValue = isset($recordData[$field['id']]) ? $recordData[$field['id']] : $field['default_value'];
-                                if ($options) {
+                                $currentValues = is_array($value) ? $value : explode(',', (string)$value);
+                                $options = json_decode((string)$field['options'], true);
+                                if (is_array($options)) {
                                     foreach ($options as $option) {
-                                        $selected = ($currentValue == $option['value']) ? 'selected' : '';
-                                        echo '<option value="' . htmlspecialchars($option['value']) . '" ' . $selected . '>' . htmlspecialchars($option['label']) . '</option>';
+                                        $checked = in_array((string)$option['value'], array_map('strval', $currentValues), true) ? 'checked' : '';
+                                        echo '<div class="form-check">';
+                                        echo '<input class="form-check-input" type="checkbox" name="fields[' . $fieldId . '][]" id="field-' . $fieldId . '-' . htmlspecialchars((string)$option['value']) . '" value="' . htmlspecialchars((string)$option['value']) . '" ' . $checked . '>';
+                                        echo '<label class="form-check-label" for="field-' . $fieldId . '-' . htmlspecialchars((string)$option['value']) . '">' . htmlspecialchars((string)$option['label']) . '</label>';
+                                        echo '</div>';
                                     }
                                 }
                                 ?>
-                            </select>
 
-                        <?php elseif ($field['type'] === 'radio'): ?>
-                            <?php
-                            $options = json_decode($field['options'], true);
-                            $currentValue = isset($recordData[$field['id']]) ? $recordData[$field['id']] : $field['default_value'];
-                            if ($options) {
-                                foreach ($options as $option) {
-                                    $checked = ($currentValue == $option['value']) ? 'checked' : '';
-                                    echo '<div class="form-check">';
-                                    echo '<input class="form-check-input" type="radio" name="fields[' . $field['id'] . ']" id="field-' . $field['id'] . '-' . $option['value'] . '" value="' . htmlspecialchars($option['value']) . '" ' . $checked . ' ' . ($field['required'] ? 'required' : '') . '>';
-                                    echo '<label class="form-check-label" for="field-' . $field['id'] . '-' . $option['value'] . '">' . htmlspecialchars($option['label']) . '</label>';
-                                    echo '</div>';
-                                }
-                            }
-                            ?>
-
-                        <?php elseif ($field['type'] === 'checkbox'): ?>
-                            <?php
-                            $options = json_decode($field['options'], true);
-                            $currentValues = isset($recordData[$field['id']]) ? (is_array($recordData[$field['id']]) ? $recordData[$field['id']] : [$recordData[$field['id']]]) : ($field['default_value'] ? [$field['default_value']] : []);
-                            if ($options) {
-                                foreach ($options as $option) {
-                                    $checked = in_array($option['value'], $currentValues) ? 'checked' : '';
-                                    echo '<div class="form-check">';
-                                    echo '<input class="form-check-input" type="checkbox" name="fields[' . $field['id'] . '][]" id="field-' . $field['id'] . '-' . $option['value'] . '" value="' . htmlspecialchars($option['value']) . '" ' . $checked . '>';
-                                    echo '<label class="form-check-label" for="field-' . $field['id'] . '-' . $option['value'] . '">' . htmlspecialchars($option['label']) . '</label>';
-                                    echo '</div>';
-                                }
-                            }
-                            ?>
-
-                        <?php elseif ($field['type'] === 'file'): ?>
-                            <input type="file" class="form-control" id="field-<?= $field['id'] ?>" name="<?= $field['id'] ?>" <?= $field['required'] ? 'required' : '' ?>>
-                            <?php if (isset($recordData[$field['id']]) && !empty($recordData[$field['id']])): ?>
-                                <div class="mt-2">
-                                    <span class="text-muted">現在のファイル: </span>
-                                    <?php if (is_array($recordData[$field['id']])): ?>
-                                        <?php foreach ($recordData[$field['id']] as $file): ?>
-                                            <a href="<?= BASE_PATH ?>/<?= $file['path'] ?>" target="_blank"><?= htmlspecialchars($file['name']) ?></a>
-                                            <span class="text-muted">(<?= number_format($file['size'] / 1024, 1) ?> KB)</span><br>
+                            <?php elseif ($fieldType === 'file'): ?>
+                                <input type="file" class="form-control" id="field-<?= $fieldId ?>" name="<?= $fieldId ?>" <?= !empty($field['required']) ? 'required' : '' ?>>
+                                <?php if (!empty($recordData[$fieldId])): ?>
+                                    <div class="mt-2 small text-muted">現在のファイル:
+                                        <?php $files = is_array($recordData[$fieldId]) && isset($recordData[$fieldId][0]) ? $recordData[$fieldId] : [$recordData[$fieldId]]; ?>
+                                        <?php foreach ($files as $file): ?>
+                                            <?php if (is_array($file) && !empty($file['path'])): ?>
+                                                <a href="<?= BASE_PATH ?>/<?= htmlspecialchars((string)$file['path']) ?>" target="_blank"><?= htmlspecialchars((string)$file['name']) ?></a>
+                                            <?php endif; ?>
                                         <?php endforeach; ?>
-                                    <?php else: ?>
-                                        <a href="<?= BASE_PATH ?>/<?= $recordData[$field['id']]['path'] ?>" target="_blank"><?= htmlspecialchars($recordData[$field['id']]['name']) ?></a>
-                                        <span class="text-muted">(<?= number_format($recordData[$field['id']]['size'] / 1024, 1) ?> KB)</span>
-                                    <?php endif; ?>
+                                    </div>
+                                <?php endif; ?>
+
+                            <?php elseif ($fieldType === 'user'): ?>
+                                <select class="form-select user-select" id="field-<?= $fieldId ?>" name="fields[<?= $fieldId ?>]" <?= !empty($field['required']) ? 'required' : '' ?> data-selected="<?= htmlspecialchars((string)$value) ?>">
+                                    <option value="">ユーザーを選択</option>
+                                </select>
+
+                            <?php elseif ($fieldType === 'organization'): ?>
+                                <select class="form-select organization-select" id="field-<?= $fieldId ?>" name="fields[<?= $fieldId ?>]" <?= !empty($field['required']) ? 'required' : '' ?> data-selected="<?= htmlspecialchars((string)$value) ?>">
+                                    <option value="">組織を選択</option>
+                                </select>
+
+                            <?php elseif ($fieldType === 'relation' && !empty($layout['child_table'])): ?>
+                                <?php
+                                $initialRows = $relationData[$fieldId] ?? [];
+                                $initialJson = json_encode($initialRows, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+                                ?>
+                                <div class="child-table-container" data-field-id="<?= $fieldId ?>" data-relation-db="<?= (int)($field['relation_database_id'] ?? 0) ?>" data-summary-field-id="<?= (int)($layout['child_summary_field_id'] ?? 0) ?>" data-initial='<?= htmlspecialchars((string)$initialJson, ENT_QUOTES, 'UTF-8') ?>'>
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <strong>明細入力</strong>
+                                        <button type="button" class="btn btn-sm btn-outline-primary add-child-row-btn"><i class="fas fa-plus"></i> 行追加</button>
+                                    </div>
+                                    <input type="hidden" name="child_tables[<?= $fieldId ?>]" class="child-table-json">
+                                    <div class="table-responsive">
+                                        <table class="table table-sm table-bordered child-table-grid">
+                                            <thead></thead>
+                                            <tbody></tbody>
+                                            <tfoot>
+                                                <tr>
+                                                    <th colspan="99" class="text-end"><span class="child-summary-label text-muted">合計: </span><span class="child-summary-value">0</span></th>
+                                                </tr>
+                                            </tfoot>
+                                        </table>
+                                    </div>
                                 </div>
+
+                            <?php elseif ($fieldType === 'relation'): ?>
+                                <?php
+                                $selectedIds = [];
+                                if (!empty($relationData[$fieldId])) {
+                                    foreach ($relationData[$fieldId] as $relRow) {
+                                        $selectedIds[] = (int)($relRow['target_record_id'] ?? 0);
+                                    }
+                                } elseif (!empty($value)) {
+                                    if (is_array($value)) {
+                                        foreach ($value as $vid) { $selectedIds[] = (int)$vid; }
+                                    } else {
+                                        foreach (explode(',', (string)$value) as $vid) { $selectedIds[] = (int)$vid; }
+                                    }
+                                }
+                                $selectedIds = array_values(array_filter(array_unique($selectedIds)));
+                                ?>
+                                <div class="relation-field-container" data-field-id="<?= $fieldId ?>" data-relation-db="<?= (int)($field['relation_database_id'] ?? 0) ?>" data-relation-type="<?= htmlspecialchars((string)($field['relation_type'] ?? 'one_to_many')) ?>" data-filter-field-id="<?= (int)($layout['relation_filter_field_id'] ?? 0) ?>">
+                                    <select class="form-select relation-select" id="field-<?= $fieldId ?>" name="fields[<?= $fieldId ?>][]" <?= (($field['relation_type'] ?? '') === 'one_to_one') ? '' : 'multiple' ?> data-selected='<?= htmlspecialchars((string)json_encode($selectedIds), ENT_QUOTES, 'UTF-8') ?>'>
+                                        <option value="">レコードを選択</option>
+                                    </select>
+                                </div>
+
+                            <?php elseif ($fieldType === 'lookup'): ?>
+                                <input type="text" class="form-control" id="field-<?= $fieldId ?>" readonly value="<?= htmlspecialchars((string)$value) ?>" placeholder="リレーションから自動取得">
+
+                            <?php elseif ($fieldType === 'calc'): ?>
+                                <input type="text" class="form-control calc-field" id="field-<?= $fieldId ?>" readonly value="<?= htmlspecialchars((string)$value) ?>" data-formula="<?= htmlspecialchars((string)($field['calc_formula'] ?? '')) ?>">
+
+                            <?php elseif ($fieldType === 'url'): ?>
+                                <input type="url" class="form-control" id="field-<?= $fieldId ?>" name="fields[<?= $fieldId ?>]" value="<?= htmlspecialchars((string)$value) ?>" placeholder="https://" <?= !empty($field['required']) ? 'required' : '' ?>>
+
+                            <?php elseif ($fieldType === 'email'): ?>
+                                <input type="email" class="form-control" id="field-<?= $fieldId ?>" name="fields[<?= $fieldId ?>]" value="<?= htmlspecialchars((string)$value) ?>" placeholder="example@mail.com" <?= !empty($field['required']) ? 'required' : '' ?>>
+
+                            <?php elseif ($fieldType === 'phone'): ?>
+                                <input type="tel" class="form-control" id="field-<?= $fieldId ?>" name="fields[<?= $fieldId ?>]" value="<?= htmlspecialchars((string)$value) ?>" placeholder="090-1234-5678" <?= !empty($field['required']) ? 'required' : '' ?>>
+
+                            <?php elseif ($fieldType === 'currency'): ?>
+                                <div class="input-group">
+                                    <span class="input-group-text">&yen;</span>
+                                    <input type="number" class="form-control" id="field-<?= $fieldId ?>" name="fields[<?= $fieldId ?>]" value="<?= htmlspecialchars((string)$value) ?>" <?= !empty($field['required']) ? 'required' : '' ?>>
+                                </div>
+
+                            <?php elseif ($fieldType === 'percent'): ?>
+                                <div class="input-group">
+                                    <input type="number" min="0" max="100" step="0.1" class="form-control" id="field-<?= $fieldId ?>" name="fields[<?= $fieldId ?>]" value="<?= htmlspecialchars((string)$value) ?>" <?= !empty($field['required']) ? 'required' : '' ?>>
+                                    <span class="input-group-text">%</span>
+                                </div>
+
+                            <?php elseif ($fieldType === 'auto_number'): ?>
+                                <input type="text" class="form-control" id="field-<?= $fieldId ?>" name="fields[<?= $fieldId ?>]" value="<?= htmlspecialchars((string)$value) ?>" readonly>
                             <?php endif; ?>
 
-                        <?php elseif ($field['type'] === 'user'): ?>
-                            <select class="form-select user-select" id="field-<?= $field['id'] ?>" name="fields[<?= $field['id'] ?>]" <?= $field['required'] ? 'required' : '' ?> data-selected="<?= isset($recordData[$field['id']]) ? $recordData[$field['id']] : '' ?>">
-                                <option value="">ユーザーを選択</option>
-                                <!-- ユーザーリストはJSで動的に読み込まれる -->
-                            </select>
-
-                        <?php elseif ($field['type'] === 'organization'): ?>
-                            <select class="form-select organization-select" id="field-<?= $field['id'] ?>" name="fields[<?= $field['id'] ?>]" <?= $field['required'] ? 'required' : '' ?> data-selected="<?= isset($recordData[$field['id']]) ? $recordData[$field['id']] : '' ?>">
-                                <option value="">組織を選択</option>
-                            </select>
-
-                        <?php elseif ($field['type'] === 'relation'): ?>
-                            <div class="relation-field-container" data-field-id="<?= $field['id'] ?>" data-relation-db="<?= $field['relation_database_id'] ?>" data-relation-type="<?= $field['relation_type'] ?>">
-                                <select class="form-select relation-select" id="field-<?= $field['id'] ?>" name="fields[<?= $field['id'] ?>][]" <?= $field['relation_type'] === 'one_to_one' ? '' : 'multiple' ?>>
-                                    <option value="">レコードを選択</option>
-                                </select>
-                                <small class="form-text text-muted">リレーション先: <?= htmlspecialchars($field['relation_database_id'] ?? '') ?></small>
-                            </div>
-
-                        <?php elseif ($field['type'] === 'lookup'): ?>
-                            <div class="lookup-field-container" data-field-id="<?= $field['id'] ?>" data-lookup-relation="<?= $field['lookup_relation_field_id'] ?>" data-lookup-target="<?= $field['lookup_target_field_id'] ?>">
-                                <input type="text" class="form-control" id="field-<?= $field['id'] ?>" readonly placeholder="リレーション先の値を自動表示"
-                                    value="<?= isset($recordData[$field['id']]) ? htmlspecialchars($recordData[$field['id']]) : '' ?>">
-                                <small class="form-text text-muted">ルックアップフィールド（自動取得）</small>
-                            </div>
-
-                        <?php elseif ($field['type'] === 'calc'): ?>
-                            <input type="text" class="form-control calc-field" id="field-<?= $field['id'] ?>" readonly placeholder="計算結果"
-                                data-formula="<?= htmlspecialchars($field['calc_formula'] ?? '') ?>"
-                                value="<?= isset($recordData[$field['id']]) ? htmlspecialchars($recordData[$field['id']]) : '' ?>">
-
-                        <?php elseif ($field['type'] === 'url'): ?>
-                            <input type="url" class="form-control" id="field-<?= $field['id'] ?>" name="fields[<?= $field['id'] ?>]"
-                                value="<?= isset($recordData[$field['id']]) ? htmlspecialchars($recordData[$field['id']]) : $field['default_value'] ?>"
-                                placeholder="https://" <?= $field['required'] ? 'required' : '' ?>>
-
-                        <?php elseif ($field['type'] === 'email'): ?>
-                            <input type="email" class="form-control" id="field-<?= $field['id'] ?>" name="fields[<?= $field['id'] ?>]"
-                                value="<?= isset($recordData[$field['id']]) ? htmlspecialchars($recordData[$field['id']]) : $field['default_value'] ?>"
-                                placeholder="example@mail.com" <?= $field['required'] ? 'required' : '' ?>>
-
-                        <?php elseif ($field['type'] === 'phone'): ?>
-                            <input type="tel" class="form-control" id="field-<?= $field['id'] ?>" name="fields[<?= $field['id'] ?>]"
-                                value="<?= isset($recordData[$field['id']]) ? htmlspecialchars($recordData[$field['id']]) : $field['default_value'] ?>"
-                                placeholder="090-1234-5678" <?= $field['required'] ? 'required' : '' ?>>
-
-                        <?php elseif ($field['type'] === 'currency'): ?>
-                            <div class="input-group">
-                                <span class="input-group-text">&yen;</span>
-                                <input type="number" class="form-control" id="field-<?= $field['id'] ?>" name="fields[<?= $field['id'] ?>]"
-                                    value="<?= isset($recordData[$field['id']]) ? htmlspecialchars($recordData[$field['id']]) : $field['default_value'] ?>"
-                                    step="1" <?= $field['required'] ? 'required' : '' ?>>
-                            </div>
-
-                        <?php elseif ($field['type'] === 'percent'): ?>
-                            <div class="input-group">
-                                <input type="number" class="form-control" id="field-<?= $field['id'] ?>" name="fields[<?= $field['id'] ?>]"
-                                    value="<?= isset($recordData[$field['id']]) ? htmlspecialchars($recordData[$field['id']]) : $field['default_value'] ?>"
-                                    step="0.1" min="0" max="100" <?= $field['required'] ? 'required' : '' ?>>
-                                <span class="input-group-text">%</span>
-                            </div>
-
-                        <?php elseif ($field['type'] === 'auto_number'): ?>
-                            <input type="text" class="form-control" id="field-<?= $field['id'] ?>" readonly placeholder="自動採番"
-                                value="<?= isset($recordData[$field['id']]) ? htmlspecialchars($recordData[$field['id']]) : '(自動)' ?>">
-
-                        <?php endif; ?>
-
-                        <?php if (!empty($field['description'])): ?>
-                            <div class="form-text"><?= htmlspecialchars($field['description']) ?></div>
-                        <?php endif; ?>
-                        <div class="invalid-feedback"></div>
-                    </div>
-                <?php endforeach; ?>
-
-                <div class="d-flex justify-content-between mt-4">
-                    <a href="<?= BASE_PATH ?>/webdatabase/records/<?= $database['id'] ?>" class="btn btn-secondary">キャンセル</a>
-                    <button type="submit" class="btn btn-primary"><?= isset($record) ? "更新" : "作成" ?></button>
+                            <?php if (!empty($field['description'])): ?>
+                                <div class="form-text"><?= htmlspecialchars((string)$field['description']) ?></div>
+                            <?php endif; ?>
+                            <div class="invalid-feedback"></div>
+                        </div>
+                    <?php endforeach; ?>
                 </div>
-            </form>
+            </div>
+        <?php endforeach; ?>
+
+        <div class="d-flex justify-content-between mt-4">
+            <a href="<?= BASE_PATH ?>/webdatabase/records/<?= $database['id'] ?>" class="btn btn-secondary">キャンセル</a>
+            <button type="submit" class="btn btn-primary"><?= isset($record) ? "更新" : "作成" ?></button>
         </div>
-    </div>
+    </form>
 </div>
-
-<script>
-    window.addEventListener('load', function() {
-        // フォーム送信時の処理
-        $('#record-form').off('submit').on('submit', function(e) {
-            e.preventDefault();
-
-            // フォームデータの取得
-            const formData = new FormData(this);
-            const $submitBtn = $(this).find('button[type="submit"]');
-            if ($submitBtn.prop('disabled')) {
-                // すでに送信中なら処理しない（二重送信防止）
-                return false;
-            }
-
-            // APIリクエスト
-            $.ajax({
-                url: $(this).attr('action'),
-                type: 'POST',
-                data: formData,
-                processData: false,
-                contentType: false,
-                beforeSend: function() {
-                    $('button[type="submit"]').prop('disabled', true);
-                    $('.is-invalid').removeClass('is-invalid');
-                    $('.invalid-feedback').text('');
-                },
-                success: function(response) {
-                   
-                    if (response.success) {
-                        App.showNotification(response.message, 'success');
-
-                        // リダイレクト
-                        if (response.redirect) {
-                            setTimeout(function() {
-                                window.location.href = response.redirect;
-                            }, 1000);
-                        }
-                        return false;
-                    } else {
-                        App.showNotification(response.error || 'エラーが発生しました', 'error');
-
-                        // バリデーションエラーの表示
-                        if (response.validation) {
-                            console.log("バリデーションエラー:", response.validation);
-                            for (const field in response.validation) {
-                                let input;
-                                if (field.includes('.')) {
-                                    // フィールドエラーの場合（fields.1 のような形式）
-                                    const fieldId = field.split('.')[1];
-                                    input = $(`[name="fields[${fieldId}]"]`);
-                                } else {
-                                    input = $(`[name="${field}"]`);
-                                }
-
-                                if (input.length) {
-                                    input.addClass('is-invalid');
-                                    input.next('.invalid-feedback').text(response.validation[field]);
-                                }
-                            }
-                        }
-                    }
-                },
-                error: function(xhr, status, error) {
-                    console.error("AJAX Error:", status, error);
-                    console.log("Response:", xhr.responseText);
-                    App.showNotification('エラーが発生しました: ' + error, 'error');
-                },
-                complete: function() {
-                    $('button[type="submit"]').prop('disabled', false);
-                }
-
-            });
-            return false;
-        });
-        return false;
-    });
-</script>

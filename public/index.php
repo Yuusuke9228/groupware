@@ -935,6 +935,31 @@ $router->apiGet('/webdatabase/fields/:id', function ($params) {
     return $controller->apiGetField($params);
 }, true);
 
+$router->apiPost('/webdatabase/fields/set-title', function ($params, $data) {
+    $controller = new Controllers\WebDatabaseController();
+    return $controller->apiSetTitleField($params, $data);
+}, true);
+
+$router->apiGet('/webdatabase/:id/fields', function ($params) {
+    $controller = new Controllers\WebDatabaseController();
+    return $controller->apiGetDatabaseFields($params);
+}, true);
+
+$router->apiGet('/webdatabase/:id/form-layout', function ($params) {
+    $controller = new Controllers\WebDatabaseController();
+    return $controller->apiGetFormLayout($params);
+}, true);
+
+$router->apiPost('/webdatabase/:id/fields/layout', function ($params, $data) {
+    $controller = new Controllers\WebDatabaseController();
+    return $controller->apiSaveFieldLayout($params, $data);
+}, true);
+
+$router->apiGet('/webdatabase/:id/analytics', function ($params) {
+    $controller = new Controllers\WebDatabaseController();
+    return $controller->apiGetAnalytics($params);
+}, true);
+
 // リレーション関連API
 $router->apiGet('/webdatabase/relation-targets/:id', function ($params) {
     $controller = new Controllers\WebDatabaseController();

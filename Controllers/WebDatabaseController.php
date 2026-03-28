@@ -10,6 +10,7 @@ use Models\WebDatabaseField;
 use Models\WebDatabaseRecord;
 use Models\User;
 use Models\Organization;
+use Services\WebDatabaseValidationService;
 
 class WebDatabaseController extends Controller
 {
@@ -105,12 +106,14 @@ class WebDatabaseController extends Controller
 
         // フィールド一覧を取得
         $fields = $this->fieldModel->getByDatabaseId($id);
+        $formLayout = $this->getFormLayoutForDatabase((int)$id, $fields);
 
         $viewData = [
             'title' => 'フィールド設定',
             'database' => $database,
             'fields' => $fields,
-            'jsFiles' => ['webdatabase.js', 'webdatabase-field.js']
+            'formLayout' => $formLayout,
+            'jsFiles' => ['webdatabase-field.js']
         ];
 
         $this->view('webdatabase/fields', $viewData);
@@ -154,16 +157,18 @@ class WebDatabaseController extends Controller
             }
         }
 
+        $formLayout = $this->getFormLayoutForDatabase((int)$id, $fields);
         $viewData = [
             'title' => $database['name'] . ' - レコード一覧',
             'database' => $database,
             'fields' => $fields,
+            'formLayout' => $formLayout,
             'views' => $views,
             'selectedViewId' => $selectedViewId,
             'selectedViewSettings' => $selectedViewSettings,
             'userOrganizations' => $this->userModel->getUserOrganizations($userId),
             'isAdmin' => $this->auth->isAdmin(),
-            'jsFiles' => ['webdatabase.js', 'webdatabase-record.js']
+            'jsFiles' => ['webdatabase-record.js']
         ];
 
         $this->view('webdatabase/records', $viewData);
@@ -188,12 +193,15 @@ class WebDatabaseController extends Controller
         // フィールド一覧を取得
         $fields = $this->fieldModel->getByDatabaseId($id);
 
+        $formLayout = $this->getFormLayoutForDatabase((int)$id, $fields);
         $viewData = [
             'title' => '新規レコード作成',
             'database' => $database,
             'fields' => $fields,
+            'formLayout' => $formLayout,
             'recordData' => [],
-            'jsFiles' => ['webdatabase.js', 'webdatabase-record.js']
+            'relationData' => [],
+            'jsFiles' => ['webdatabase-record.js']
         ];
 
         $this->view('webdatabase/record_form', $viewData);
@@ -228,14 +236,29 @@ class WebDatabaseController extends Controller
 
         // レコードデータを取得
         $recordData = $this->recordModel->getRecordData($recordId);
+        $relationData = [];
+        foreach ($fields as $field) {
+            if ((string)($field['type'] ?? '') !== 'relation') {
+                continue;
+            }
+            $relatedRows = $this->recordModel->getRelatedRecords((int)$recordId, (int)$field['id']);
+            foreach ($relatedRows as &$relatedRow) {
+                $relatedRow['record_data'] = $this->recordModel->getRecordData((int)$relatedRow['target_record_id']);
+            }
+            unset($relatedRow);
+            $relationData[(int)$field['id']] = $relatedRows;
+        }
 
+        $formLayout = $this->getFormLayoutForDatabase((int)$databaseId, $fields);
         $viewData = [
             'title' => 'レコード編集',
             'database' => $database,
             'fields' => $fields,
+            'formLayout' => $formLayout,
             'record' => $record,
             'recordData' => $recordData,
-            'jsFiles' => ['webdatabase.js', 'webdatabase-record.js']
+            'relationData' => $relationData,
+            'jsFiles' => ['webdatabase-record.js']
         ];
 
         $this->view('webdatabase/record_form', $viewData);
@@ -277,7 +300,7 @@ class WebDatabaseController extends Controller
             'fields' => $fields,
             'record' => $record,
             'recordData' => $recordData,
-            'jsFiles' => ['webdatabase.js', 'webdatabase-record.js']
+            'jsFiles' => ['webdatabase-record.js']
         ];
 
         $this->view('webdatabase/record_view', $viewData);
@@ -594,73 +617,105 @@ class WebDatabaseController extends Controller
      */
     public function apiGetRecords($params)
     {
-        // 認証チェック
         if (!$this->auth->check()) {
             return ['error' => 'Unauthorized', 'code' => 401];
         }
 
-        // パラメータを$_GETから直接取得
-        $databaseId = isset($params['id']) ? $params['id'] : null;
-        if (!$databaseId) {
+        $databaseId = isset($params['id']) ? (int)$params['id'] : 0;
+        if ($databaseId <= 0) {
             return ['error' => 'Database ID is required', 'code' => 400];
         }
 
-        // RAWリクエストのデバッグ
-
-        // ページネーション
         $page = isset($_GET['page']) ? intval($_GET['page']) : 1;
         $limit = isset($_GET['limit']) ? intval($_GET['limit']) : 20;
+        $page = $page > 0 ? $page : 1;
+        $limit = ($limit > 0 && $limit <= 200) ? $limit : 20;
 
-        // 検索条件
         $search = isset($_GET['search']) ? $_GET['search'] : null;
-
-        // フィルター条件の処理
         $filters = [];
-
-        // JSON形式のフィルターがある場合はそれを使用
         if (isset($_GET['filter_json']) && !empty($_GET['filter_json'])) {
             $filterJson = $_GET['filter_json'];
             $decodedFilters = json_decode($filterJson, true);
-
-            // JSONデコード成功時のみ使用
             if (json_last_error() === JSON_ERROR_NONE && is_array($decodedFilters)) {
                 foreach ($decodedFilters as $fieldId => $value) {
                     if (is_numeric($fieldId) && !empty($value)) {
-                        $filters[$fieldId] = $value;
+                        $filters[(int)$fieldId] = is_scalar($value) ? (string)$value : '';
                     }
                 }
             }
         }
 
-        // 個別のfilter_N形式も確認
         foreach ($_GET as $key => $value) {
             if (preg_match('/^filter_(\d+)$/', $key, $matches)) {
-                $fieldId = $matches[1];
+                $fieldId = (int)$matches[1];
                 if (!empty($value)) {
                     $filters[$fieldId] = $value;
                 }
             }
         }
 
-        // デバッグ用
-
-        // ソート条件
         $sort = isset($_GET['sort']) ? $_GET['sort'] : null;
         $order = isset($_GET['order']) ? strtolower($_GET['order']) : 'asc';
         if ($order !== 'asc' && $order !== 'desc') {
             $order = 'asc';
         }
 
+        $fields = $this->fieldModel->getByDatabaseId($databaseId);
+        $fieldsById = [];
+        foreach ($fields as $field) {
+            $fieldsById[(int)$field['id']] = $field;
+        }
 
-        // データベースからレコードを取得
+        $selectedViewId = isset($_GET['view_id']) ? (int)$_GET['view_id'] : 0;
+        $selectedViewSettings = [];
+        if ($selectedViewId > 0) {
+            $userId = (int)$this->auth->id();
+            $organizationIds = $this->userModel->getUserOrganizationIds($userId);
+            $views = $this->getAccessibleViews($databaseId, $userId, $organizationIds, $this->auth->isAdmin());
+            foreach ($views as $view) {
+                if ((int)$view['id'] === $selectedViewId) {
+                    $decoded = json_decode((string)($view['settings'] ?? '{}'), true);
+                    if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                        $selectedViewSettings = $decoded;
+                    }
+                    break;
+                }
+            }
+        }
+
+        if (empty($search) && !empty($selectedViewSettings['search'])) {
+            $search = (string)$selectedViewSettings['search'];
+        }
+        if (empty($filters) && !empty($selectedViewSettings['filters']) && is_array($selectedViewSettings['filters'])) {
+            foreach ($selectedViewSettings['filters'] as $fieldId => $value) {
+                if (is_numeric($fieldId) && $value !== null && $value !== '') {
+                    $filters[(int)$fieldId] = is_scalar($value) ? (string)$value : '';
+                }
+            }
+        }
+        if (!$sort && !empty($selectedViewSettings['sort'])) {
+            $sort = (string)$selectedViewSettings['sort'];
+        }
+        if (!isset($_GET['order']) && !empty($selectedViewSettings['order'])) {
+            $savedOrder = strtolower((string)$selectedViewSettings['order']);
+            $order = in_array($savedOrder, ['asc', 'desc'], true) ? $savedOrder : 'asc';
+        }
+
+        $visibleFieldIds = $this->resolveVisibleFieldIds($fields, $selectedViewSettings);
         $records = $this->recordModel->getByDatabaseId($databaseId, $page, $limit, $search, $filters, $sort, $order);
         $totalRecords = $this->recordModel->getCountByDatabaseId($databaseId, $search, $filters);
         $totalPages = ceil($totalRecords / $limit);
+        foreach ($records as &$record) {
+            $record['field_values'] = $this->buildRecordFieldValues((int)$record['id'], $visibleFieldIds, $fieldsById);
+        }
+        unset($record);
 
         return [
             'success' => true,
             'data' => [
                 'records' => $records,
+                'visible_field_ids' => $visibleFieldIds,
+                'view_settings' => $selectedViewSettings,
                 'pagination' => [
                     'total' => $totalRecords,
                     'total_pages' => $totalPages,
@@ -677,41 +732,42 @@ class WebDatabaseController extends Controller
      */
     public function apiCreateRecord($params, $data)
     {
-        // 認証チェック
         if (!$this->auth->check()) {
             return ['error' => 'Unauthorized', 'code' => 401];
         }
 
-        $databaseId = $params['id'] ?? null;
-        if (!$databaseId) {
+        $databaseId = isset($params['id']) ? (int)$params['id'] : 0;
+        if ($databaseId <= 0) {
             return ['error' => 'Database ID is required', 'code' => 400];
         }
 
-        // 現在のユーザーIDを追加
         $data['creator_id'] = $this->auth->id();
         $data['database_id'] = $databaseId;
-
-        // ファイル処理
+        $fieldValues = isset($data['fields']) && is_array($data['fields']) ? $data['fields'] : (isset($_POST['fields']) && is_array($_POST['fields']) ? $_POST['fields'] : []);
+        $childTablePayload = $this->extractChildTablePayload($data);
         if (isset($_FILES) && !empty($_FILES)) {
             $data['files'] = $this->processRecordFiles($_FILES);
         }
+        $fileValues = isset($data['files']) && is_array($data['files']) ? $data['files'] : [];
+        $fields = $this->fieldModel->getByDatabaseId($databaseId);
+        $validationErrors = $this->validateRecordInput($databaseId, $fields, $fieldValues, $fileValues, 0, []);
+        if (!empty($validationErrors)) {
+            return [
+                'error' => '入力内容に不備があります',
+                'validation' => $validationErrors,
+                'code' => 422
+            ];
+        }
 
-        // トランザクション開始
         $this->db->beginTransaction();
-
         try {
-            // レコードを作成
             $recordId = $this->recordModel->create($data);
             if (!$recordId) {
                 throw new \Exception('Failed to create record');
             }
 
-            // レコードデータを保存
-            if (isset($data['fields']) && is_array($data['fields'])) {
-                foreach ($data['fields'] as $fieldId => $value) {
-                    $this->recordModel->saveFieldData($recordId, $fieldId, $value);
-                }
-            }
+            $this->persistRecordFieldsAndRelations((int)$recordId, $databaseId, $fieldValues, $fileValues, (int)$this->auth->id());
+            $this->syncChildTables((int)$recordId, $databaseId, $childTablePayload, (int)$this->auth->id());
 
             $this->db->commit();
 
@@ -723,7 +779,7 @@ class WebDatabaseController extends Controller
             ];
         } catch (\Exception $e) {
             $this->db->rollBack();
-            return ['error' => $e->getMessage(), 'code' => 500];
+            return ['error' => 'レコード作成に失敗しました: ' . $e->getMessage(), 'code' => 500];
         }
     }
 
@@ -732,15 +788,14 @@ class WebDatabaseController extends Controller
      */
     public function apiUpdateRecord($params, $data)
     {
-        // 認証チェック
         if (!$this->auth->check()) {
             return ['error' => 'Unauthorized', 'code' => 401];
         }
 
-        $databaseId = $params['id'] ?? null;
-        $recordId = $params['record_id'] ?? null;
+        $databaseId = isset($params['id']) ? (int)$params['id'] : 0;
+        $recordId = isset($params['record_id']) ? (int)$params['record_id'] : 0;
 
-        if (!$databaseId || !$recordId) {
+        if ($databaseId <= 0 || $recordId <= 0) {
             return ['error' => 'Invalid IDs', 'code' => 400];
         }
 
@@ -750,30 +805,34 @@ class WebDatabaseController extends Controller
             return ['error' => 'Record not found', 'code' => 404];
         }
 
-        // 更新者IDを追加
         $data['updater_id'] = $this->auth->id();
-
-        // ファイル処理
+        $fieldValues = isset($data['fields']) && is_array($data['fields']) ? $data['fields'] : (isset($_POST['fields']) && is_array($_POST['fields']) ? $_POST['fields'] : []);
+        $childTablePayload = $this->extractChildTablePayload($data);
         if (isset($_FILES) && !empty($_FILES)) {
             $data['files'] = $this->processRecordFiles($_FILES);
         }
+        $fileValues = isset($data['files']) && is_array($data['files']) ? $data['files'] : [];
+        $fields = $this->fieldModel->getByDatabaseId($databaseId);
+        $existingValues = $this->recordModel->getRecordData($recordId);
+        $validationErrors = $this->validateRecordInput($databaseId, $fields, $fieldValues, $fileValues, $recordId, $existingValues);
+        if (!empty($validationErrors)) {
+            return [
+                'error' => '入力内容に不備があります',
+                'validation' => $validationErrors,
+                'code' => 422
+            ];
+        }
 
-        // トランザクション開始
         $this->db->beginTransaction();
 
         try {
-            // レコードを更新
             $success = $this->recordModel->update($recordId, $data);
             if (!$success) {
                 throw new \Exception('Failed to update record');
             }
 
-            // レコードデータを保存
-            if (isset($data['fields']) && is_array($data['fields'])) {
-                foreach ($data['fields'] as $fieldId => $value) {
-                    $this->recordModel->saveFieldData($recordId, $fieldId, $value);
-                }
-            }
+            $this->persistRecordFieldsAndRelations((int)$recordId, $databaseId, $fieldValues, $fileValues, (int)$this->auth->id());
+            $this->syncChildTables((int)$recordId, $databaseId, $childTablePayload, (int)$this->auth->id());
 
             $this->db->commit();
 
@@ -784,7 +843,7 @@ class WebDatabaseController extends Controller
             ];
         } catch (\Exception $e) {
             $this->db->rollBack();
-            return ['error' => $e->getMessage(), 'code' => 500];
+            return ['error' => 'レコード更新に失敗しました: ' . $e->getMessage(), 'code' => 500];
         }
     }
 
@@ -1156,6 +1215,165 @@ class WebDatabaseController extends Controller
     }
 
     /**
+     * API: データベースに紐づくフィールド一覧を取得
+     */
+    public function apiGetDatabaseFields($params)
+    {
+        if (!$this->auth->check()) {
+            return ['error' => 'Unauthorized', 'code' => 401];
+        }
+        $databaseId = isset($params['id']) ? (int)$params['id'] : 0;
+        if ($databaseId <= 0) {
+            return ['error' => 'Database ID is required', 'code' => 400];
+        }
+
+        $database = $this->model->getById($databaseId);
+        if (!$database) {
+            return ['error' => 'Database not found', 'code' => 404];
+        }
+
+        $fields = $this->fieldModel->getByDatabaseId($databaseId);
+        return [
+            'success' => true,
+            'data' => $fields
+        ];
+    }
+
+    /**
+     * API: タイトルフィールド設定
+     */
+    public function apiSetTitleField($params, $data)
+    {
+        if (!$this->auth->check()) {
+            return ['error' => 'Unauthorized', 'code' => 401];
+        }
+        $fieldId = isset($data['field_id']) ? (int)$data['field_id'] : 0;
+        if ($fieldId <= 0) {
+            return ['error' => 'field_id is required', 'code' => 400];
+        }
+
+        $field = $this->fieldModel->getById($fieldId);
+        if (!$field) {
+            return ['error' => 'Field not found', 'code' => 404];
+        }
+
+        $this->db->execute(
+            "UPDATE web_database_fields SET is_title_field = 0, updated_at = CURRENT_TIMESTAMP WHERE database_id = ?",
+            [(int)$field['database_id']]
+        );
+        $this->db->execute(
+            "UPDATE web_database_fields SET is_title_field = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+            [$fieldId]
+        );
+
+        return ['success' => true, 'message' => 'タイトルフィールドを更新しました'];
+    }
+
+    /**
+     * API: フォームレイアウト取得
+     */
+    public function apiGetFormLayout($params)
+    {
+        if (!$this->auth->check()) {
+            return ['error' => 'Unauthorized', 'code' => 401];
+        }
+        $databaseId = isset($params['id']) ? (int)$params['id'] : 0;
+        if ($databaseId <= 0) {
+            return ['error' => 'Database ID is required', 'code' => 400];
+        }
+
+        $fields = $this->fieldModel->getByDatabaseId($databaseId);
+        return [
+            'success' => true,
+            'data' => $this->getFormLayoutForDatabase($databaseId, $fields)
+        ];
+    }
+
+    /**
+     * API: フォームレイアウト保存
+     */
+    public function apiSaveFieldLayout($params, $data)
+    {
+        if (!$this->auth->check()) {
+            return ['error' => 'Unauthorized', 'code' => 401];
+        }
+        $databaseId = isset($params['id']) ? (int)$params['id'] : 0;
+        if ($databaseId <= 0) {
+            return ['error' => 'Database ID is required', 'code' => 400];
+        }
+
+        $items = $data['items'] ?? [];
+        if (!is_array($items)) {
+            $decoded = json_decode((string)$items, true);
+            $items = is_array($decoded) ? $decoded : [];
+        }
+        if (empty($items)) {
+            return ['error' => 'レイアウト項目が空です', 'code' => 400];
+        }
+
+        $saved = $this->saveFormLayoutForDatabase($databaseId, $items, (int)$this->auth->id());
+        if (!$saved) {
+            return ['error' => 'レイアウト保存に失敗しました', 'code' => 500];
+        }
+
+        return [
+            'success' => true,
+            'message' => 'フォームレイアウトを保存しました'
+        ];
+    }
+
+    /**
+     * API: 集計・グラフ用データ取得
+     */
+    public function apiGetAnalytics($params)
+    {
+        if (!$this->auth->check()) {
+            return ['error' => 'Unauthorized', 'code' => 401];
+        }
+        $databaseId = isset($params['id']) ? (int)$params['id'] : 0;
+        if ($databaseId <= 0) {
+            return ['error' => 'Database ID is required', 'code' => 400];
+        }
+
+        $groupFieldId = isset($_GET['group_field_id']) ? (int)$_GET['group_field_id'] : 0;
+        if ($groupFieldId <= 0) {
+            return ['error' => 'group_field_id is required', 'code' => 400];
+        }
+
+        $metric = strtolower((string)($_GET['metric'] ?? 'count'));
+        if (!in_array($metric, ['count', 'sum', 'avg'], true)) {
+            $metric = 'count';
+        }
+        $metricFieldId = isset($_GET['metric_field_id']) ? (int)$_GET['metric_field_id'] : 0;
+        $dateGrain = strtolower((string)($_GET['date_grain'] ?? 'none'));
+        if (!in_array($dateGrain, ['none', 'day', 'month'], true)) {
+            $dateGrain = 'none';
+        }
+
+        $filters = [];
+        if (isset($_GET['filter_json']) && !empty($_GET['filter_json'])) {
+            $decoded = json_decode((string)$_GET['filter_json'], true);
+            if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                foreach ($decoded as $fieldId => $value) {
+                    if (is_numeric($fieldId) && $value !== null && $value !== '') {
+                        $filters[(int)$fieldId] = (string)$value;
+                    }
+                }
+            }
+        }
+
+        $result = $this->buildAnalyticsDataset($databaseId, $groupFieldId, $metric, $metricFieldId, $dateGrain, $filters);
+        if (!$result['success']) {
+            return ['error' => $result['error'], 'code' => 400];
+        }
+
+        return [
+            'success' => true,
+            'data' => $result['data']
+        ];
+    }
+
+    /**
      * レコードファイルの処理
      */
     private function processRecordFiles($files)
@@ -1246,6 +1464,813 @@ class WebDatabaseController extends Controller
         return $basename . $extension;
     }
 
+    private function getFormLayoutForDatabase($databaseId, array $fields)
+    {
+        $items = [];
+        foreach ($fields as $field) {
+            $items[] = [
+                'field_id' => (int)$field['id'],
+                'sort_order' => (int)$field['sort_order'],
+                'section' => '基本情報',
+                'hidden' => false,
+                'child_table' => false,
+                'child_summary_field_id' => null
+            ];
+        }
+
+        usort($items, static function ($a, $b) {
+            return ($a['sort_order'] ?? 0) <=> ($b['sort_order'] ?? 0);
+        });
+
+        if (!$this->hasTable('web_database_form_layouts')) {
+            return ['items' => $items];
+        }
+
+        $row = $this->db->fetch(
+            "SELECT settings FROM web_database_form_layouts WHERE database_id = ? ORDER BY is_default DESC, updated_at DESC, id DESC LIMIT 1",
+            [$databaseId]
+        );
+        if (!$row || empty($row['settings'])) {
+            return ['items' => $items];
+        }
+
+        $decoded = json_decode((string)$row['settings'], true);
+        if (json_last_error() !== JSON_ERROR_NONE || !is_array($decoded)) {
+            return ['items' => $items];
+        }
+        $savedItems = isset($decoded['items']) && is_array($decoded['items']) ? $decoded['items'] : [];
+        if (empty($savedItems)) {
+            return ['items' => $items];
+        }
+
+        $savedByFieldId = [];
+        foreach ($savedItems as $saved) {
+            $fieldId = isset($saved['field_id']) ? (int)$saved['field_id'] : 0;
+            if ($fieldId <= 0) {
+                continue;
+            }
+            $savedByFieldId[$fieldId] = [
+                'field_id' => $fieldId,
+                'sort_order' => isset($saved['sort_order']) ? (int)$saved['sort_order'] : 0,
+                'section' => isset($saved['section']) ? trim((string)$saved['section']) : '基本情報',
+                'hidden' => !empty($saved['hidden']),
+                'child_table' => !empty($saved['child_table']),
+                'child_summary_field_id' => isset($saved['child_summary_field_id']) ? (int)$saved['child_summary_field_id'] : null,
+                'relation_filter_field_id' => isset($saved['relation_filter_field_id']) ? (int)$saved['relation_filter_field_id'] : null
+            ];
+        }
+
+        $merged = [];
+        foreach ($items as $defaultItem) {
+            $fieldId = (int)$defaultItem['field_id'];
+            if (isset($savedByFieldId[$fieldId])) {
+                $merged[] = array_merge($defaultItem, $savedByFieldId[$fieldId]);
+            } else {
+                $merged[] = $defaultItem;
+            }
+        }
+
+        usort($merged, static function ($a, $b) {
+            return ($a['sort_order'] ?? 0) <=> ($b['sort_order'] ?? 0);
+        });
+
+        return ['items' => $merged];
+    }
+
+    private function saveFormLayoutForDatabase($databaseId, array $items, $creatorId)
+    {
+        if (!$this->hasTable('web_database_form_layouts')) {
+            $this->ensureFormLayoutTable();
+        }
+        if (!$this->hasTable('web_database_form_layouts')) {
+            return false;
+        }
+
+        $fields = $this->fieldModel->getByDatabaseId($databaseId);
+        $validFieldIds = [];
+        foreach ($fields as $field) {
+            $validFieldIds[(int)$field['id']] = true;
+        }
+
+        $normalized = [];
+        $sortOrder = 1;
+        foreach ($items as $item) {
+            $fieldId = isset($item['field_id']) ? (int)$item['field_id'] : 0;
+            if ($fieldId <= 0 || !isset($validFieldIds[$fieldId])) {
+                continue;
+            }
+
+            $relationFilterFieldId = isset($item['relation_filter_field_id']) ? (int)$item['relation_filter_field_id'] : 0;
+            if ($relationFilterFieldId > 0 && !isset($validFieldIds[$relationFilterFieldId])) {
+                $relationFilterFieldId = 0;
+            }
+
+            $normalized[] = [
+                'field_id' => $fieldId,
+                'sort_order' => $sortOrder++,
+                'section' => trim((string)($item['section'] ?? '基本情報')) ?: '基本情報',
+                'hidden' => !empty($item['hidden']),
+                'child_table' => !empty($item['child_table']),
+                'child_summary_field_id' => isset($item['child_summary_field_id']) && (int)$item['child_summary_field_id'] > 0 ? (int)$item['child_summary_field_id'] : null,
+                'relation_filter_field_id' => $relationFilterFieldId > 0 ? $relationFilterFieldId : null
+            ];
+
+            $required = !empty($item['required']) ? 1 : 0;
+            $this->db->execute(
+                "UPDATE web_database_fields SET sort_order = ?, required = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND database_id = ?",
+                [$sortOrder - 1, $required, $fieldId, $databaseId]
+            );
+        }
+
+        if (empty($normalized)) {
+            return false;
+        }
+
+        $settings = json_encode(['items' => $normalized], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        if ($settings === false) {
+            return false;
+        }
+
+        $existing = $this->db->fetch(
+            "SELECT id FROM web_database_form_layouts WHERE database_id = ? AND name = 'default' LIMIT 1",
+            [$databaseId]
+        );
+
+        if ($existing) {
+            return (bool)$this->db->execute(
+                "UPDATE web_database_form_layouts SET settings = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+                [$settings, (int)$existing['id']]
+            );
+        }
+
+        return (bool)$this->db->execute(
+            "INSERT INTO web_database_form_layouts (database_id, name, settings, is_default, creator_id, created_at, updated_at)
+             VALUES (?, 'default', ?, 1, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
+            [$databaseId, $settings, $creatorId]
+        );
+    }
+
+    private function ensureFormLayoutTable()
+    {
+        $this->db->execute(
+            "CREATE TABLE IF NOT EXISTS web_database_form_layouts (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                database_id INT NOT NULL,
+                name VARCHAR(100) NOT NULL DEFAULT 'default',
+                settings LONGTEXT NOT NULL,
+                is_default BOOLEAN NOT NULL DEFAULT 1,
+                creator_id INT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                UNIQUE KEY uq_web_database_form_layouts (database_id, name),
+                INDEX idx_web_database_form_layouts_default (database_id, is_default),
+                CONSTRAINT fk_web_database_form_layouts_database FOREIGN KEY (database_id) REFERENCES web_databases(id) ON DELETE CASCADE,
+                CONSTRAINT fk_web_database_form_layouts_creator FOREIGN KEY (creator_id) REFERENCES users(id) ON DELETE RESTRICT
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
+        );
+    }
+
+    private function resolveVisibleFieldIds(array $fields, array $viewSettings)
+    {
+        $fieldIds = [];
+        foreach ($fields as $field) {
+            $fieldIds[] = (int)$field['id'];
+        }
+
+        $visible = [];
+        if (!empty($viewSettings['visible_fields']) && is_array($viewSettings['visible_fields'])) {
+            foreach ($viewSettings['visible_fields'] as $fieldId) {
+                $fid = (int)$fieldId;
+                if ($fid > 0 && in_array($fid, $fieldIds, true)) {
+                    $visible[] = $fid;
+                }
+            }
+        }
+        if (!empty($visible)) {
+            return array_values(array_unique($visible));
+        }
+
+        $fallback = [];
+        foreach ($fields as $field) {
+            if (!empty($field['is_title_field'])) {
+                continue;
+            }
+            $fallback[] = (int)$field['id'];
+            if (count($fallback) >= 5) {
+                break;
+            }
+        }
+        if (empty($fallback)) {
+            foreach ($fields as $field) {
+                $fallback[] = (int)$field['id'];
+                if (count($fallback) >= 5) {
+                    break;
+                }
+            }
+        }
+        return $fallback;
+    }
+
+    private function buildRecordFieldValues($recordId, array $visibleFieldIds, array $fieldsById)
+    {
+        $recordData = $this->recordModel->getRecordData($recordId);
+        $values = [];
+        foreach ($visibleFieldIds as $fieldId) {
+            $fieldId = (int)$fieldId;
+            if ($fieldId <= 0 || !isset($fieldsById[$fieldId])) {
+                continue;
+            }
+            $field = $fieldsById[$fieldId];
+            $raw = $recordData[$fieldId] ?? null;
+            $values[$fieldId] = $this->formatFieldValueForDisplay($recordId, $field, $raw);
+        }
+        return $values;
+    }
+
+    private function formatFieldValueForDisplay($recordId, array $field, $rawValue)
+    {
+        if ($rawValue === null || $rawValue === '') {
+            return '';
+        }
+
+        $type = (string)($field['type'] ?? 'text');
+        if ($type === 'relation') {
+            $related = $this->recordModel->getRelatedRecords((int)$recordId, (int)$field['id']);
+            $titles = [];
+            foreach ($related as $item) {
+                $titles[] = (string)($item['title'] ?? ('ID:' . (int)$item['target_record_id']));
+            }
+            return implode(', ', $titles);
+        }
+
+        if (in_array($type, ['select', 'radio', 'checkbox'], true) && !empty($field['options'])) {
+            $decoded = json_decode((string)$field['options'], true);
+            if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                $values = $type === 'checkbox' ? explode(',', (string)$rawValue) : [(string)$rawValue];
+                $labels = [];
+                foreach ($decoded as $option) {
+                    $ov = (string)($option['value'] ?? '');
+                    if (in_array($ov, $values, true)) {
+                        $labels[] = (string)($option['label'] ?? $ov);
+                    }
+                }
+                if (!empty($labels)) {
+                    return implode(', ', $labels);
+                }
+            }
+        }
+
+        if ($type === 'user') {
+            static $userCache = [];
+            $userId = (int)$rawValue;
+            if ($userId > 0) {
+                if (!array_key_exists($userId, $userCache)) {
+                    $user = $this->userModel->getById($userId);
+                    $userCache[$userId] = $user ? (string)$user['display_name'] : (string)$rawValue;
+                }
+                return $userCache[$userId];
+            }
+        }
+
+        if ($type === 'organization') {
+            static $orgCache = [];
+            $orgId = (int)$rawValue;
+            if ($orgId > 0) {
+                if (!array_key_exists($orgId, $orgCache)) {
+                    $org = $this->organizationModel->getById($orgId);
+                    $orgCache[$orgId] = $org ? (string)$org['name'] : (string)$rawValue;
+                }
+                return $orgCache[$orgId];
+            }
+        }
+
+        if ($type === 'file' && is_array($rawValue)) {
+            $files = isset($rawValue[0]) ? $rawValue : [$rawValue];
+            $names = [];
+            foreach ($files as $file) {
+                if (is_array($file) && !empty($file['name'])) {
+                    $names[] = (string)$file['name'];
+                }
+            }
+            return implode(', ', $names);
+        }
+
+        if ($type === 'currency') {
+            return number_format((float)$rawValue);
+        }
+
+        if ($type === 'percent') {
+            return rtrim(rtrim((string)$rawValue, '0'), '.') . '%';
+        }
+
+        return is_scalar($rawValue) ? (string)$rawValue : json_encode($rawValue, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    }
+
+    private function extractChildTablePayload(array $data)
+    {
+        $raw = $data['child_tables'] ?? ($_POST['child_tables'] ?? []);
+        if (!is_array($raw)) {
+            return [];
+        }
+
+        $result = [];
+        foreach ($raw as $fieldId => $rows) {
+            if (!is_numeric($fieldId)) {
+                continue;
+            }
+            if (is_string($rows)) {
+                $decoded = json_decode($rows, true);
+                $rows = (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) ? $decoded : [];
+            }
+            if (!is_array($rows)) {
+                $rows = [];
+            }
+            $result[(int)$fieldId] = $rows;
+        }
+        return $result;
+    }
+
+    private function validateRecordInput(
+        $databaseId,
+        array $fields,
+        array $fieldValues,
+        array $fileValues,
+        $recordId = 0,
+        array $existingValues = []
+    ) {
+        $databaseId = (int)$databaseId;
+        $recordId = (int)$recordId;
+
+        $uniqueChecker = function (int $fieldId, string $value) use ($databaseId, $recordId): bool {
+            $params = [$databaseId, $fieldId, $value];
+            $sql = "SELECT d.id
+                    FROM web_database_record_data d
+                    INNER JOIN web_database_records r ON r.id = d.record_id
+                    WHERE r.database_id = ? AND d.field_id = ? AND d.value = ?";
+            if ($recordId > 0) {
+                $sql .= " AND r.id <> ?";
+                $params[] = $recordId;
+            }
+            $sql .= " LIMIT 1";
+            $dup = $this->db->fetch($sql, $params);
+            return !empty($dup);
+        };
+
+        $errors = WebDatabaseValidationService::validateRecordFields(
+            $fields,
+            $fieldValues,
+            $fileValues,
+            $existingValues,
+            $uniqueChecker
+        );
+
+        foreach ($fields as $field) {
+            $fieldId = (int)($field['id'] ?? 0);
+            if ($fieldId <= 0 || (string)($field['type'] ?? '') !== 'relation') {
+                continue;
+            }
+
+            $rawValue = $fieldValues[$fieldId] ?? null;
+            $targetIds = [];
+            if (is_array($rawValue)) {
+                foreach ($rawValue as $targetId) {
+                    $targetId = (int)$targetId;
+                    if ($targetId > 0) {
+                        $targetIds[] = $targetId;
+                    }
+                }
+            } elseif ($rawValue !== null && $rawValue !== '') {
+                $targetId = (int)$rawValue;
+                if ($targetId > 0) {
+                    $targetIds[] = $targetId;
+                }
+            }
+            $targetIds = array_values(array_unique($targetIds));
+            if (empty($targetIds)) {
+                continue;
+            }
+
+            if (($field['relation_type'] ?? '') === 'one_to_one' && count($targetIds) > 1) {
+                $errors['fields.' . $fieldId] = '1対1リレーションでは1件のみ選択できます';
+                continue;
+            }
+
+            $targetDbId = (int)($field['relation_database_id'] ?? 0);
+            if ($targetDbId <= 0) {
+                $errors['fields.' . $fieldId] = 'リレーション設定が不正です';
+                continue;
+            }
+
+            $placeholders = implode(',', array_fill(0, count($targetIds), '?'));
+            $params = array_merge([$targetDbId], $targetIds);
+            $row = $this->db->fetch(
+                "SELECT COUNT(*) AS cnt FROM web_database_records WHERE database_id = ? AND id IN ({$placeholders})",
+                $params
+            );
+            $cnt = isset($row['cnt']) ? (int)$row['cnt'] : 0;
+            if ($cnt !== count($targetIds)) {
+                $errors['fields.' . $fieldId] = '参照先レコードの一部が存在しません';
+            }
+        }
+
+        return $errors;
+    }
+
+    private function persistRecordFieldsAndRelations($recordId, $databaseId, array $fieldValues, array $fileValues, $actorId)
+    {
+        $fields = $this->fieldModel->getByDatabaseId($databaseId);
+        $fieldsById = [];
+        foreach ($fields as $field) {
+            $fieldsById[(int)$field['id']] = $field;
+        }
+
+        foreach ($fieldsById as $fieldId => $field) {
+            $type = (string)($field['type'] ?? 'text');
+            $value = $fieldValues[$fieldId] ?? null;
+
+            if ($type === 'relation') {
+                $targetIds = [];
+                if (is_array($value)) {
+                    foreach ($value as $targetId) {
+                        $tid = (int)$targetId;
+                        if ($tid > 0) {
+                            $targetIds[] = $tid;
+                        }
+                    }
+                } elseif ($value !== null && $value !== '') {
+                    $tid = (int)$value;
+                    if ($tid > 0) {
+                        $targetIds[] = $tid;
+                    }
+                }
+                $targetIds = array_values(array_unique($targetIds));
+                if (!empty($field['relation_database_id'])) {
+                    $this->recordModel->saveRelations(
+                        (int)$recordId,
+                        (int)$fieldId,
+                        $targetIds,
+                        (int)$field['relation_database_id']
+                    );
+                }
+                $this->recordModel->saveFieldData((int)$recordId, (int)$fieldId, implode(',', $targetIds));
+                continue;
+            }
+
+            if ($type === 'file') {
+                if (array_key_exists($fieldId, $fileValues)) {
+                    $this->recordModel->saveFieldData((int)$recordId, (int)$fieldId, '', $fileValues[$fieldId]);
+                }
+                continue;
+            }
+
+            if ($type === 'checkbox' && is_array($value)) {
+                $value = implode(',', array_map('strval', $value));
+            } elseif (is_array($value)) {
+                $encoded = json_encode($value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+                $value = $encoded === false ? '' : $encoded;
+            }
+
+            if ($type === 'auto_number' && ($value === null || $value === '')) {
+                $value = 'R' . str_pad((string)$recordId, 8, '0', STR_PAD_LEFT);
+            }
+
+            $this->recordModel->saveFieldData((int)$recordId, (int)$fieldId, (string)($value ?? ''));
+        }
+
+        foreach ($fieldsById as $fieldId => $field) {
+            if ((string)$field['type'] === 'lookup'
+                && !empty($field['lookup_relation_field_id'])
+                && !empty($field['lookup_target_field_id'])) {
+                $lookupValue = $this->recordModel->getLookupValue(
+                    (int)$recordId,
+                    (int)$field['lookup_relation_field_id'],
+                    (int)$field['lookup_target_field_id']
+                );
+                $this->recordModel->saveFieldData((int)$recordId, (int)$fieldId, (string)($lookupValue ?? ''));
+            }
+        }
+    }
+
+    private function syncChildTables($parentRecordId, $databaseId, array $childTablePayload, $actorId)
+    {
+        if (empty($childTablePayload)) {
+            return;
+        }
+
+        $parentFields = $this->fieldModel->getByDatabaseId($databaseId);
+        $parentFieldsById = [];
+        foreach ($parentFields as $field) {
+            $parentFieldsById[(int)$field['id']] = $field;
+        }
+
+        $layout = $this->getFormLayoutForDatabase((int)$databaseId, $parentFields);
+        $layoutByFieldId = [];
+        foreach (($layout['items'] ?? []) as $item) {
+            $layoutByFieldId[(int)$item['field_id']] = $item;
+        }
+
+        foreach ($childTablePayload as $relationFieldId => $rows) {
+            $relationFieldId = (int)$relationFieldId;
+            if ($relationFieldId <= 0 || !isset($parentFieldsById[$relationFieldId])) {
+                continue;
+            }
+
+            $relationField = $parentFieldsById[$relationFieldId];
+            if ((string)$relationField['type'] !== 'relation' || empty($relationField['relation_database_id'])) {
+                continue;
+            }
+
+            $layoutItem = $layoutByFieldId[$relationFieldId] ?? [];
+            if (empty($layoutItem['child_table'])) {
+                continue;
+            }
+
+            $targetDatabaseId = (int)$relationField['relation_database_id'];
+            $targetIds = [];
+            $rowOrder = 0;
+            foreach ((array)$rows as $row) {
+                if (!is_array($row)) {
+                    continue;
+                }
+                if (!empty($row['_delete'])) {
+                    continue;
+                }
+
+                $childRecordId = isset($row['record_id']) ? (int)$row['record_id'] : 0;
+                if ($childRecordId <= 0) {
+                    $childRecordId = (int)$this->recordModel->create([
+                        'database_id' => $targetDatabaseId,
+                        'creator_id' => $actorId
+                    ]);
+                } else {
+                    $existing = $this->recordModel->getById($childRecordId);
+                    if (!$existing || (int)$existing['database_id'] !== $targetDatabaseId) {
+                        continue;
+                    }
+                    $this->recordModel->update($childRecordId, ['updater_id' => $actorId]);
+                }
+
+                if ($childRecordId <= 0) {
+                    continue;
+                }
+
+                $childFields = isset($row['fields']) && is_array($row['fields']) ? $row['fields'] : [];
+                $this->persistRecordFieldsAndRelations($childRecordId, $targetDatabaseId, $childFields, [], $actorId);
+
+                $targetIds[] = $childRecordId;
+                $rowOrder++;
+            }
+
+            $this->recordModel->saveRelations(
+                (int)$parentRecordId,
+                $relationFieldId,
+                $targetIds,
+                $targetDatabaseId
+            );
+        }
+    }
+
+    private function buildAnalyticsDataset($databaseId, $groupFieldId, $metric, $metricFieldId, $dateGrain, array $filters = [])
+    {
+        $fields = $this->fieldModel->getByDatabaseId($databaseId);
+        $fieldsById = [];
+        foreach ($fields as $field) {
+            $fieldsById[(int)$field['id']] = $field;
+        }
+        if (!isset($fieldsById[$groupFieldId])) {
+            return ['success' => false, 'error' => 'グループ化フィールドが存在しません'];
+        }
+        if (in_array($metric, ['sum', 'avg'], true) && $metricFieldId > 0 && !isset($fieldsById[$metricFieldId])) {
+            return ['success' => false, 'error' => '集計対象フィールドが存在しません'];
+        }
+
+        $records = $this->db->fetchAll("SELECT id FROM web_database_records WHERE database_id = ?", [$databaseId]);
+        if (empty($records)) {
+            return ['success' => true, 'data' => ['rows' => [], 'labels' => [], 'values' => []]];
+        }
+        $recordIds = array_map(static function ($row) {
+            return (int)$row['id'];
+        }, $records);
+        $placeholders = implode(',', array_fill(0, count($recordIds), '?'));
+        $recordDataRows = $this->db->fetchAll(
+            "SELECT record_id, field_id, value FROM web_database_record_data WHERE record_id IN ({$placeholders})",
+            $recordIds
+        );
+
+        $recordData = [];
+        foreach ($recordDataRows as $row) {
+            $rid = (int)$row['record_id'];
+            $fid = (int)$row['field_id'];
+            $recordData[$rid][$fid] = $row['value'];
+        }
+
+        $groupField = $fieldsById[$groupFieldId];
+        $relationMap = [];
+        $relationFieldIds = [];
+        if ((string)$groupField['type'] === 'relation') {
+            $relationFieldIds[] = $groupFieldId;
+        }
+        foreach ($filters as $filterFieldId => $_value) {
+            $filterFieldId = (int)$filterFieldId;
+            if ($filterFieldId > 0 && isset($fieldsById[$filterFieldId]) && (string)$fieldsById[$filterFieldId]['type'] === 'relation') {
+                $relationFieldIds[] = $filterFieldId;
+            }
+        }
+        $relationFieldIds = array_values(array_unique($relationFieldIds));
+        if (!empty($relationFieldIds)) {
+            $relationFieldPlaceholders = implode(',', array_fill(0, count($relationFieldIds), '?'));
+            $params = array_merge($relationFieldIds, $recordIds);
+            $relationRows = $this->db->fetchAll(
+                "SELECT source_field_id, source_record_id, target_record_id, target_database_id
+                 FROM web_database_relations
+                 WHERE source_field_id IN ({$relationFieldPlaceholders})
+                   AND source_record_id IN ({$placeholders})
+                 ORDER BY sort_order ASC, id ASC",
+                $params
+            );
+            foreach ($relationRows as $row) {
+                $fieldId = (int)$row['source_field_id'];
+                $sourceId = (int)$row['source_record_id'];
+                if (!isset($relationMap[$fieldId])) {
+                    $relationMap[$fieldId] = [];
+                }
+                if (!isset($relationMap[$fieldId][$sourceId])) {
+                    $relationMap[$fieldId][$sourceId] = [];
+                }
+                $relationMap[$fieldId][$sourceId][] = [
+                    'target_record_id' => (int)$row['target_record_id'],
+                    'target_database_id' => (int)$row['target_database_id']
+                ];
+            }
+        }
+
+        $buckets = [];
+        foreach ($recordIds as $recordId) {
+            if (!$this->passesAnalyticsFilters($recordId, $filters, $fieldsById, $recordData, $relationMap)) {
+                continue;
+            }
+
+            $groupKeys = $this->extractAnalyticsGroupKeys(
+                $recordId,
+                $groupField,
+                $recordData[$recordId] ?? [],
+                $relationMap[$groupFieldId][$recordId] ?? [],
+                $dateGrain
+            );
+            if (empty($groupKeys)) {
+                $groupKeys = ['未設定'];
+            }
+
+            $metricValue = 1.0;
+            if (in_array($metric, ['sum', 'avg'], true)) {
+                $rawMetric = ($recordData[$recordId][$metricFieldId] ?? '0');
+                $metricValue = is_numeric($rawMetric) ? (float)$rawMetric : 0.0;
+            }
+
+            foreach ($groupKeys as $groupKey) {
+                if (!isset($buckets[$groupKey])) {
+                    $buckets[$groupKey] = ['count' => 0, 'sum' => 0.0];
+                }
+                $buckets[$groupKey]['count']++;
+                if ($metric !== 'count') {
+                    $buckets[$groupKey]['sum'] += $metricValue;
+                }
+            }
+        }
+
+        $rows = [];
+        foreach ($buckets as $label => $bucket) {
+            $value = $bucket['count'];
+            if ($metric === 'sum') {
+                $value = $bucket['sum'];
+            } elseif ($metric === 'avg') {
+                $value = $bucket['count'] > 0 ? $bucket['sum'] / $bucket['count'] : 0;
+            }
+            $rows[] = [
+                'label' => (string)$label,
+                'count' => (int)$bucket['count'],
+                'value' => round((float)$value, 2)
+            ];
+        }
+
+        usort($rows, static function ($a, $b) {
+            return $b['value'] <=> $a['value'];
+        });
+
+        return [
+            'success' => true,
+            'data' => [
+                'rows' => $rows,
+                'labels' => array_values(array_map(static function ($row) {
+                    return $row['label'];
+                }, $rows)),
+                'values' => array_values(array_map(static function ($row) {
+                    return $row['value'];
+                }, $rows))
+            ]
+        ];
+    }
+
+    private function passesAnalyticsFilters($recordId, array $filters, array $fieldsById, array $recordData, array $relationMap)
+    {
+        if (empty($filters)) {
+            return true;
+        }
+        foreach ($filters as $fieldId => $expected) {
+            $fieldId = (int)$fieldId;
+            if ($fieldId <= 0 || !isset($fieldsById[$fieldId])) {
+                continue;
+            }
+            $field = $fieldsById[$fieldId];
+            $expectedText = trim((string)$expected);
+            if ($expectedText === '') {
+                continue;
+            }
+
+            if ((string)$field['type'] === 'relation') {
+                $hit = false;
+                foreach (($relationMap[$fieldId][$recordId] ?? []) as $relation) {
+                    if ((string)$relation['target_record_id'] === $expectedText) {
+                        $hit = true;
+                        break;
+                    }
+                }
+                if (!$hit) {
+                    return false;
+                }
+                continue;
+            }
+
+            $actual = (string)($recordData[$recordId][$fieldId] ?? '');
+            if ($actual === '' || mb_stripos($actual, $expectedText) === false) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private function extractAnalyticsGroupKeys($recordId, array $groupField, array $recordData, array $relationRows, $dateGrain)
+    {
+        $type = (string)($groupField['type'] ?? 'text');
+        if ($type === 'relation') {
+            $keys = [];
+            foreach ($relationRows as $relation) {
+                $title = $this->resolveRecordTitle((int)$relation['target_record_id'], (int)$relation['target_database_id']);
+                $keys[] = $title ?: ('ID:' . (int)$relation['target_record_id']);
+            }
+            return array_values(array_unique($keys));
+        }
+
+        $raw = (string)($recordData[(int)$groupField['id']] ?? '');
+        if ($raw === '') {
+            return [];
+        }
+
+        if (in_array($type, ['date', 'datetime'], true)) {
+            $ts = strtotime($raw);
+            if ($ts !== false) {
+                if ($dateGrain === 'month') {
+                    return [date('Y-m', $ts)];
+                }
+                if ($dateGrain === 'day') {
+                    return [date('Y-m-d', $ts)];
+                }
+            }
+        }
+        return [$raw];
+    }
+
+    private function resolveRecordTitle($recordId, $databaseId)
+    {
+        static $titleCache = [];
+        $cacheKey = $databaseId . ':' . $recordId;
+        if (array_key_exists($cacheKey, $titleCache)) {
+            return $titleCache[$cacheKey];
+        }
+
+        $titleFields = $this->db->fetchAll(
+            "SELECT id FROM web_database_fields WHERE database_id = ? AND is_title_field = 1 ORDER BY sort_order ASC, id ASC",
+            [$databaseId]
+        );
+        if (empty($titleFields)) {
+            $titleCache[$cacheKey] = 'ID:' . $recordId;
+            return $titleCache[$cacheKey];
+        }
+
+        $parts = [];
+        foreach ($titleFields as $titleField) {
+            $row = $this->db->fetch(
+                "SELECT value FROM web_database_record_data WHERE record_id = ? AND field_id = ? LIMIT 1",
+                [$recordId, (int)$titleField['id']]
+            );
+            if ($row && $row['value'] !== null && $row['value'] !== '') {
+                $parts[] = (string)$row['value'];
+            }
+        }
+        $titleCache[$cacheKey] = !empty($parts) ? implode(' - ', $parts) : ('ID:' . $recordId);
+        return $titleCache[$cacheKey];
+    }
+
     // ========================================
     // リレーション API
     // ========================================
@@ -1261,12 +2286,21 @@ class WebDatabaseController extends Controller
 
         $targetDbId = $params['id'] ?? $_GET['database_id'] ?? null;
         $search = $_GET['search'] ?? null;
+        $filterFieldId = isset($_GET['filter_field_id']) ? (int)$_GET['filter_field_id'] : 0;
+        $filterValue = isset($_GET['filter_value']) ? trim((string)$_GET['filter_value']) : '';
 
         if (!$targetDbId) {
             return ['error' => 'Target database ID is required', 'code' => 400];
         }
 
         $records = $this->recordModel->getRelationTargetRecords((int)$targetDbId, $search);
+        if ($filterFieldId > 0 && $filterValue !== '') {
+            $records = array_values(array_filter($records, function ($record) use ($filterFieldId, $filterValue) {
+                $data = $this->recordModel->getRecordData((int)$record['id']);
+                $raw = isset($data[$filterFieldId]) ? (string)$data[$filterFieldId] : '';
+                return $raw !== '' && mb_stripos($raw, $filterValue) !== false;
+            }));
+        }
 
         return [
             'success' => true,
@@ -1731,6 +2765,8 @@ class WebDatabaseController extends Controller
             $productDbId = $this->ensureDemoDatabase('デモ_商品マスタ', '商品・サービス管理サンプル', $effectiveCreatorId, 'box', '#16a34a');
             $dealDbId = $this->ensureDemoDatabase('デモ_案件管理', '案件進捗と予実を管理するサンプル', $effectiveCreatorId, 'briefcase', '#f59e0b');
             $activityDbId = $this->ensureDemoDatabase('デモ_活動履歴', '案件に紐づく活動記録サンプル', $effectiveCreatorId, 'clipboard-list', '#8b5cf6');
+            $salesDbId = $this->ensureDemoDatabase('デモ_売上', '売上ヘッダ + 売上明細(親子入力)サンプル', $effectiveCreatorId, 'file-invoice-dollar', '#ef4444');
+            $salesDetailDbId = $this->ensureDemoDatabase('デモ_売上明細', '売上明細の子テーブルサンプル', $effectiveCreatorId, 'table-list', '#f97316');
 
             $customerNameField = $this->ensureDemoField($customerDbId, '顧客名', 'text', 1, ['required' => 1, 'is_title_field' => 1, 'is_filterable' => 1, 'is_sortable' => 1]);
             $customerIndustryField = $this->ensureDemoField($customerDbId, '業種', 'select', 2, ['is_filterable' => 1, 'options' => [['label' => '製造業', 'value' => 'manufacturing'], ['label' => 'IT', 'value' => 'it'], ['label' => '小売', 'value' => 'retail']]]);
@@ -1758,6 +2794,22 @@ class WebDatabaseController extends Controller
             $activityTypeField = $this->ensureDemoField($activityDbId, '種別', 'select', 4, ['is_filterable' => 1, 'options' => [['label' => '商談', 'value' => 'meeting'], ['label' => '訪問', 'value' => 'visit'], ['label' => '電話', 'value' => 'call'], ['label' => 'メール', 'value' => 'mail']]]);
             $activityHoursField = $this->ensureDemoField($activityDbId, '工数', 'number', 5, ['is_sortable' => 1]);
             $activityBodyField = $this->ensureDemoField($activityDbId, '内容', 'textarea', 6, []);
+
+            $salesSlipNoField = $this->ensureDemoField($salesDbId, '伝票番号', 'text', 1, ['required' => 1, 'is_title_field' => 1, 'is_filterable' => 1, 'is_sortable' => 1]);
+            $salesDateField = $this->ensureDemoField($salesDbId, '売上日', 'date', 2, ['required' => 1, 'is_filterable' => 1, 'is_sortable' => 1]);
+            $salesCustomerField = $this->ensureDemoField($salesDbId, '顧客', 'relation', 3, ['relation_database_id' => $customerDbId, 'relation_type' => 'many_to_many', 'is_filterable' => 1]);
+            $salesOwnerField = $this->ensureDemoField($salesDbId, '担当者', 'user', 4, ['is_filterable' => 1]);
+            $salesStatusField = $this->ensureDemoField($salesDbId, 'ステータス', 'select', 5, ['is_filterable' => 1, 'options' => [['label' => '下書き', 'value' => 'draft'], ['label' => '確定', 'value' => 'confirmed']]]);
+            $salesTotalField = $this->ensureDemoField($salesDbId, '売上合計', 'currency', 6, ['is_filterable' => 1, 'is_sortable' => 1]);
+            $salesDetailField = $this->ensureDemoField($salesDbId, '売上明細', 'relation', 7, ['relation_database_id' => $salesDetailDbId, 'relation_type' => 'many_to_many', 'is_filterable' => 0]);
+            $salesNoteField = $this->ensureDemoField($salesDbId, '備考', 'textarea', 8, []);
+
+            $salesDetailTitleField = $this->ensureDemoField($salesDetailDbId, '明細名', 'text', 1, ['required' => 1, 'is_title_field' => 1, 'is_filterable' => 1]);
+            $salesDetailProductField = $this->ensureDemoField($salesDetailDbId, '商品', 'relation', 2, ['relation_database_id' => $productDbId, 'relation_type' => 'many_to_many', 'is_filterable' => 1]);
+            $salesDetailQtyField = $this->ensureDemoField($salesDetailDbId, '数量', 'number', 3, ['is_sortable' => 1]);
+            $salesDetailUnitPriceField = $this->ensureDemoField($salesDetailDbId, '単価', 'currency', 4, ['is_sortable' => 1]);
+            $salesDetailAmountField = $this->ensureDemoField($salesDetailDbId, '金額', 'currency', 5, ['is_sortable' => 1]);
+            $salesDetailMemoField = $this->ensureDemoField($salesDetailDbId, 'メモ', 'text', 6, []);
 
             $customerRecords = [];
             $customerRecords['株式会社青空製作所'] = $this->ensureDemoRecord($customerDbId, $customerNameField, '株式会社青空製作所', $effectiveCreatorId, [
@@ -1850,6 +2902,73 @@ class WebDatabaseController extends Controller
             $this->ensureRelation($activityCall, $activityDealField, $dealDbId, $dealRecords['ネクストIT_保守更新']);
             $this->ensureRelation($activityVisit, $activityDealField, $dealDbId, $dealRecords['みなと商事_点検導入']);
 
+            $salesDetailRecords = [];
+            $salesDetailRecords[] = $this->ensureDemoRecord($salesDetailDbId, $salesDetailTitleField, 'SL-202603-001-1', $effectiveCreatorId, [
+                $salesDetailQtyField => '2',
+                $salesDetailUnitPriceField => '1200000',
+                $salesDetailAmountField => '2400000',
+                $salesDetailMemoField => 'クラウド在庫管理 2ライセンス'
+            ]);
+            $this->ensureRelation($salesDetailRecords[0], $salesDetailProductField, $productDbId, $productRecords['クラウド在庫管理']);
+
+            $salesDetailRecords[] = $this->ensureDemoRecord($salesDetailDbId, $salesDetailTitleField, 'SL-202603-001-2', $effectiveCreatorId, [
+                $salesDetailQtyField => '1',
+                $salesDetailUnitPriceField => '300000',
+                $salesDetailAmountField => '300000',
+                $salesDetailMemoField => '保守サポート 1年'
+            ]);
+            $this->ensureRelation($salesDetailRecords[1], $salesDetailProductField, $productDbId, $productRecords['保守サポート']);
+
+            $salesDetailRecords[] = $this->ensureDemoRecord($salesDetailDbId, $salesDetailTitleField, 'SL-202603-002-1', $effectiveCreatorId, [
+                $salesDetailQtyField => '1',
+                $salesDetailUnitPriceField => '850000',
+                $salesDetailAmountField => '850000',
+                $salesDetailMemoField => '製造ライン点検 導入'
+            ]);
+            $this->ensureRelation($salesDetailRecords[2], $salesDetailProductField, $productDbId, $productRecords['製造ライン点検']);
+
+            $salesRecord1 = $this->ensureDemoRecord($salesDbId, $salesSlipNoField, 'SL-202603-001', $effectiveCreatorId, [
+                $salesDateField => date('Y-m-d', strtotime('-7 day')),
+                $salesOwnerField => (string)$effectiveCreatorId,
+                $salesStatusField => 'confirmed',
+                $salesTotalField => '2700000',
+                $salesNoteField => '青空製作所向け一式'
+            ]);
+            $this->ensureRelation($salesRecord1, $salesCustomerField, $customerDbId, $customerRecords['株式会社青空製作所']);
+            $this->ensureRelation($salesRecord1, $salesDetailField, $salesDetailDbId, $salesDetailRecords[0]);
+            $this->ensureRelation($salesRecord1, $salesDetailField, $salesDetailDbId, $salesDetailRecords[1]);
+
+            $salesRecord2 = $this->ensureDemoRecord($salesDbId, $salesSlipNoField, 'SL-202603-002', $effectiveCreatorId, [
+                $salesDateField => date('Y-m-d', strtotime('-3 day')),
+                $salesOwnerField => (string)$effectiveCreatorId,
+                $salesStatusField => 'draft',
+                $salesTotalField => '850000',
+                $salesNoteField => 'みなと商事 初回導入'
+            ]);
+            $this->ensureRelation($salesRecord2, $salesCustomerField, $customerDbId, $customerRecords['みなと商事']);
+            $this->ensureRelation($salesRecord2, $salesDetailField, $salesDetailDbId, $salesDetailRecords[2]);
+
+            $salesLayoutItems = [
+                ['field_id' => $salesSlipNoField, 'section' => '基本情報', 'hidden' => 0, 'required' => 1],
+                ['field_id' => $salesDateField, 'section' => '基本情報', 'hidden' => 0, 'required' => 1],
+                ['field_id' => $salesCustomerField, 'section' => '基本情報', 'hidden' => 0, 'required' => 1],
+                ['field_id' => $salesOwnerField, 'section' => '基本情報', 'hidden' => 0, 'required' => 1],
+                ['field_id' => $salesStatusField, 'section' => '基本情報', 'hidden' => 0, 'required' => 1],
+                ['field_id' => $salesTotalField, 'section' => '基本情報', 'hidden' => 0, 'required' => 1],
+                ['field_id' => $salesDetailField, 'section' => '売上明細', 'hidden' => 0, 'required' => 0, 'child_table' => 1, 'child_summary_field_id' => $salesDetailAmountField],
+                ['field_id' => $salesNoteField, 'section' => '補足', 'hidden' => 0, 'required' => 0],
+            ];
+            $this->saveFormLayoutForDatabase($salesDbId, $salesLayoutItems, $effectiveCreatorId);
+            $salesDetailLayoutItems = [
+                ['field_id' => $salesDetailTitleField, 'section' => '明細', 'hidden' => 0, 'required' => 1],
+                ['field_id' => $salesDetailProductField, 'section' => '明細', 'hidden' => 0, 'required' => 1],
+                ['field_id' => $salesDetailQtyField, 'section' => '明細', 'hidden' => 0, 'required' => 1],
+                ['field_id' => $salesDetailUnitPriceField, 'section' => '明細', 'hidden' => 0, 'required' => 1],
+                ['field_id' => $salesDetailAmountField, 'section' => '明細', 'hidden' => 0, 'required' => 1],
+                ['field_id' => $salesDetailMemoField, 'section' => '補足', 'hidden' => 0, 'required' => 0],
+            ];
+            $this->saveFormLayoutForDatabase($salesDetailDbId, $salesDetailLayoutItems, $effectiveCreatorId);
+
             $this->ensureDemoView($dealDbId, $effectiveCreatorId, '自分の案件ビュー', 'list', [
                 'search' => '',
                 'filters' => [$dealOwnerField => (string)$effectiveCreatorId],
@@ -1881,6 +3000,44 @@ class WebDatabaseController extends Controller
                 'sort' => (string)$activityDateField,
                 'order' => 'desc'
             ], 1, 'global', null);
+            $this->ensureDemoView($salesDbId, $effectiveCreatorId, '売上一覧', 'list', [
+                'search' => '',
+                'filters' => [],
+                'sort' => (string)$salesDateField,
+                'order' => 'desc',
+                'view_type' => 'list',
+                'visible_fields' => [$salesDateField, $salesCustomerField, $salesOwnerField, $salesStatusField, $salesTotalField]
+            ], 1, 'global', null);
+            $this->ensureDemoView($salesDbId, $effectiveCreatorId, '売上_月次集計', 'custom', [
+                'search' => '',
+                'filters' => [],
+                'sort' => null,
+                'order' => 'desc',
+                'view_type' => 'aggregate',
+                'visible_fields' => [$salesDateField, $salesCustomerField, $salesStatusField, $salesTotalField],
+                'aggregate' => [
+                    'group_field_id' => $salesDateField,
+                    'metric' => 'sum',
+                    'metric_field_id' => $salesTotalField,
+                    'date_grain' => 'month',
+                    'chart_type' => 'bar'
+                ]
+            ], 0, 'global', null);
+            $this->ensureDemoView($salesDbId, $effectiveCreatorId, '売上_月次グラフ', 'custom', [
+                'search' => '',
+                'filters' => [],
+                'sort' => null,
+                'order' => 'desc',
+                'view_type' => 'chart',
+                'visible_fields' => [$salesDateField, $salesCustomerField, $salesStatusField, $salesTotalField],
+                'aggregate' => [
+                    'group_field_id' => $salesDateField,
+                    'metric' => 'sum',
+                    'metric_field_id' => $salesTotalField,
+                    'date_grain' => 'month',
+                    'chart_type' => 'bar'
+                ]
+            ], 0, 'global', null);
 
             $this->db->commit();
             return [
@@ -1889,7 +3046,9 @@ class WebDatabaseController extends Controller
                     'customers' => $customerDbId,
                     'products' => $productDbId,
                     'deals' => $dealDbId,
-                    'activities' => $activityDbId
+                    'activities' => $activityDbId,
+                    'sales' => $salesDbId,
+                    'sales_details' => $salesDetailDbId
                 ]
             ];
         } catch (\Throwable $e) {
