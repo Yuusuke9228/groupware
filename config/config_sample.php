@@ -3,7 +3,7 @@
 return [
     'app' => [
         'name' => 'GroupWare Sample',
-        'version' => '1.2.0',
+        'version' => '0.9.0-beta.1',
         'timezone' => 'Asia/Tokyo',
         'debug' => true,
         'url' => 'http://localhost/groupware'
@@ -24,4 +24,3 @@ return [
 if (!defined('BASE_PATH')) {
     define('BASE_PATH', '');
 }
-

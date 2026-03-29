@@ -6,6 +6,34 @@
 
 ---
 
+## [0.9.0-beta.1] - 2026-03-30
+
+### Added / 追加
+
+- GitHub公開向けメタデータ管理ドキュメントを追加
+  - `docs/github-metadata.md`
+- 初回ベータ公開用のリリースノート原稿を追加
+  - `docs/releases/v0.9.0-beta.1.md`
+- READMEで利用するスクリーンショット資産を追加
+  - `docs/screenshots/*.png`
+
+### Changed / 変更
+
+- 公開リリースチャネルを `v0.9.0-beta.1` として明記
+- README のスクリーンショット案内とロードマップ表現を整理
+- バージョン表記を `0.9.0-beta.1` に更新
+  - `config/config.php`
+  - `config/config_sample.php`
+  - `config/config.production.php`
+  - `README.md` の設定例
+
+### Notes / 補足
+
+- 本タグは「初回公開ベータ」の位置づけです。
+- 既存機能の事実を維持し、今後の多言語展開・海外OSS展開は roadmap として分離表記しています。
+
+---
+
 ## [1.2.0] - 2026-03-29
 
 ### Added / 追加

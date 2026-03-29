@@ -26,6 +26,10 @@
 - 管理者マニュアル: `/help/admin-manual`
 - インストールマニュアル: `/help/install-manual`
 
+### Release Channel / リリースチャネル
+- Current public beta: `v0.9.0-beta.1`
+- Live Demo: https://groupware.yuus-program.com/
+
 ### エンタープライズ認証（新規）
 - OIDC / SAML 2.0 ログイン: `設定 > 認証・PWA・SCIM`
 - SCIM 2.0 ベースURL: `https://<host>/api/scim/v2`
@@ -35,8 +39,6 @@
 ---
 
 ## Screenshots / スクリーンショット
-
-> 準備中 - スクリーンショットは近日追加予定です
 
 | ダッシュボード | スケジュール（月表示） | タスクボード |
 |---|---|---|
@@ -239,7 +241,7 @@ return [
 return [
     'app' => [
         'name'     => 'GroupWare',
-        'version'  => '1.2.0',
+        'version'  => '0.9.0-beta.1',
         'timezone' => 'Asia/Tokyo',
         'debug'    => false,        // 本番環境では false に設定
         'url'      => 'https://your-domain.com'
@@ -459,6 +461,15 @@ vendor/bin/phpunit
 ## License / ライセンス
 
 このプロジェクトは [GNU General Public License v3.0](LICENSE) のもとで公開されています。
+
+---
+
+## Roadmap (Planned) / 今後の予定
+
+- 多言語対応（UI / Help / Docs）の段階的強化
+- セルフホスト導入体験の改善
+- Issue / Discussion / PR を中心としたコミュニティ運用
+- 将来的な導入支援・マネージド提供の選択肢整備
 
 ---
 
