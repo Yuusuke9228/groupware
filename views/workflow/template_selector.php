@@ -62,7 +62,9 @@ $pageTitle = '申請テンプレート選択';
             $params = ['page' => max(1, $targetPage)];
             if (is_scalar($search)) {
                 $searchText = trim((string)$search);
-                if ($searchText !== '') {
+                $decodedSearch = html_entity_decode($searchText, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+                $isSuspicious = preg_match('/(?:<|>|script|javascript:|pagespeed|data-pagespeed|onload=|onerror=)/iu', $decodedSearch);
+                if ($searchText !== '' && !$isSuspicious) {
                     $params['search'] = $searchText;
                 }
             }

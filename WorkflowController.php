@@ -45,6 +45,65 @@ class WorkflowController extends Controller
 
         return $normalized;
     }
+
+    private function sanitizeSearchTerm($value, $maxLength = 100)
+    {
+        if (!is_scalar($value)) {
+            return null;
+        }
+
+        $search = trim((string)$value);
+        if ($search === '') {
+            return null;
+        }
+
+        $decoded = html_entity_decode($search, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        if (preg_match('/(?:<|>|script|javascript:|pagespeed|data-pagespeed|onload=|onerror=)/iu', $decoded)) {
+            return null;
+        }
+
+        $search = preg_replace('/[\x00-\x1F\x7F]/u', '', $search);
+        if ($search === null) {
+            return null;
+        }
+
+        $search = trim($search);
+        if ($search === '') {
+            return null;
+        }
+
+        if (mb_strlen($search) > $maxLength) {
+            $search = mb_substr($search, 0, $maxLength);
+        }
+
+        return $search;
+    }
+
+    private function sanitizeTemplateId($value)
+    {
+        if (!is_scalar($value)) {
+            return null;
+        }
+
+        $templateId = trim((string)$value);
+        if ($templateId === '' || !preg_match('/^\d+$/', $templateId)) {
+            return null;
+        }
+
+        return (int)$templateId;
+    }
+
+    private function sanitizeStatus($value)
+    {
+        if (!is_scalar($value)) {
+            return null;
+        }
+
+        $status = trim((string)$value);
+        $allowed = ['draft', 'pending', 'approved', 'rejected', 'cancelled'];
+
+        return in_array($status, $allowed, true) ? $status : null;
+    }
     private $notification;
 
     public function __construct()
@@ -86,7 +145,7 @@ class WorkflowController extends Controller
         $limit = 20;
 
         // 検索条件
-        $search = $_GET['search'] ?? null;
+        $search = $this->sanitizeSearchTerm($_GET['search'] ?? null);
 
         // テンプレートリストを取得
         if ($this->auth->isAdmin()) {
@@ -253,11 +312,22 @@ class WorkflowController extends Controller
     public function requests()
     {
         // フィルタリング条件
-        $filters = [
-            'status' => $_GET['status'] ?? null,
-            'template_id' => $_GET['template_id'] ?? null,
-            'search' => $_GET['search'] ?? null,
-        ];
+        $filters = [];
+
+        $status = $this->sanitizeStatus($_GET['status'] ?? null);
+        if ($status !== null) {
+            $filters['status'] = $status;
+        }
+
+        $templateId = $this->sanitizeTemplateId($_GET['template_id'] ?? null);
+        if ($templateId !== null) {
+            $filters['template_id'] = $templateId;
+        }
+
+        $search = $this->sanitizeSearchTerm($_GET['search'] ?? null);
+        if ($search !== null) {
+            $filters['search'] = $search;
+        }
 
         // 権限に基づいてフィルタリング
         $userId = $this->auth->id();
@@ -266,6 +336,11 @@ class WorkflowController extends Controller
         // 管理者以外は自分の申請のみ表示
         if (!$isAdmin) {
             $filters['requester_id'] = $userId;
+        } else {
+            $requesterId = $this->sanitizeTemplateId($_GET['requester_id'] ?? null);
+            if ($requesterId !== null) {
+                $filters['requester_id'] = $requesterId;
+            }
         }
 
         // ページネーション
@@ -306,7 +381,7 @@ class WorkflowController extends Controller
         $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
         $page = max(1, $page);
         $limit = 20;
-        $search = $_GET['search'] ?? null;
+        $search = $this->sanitizeSearchTerm($_GET['search'] ?? null);
 
         if ($this->auth->isAdmin()) {
             $templates = $this->model->getAllTemplates($page, $limit, $search);
@@ -337,10 +412,18 @@ class WorkflowController extends Controller
         // フィルタリング条件
         $filters = [
             'pending_approval' => true,
-            'user_id' => $userId,
-            'template_id' => $_GET['template_id'] ?? null,
-            'search' => $_GET['search'] ?? null,
+            'user_id' => $userId
         ];
+
+        $templateId = $this->sanitizeTemplateId($_GET['template_id'] ?? null);
+        if ($templateId !== null) {
+            $filters['template_id'] = $templateId;
+        }
+
+        $search = $this->sanitizeSearchTerm($_GET['search'] ?? null);
+        if ($search !== null) {
+            $filters['search'] = $search;
+        }
 
         // ページネーション
         $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;

@@ -149,16 +149,15 @@ const Workflow = {
 
     // 申請一覧の初期化
     initRequests: function () {
+        // ページネーションは最優先で描画（一覧テーブル初期化失敗時でも表示を維持）
+        this.renderWorkflowPagination(
+            'requests-pagination',
+            '/workflow/requests',
+            this.buildSafeRequestsPaginationParams.bind(this)
+        );
+
         // データテーブルの初期化
-        $('#requests-table').DataTable({
-            responsive: true,
-            language: {
-                url: BASE_PATH + '/js/vendor/dataTables.japanese.json'
-            },
-            columnDefs: [
-                { orderable: false, targets: -1 } // 最後の列（操作）はソート不可
-            ]
-        });
+        this.initDataTableSafely('#requests-table');
 
         // フィルタフォームのイベントハンドラ
         $('#filter-form').on('submit', function (e) {
@@ -192,16 +191,15 @@ const Workflow = {
 
     // 承認待ち一覧の初期化
     initApprovals: function () {
+        // ページネーションは最優先で描画（一覧テーブル初期化失敗時でも表示を維持）
+        this.renderWorkflowPagination(
+            'approvals-pagination',
+            '/workflow/approvals',
+            this.buildSafeApprovalsPaginationParams.bind(this)
+        );
+
         // データテーブルの初期化
-        $('#approvals-table').DataTable({
-            responsive: true,
-            language: {
-                url: BASE_PATH + '/js/vendor/dataTables.japanese.json'
-            },
-            columnDefs: [
-                { orderable: false, targets: -1 } // 最後の列（操作）はソート不可
-            ]
-        });
+        this.initDataTableSafely('#approvals-table');
 
         // フィルタフォームのイベントハンドラ
         $('#filter-form').on('submit', function (e) {
@@ -226,6 +224,144 @@ const Workflow = {
         $('#filter-clear').on('click', function () {
             window.location.href = BASE_PATH + '/workflow/approvals';
         });
+    },
+
+    initDataTableSafely: function (tableSelector) {
+        try {
+            if (!window.jQuery) {
+                return;
+            }
+
+            const $table = $(tableSelector);
+            if ($table.length === 0) {
+                return;
+            }
+
+            if (!$.fn.DataTable) {
+                return;
+            }
+
+            if ($.fn.dataTable && $.fn.dataTable.isDataTable && $.fn.dataTable.isDataTable($table)) {
+                return;
+            }
+
+            $table.DataTable({
+                responsive: true,
+                language: {
+                    url: BASE_PATH + '/js/vendor/dataTables.japanese.json'
+                },
+                columnDefs: [
+                    { orderable: false, targets: -1 } // 最後の列（操作）はソート不可
+                ]
+            });
+        } catch (error) {
+            console.warn('DataTable init skipped:', error);
+        }
+    },
+
+    renderWorkflowPagination: function (containerId, basePath, buildParamsFn) {
+        const container = document.getElementById(containerId);
+        if (!container) {
+            return;
+        }
+
+        const currentPage = Math.max(1, parseInt(container.getAttribute('data-current-page') || '1', 10));
+        const totalPages = Math.max(1, parseInt(container.getAttribute('data-total-pages') || '1', 10));
+        if (totalPages <= 1) {
+            return;
+        }
+
+        const createLinkItem = (label, targetPage, options = {}) => {
+            const page = Math.min(Math.max(1, targetPage), totalPages);
+            const li = document.createElement('li');
+            li.className = 'page-item';
+            if (options.disabled) li.classList.add('disabled');
+            if (options.active) li.classList.add('active');
+
+            const a = document.createElement('a');
+            a.className = 'page-link';
+            a.setAttribute('data-page', String(page));
+            if (options.ariaLabel) {
+                a.setAttribute('aria-label', options.ariaLabel);
+            }
+
+            const params = buildParamsFn();
+            params.set('page', String(page));
+            a.href = BASE_PATH + basePath + '?' + params.toString();
+            a.innerHTML = label;
+
+            if (!options.disabled) {
+                a.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    window.location.href = a.href;
+                });
+            }
+
+            li.appendChild(a);
+            return li;
+        };
+
+        container.innerHTML = '';
+        container.appendChild(createLinkItem('&laquo;', currentPage - 1, {
+            ariaLabel: 'Previous',
+            disabled: currentPage <= 1
+        }));
+
+        for (let i = 1; i <= totalPages; i++) {
+            container.appendChild(createLinkItem(String(i), i, {
+                active: i === currentPage
+            }));
+        }
+
+        container.appendChild(createLinkItem('&raquo;', currentPage + 1, {
+            ariaLabel: 'Next',
+            disabled: currentPage >= totalPages
+        }));
+    },
+
+    buildSafeRequestsPaginationParams: function () {
+        const current = new URLSearchParams(window.location.search || '');
+        const next = new URLSearchParams();
+
+        const status = (current.get('status') || '').trim();
+        const allowedStatuses = ['draft', 'pending', 'approved', 'rejected', 'cancelled'];
+        if (allowedStatuses.includes(status)) {
+            next.set('status', status);
+        }
+
+        const templateId = (current.get('template_id') || '').trim();
+        if (/^\d+$/.test(templateId)) {
+            next.set('template_id', templateId);
+        }
+
+        const requesterId = (current.get('requester_id') || '').trim();
+        if (/^\d+$/.test(requesterId)) {
+            next.set('requester_id', requesterId);
+        }
+
+        const search = (current.get('search') || '').trim();
+        if (search && !/(?:<|>|script|javascript:|pagespeed|data-pagespeed|onload=|onerror=)/i.test(search)) {
+            next.set('search', search);
+        }
+
+        return next;
+    },
+
+    buildSafeApprovalsPaginationParams: function () {
+        const current = new URLSearchParams(window.location.search || '');
+        const next = new URLSearchParams();
+
+        const templateId = (current.get('template_id') || '').trim();
+        if (/^\d+$/.test(templateId)) {
+            next.set('template_id', templateId);
+        }
+
+        const search = (current.get('search') || '').trim();
+        if (search && !/(?:<|>|script|javascript:|pagespeed|data-pagespeed|onload=|onerror=)/i.test(search)) {
+            next.set('search', search);
+        }
+
+        return next;
     },
 
     // 申請フォームの初期化

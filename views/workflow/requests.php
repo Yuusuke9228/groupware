@@ -142,54 +142,46 @@ $pageTitle = '申請一覧';
 
             <!-- ページネーション -->
             <?php if (isset($totalPages) && $totalPages > 1): ?>
+                <?php
+                $currentPaginationPage = isset($paginationPage) ? (int)$paginationPage : 1;
+                if ($currentPaginationPage < 1) {
+                    $currentPaginationPage = 1;
+                }
+
+                $suffix = '';
+                if (!empty($filters['status']) && is_scalar($filters['status'])) {
+                    $suffix .= '&status=' . rawurlencode((string)$filters['status']);
+                }
+                if (!empty($filters['template_id']) && is_scalar($filters['template_id'])) {
+                    $suffix .= '&template_id=' . rawurlencode((string)$filters['template_id']);
+                }
+                if (!empty($filters['search']) && is_scalar($filters['search'])) {
+                    $suffix .= '&search=' . rawurlencode((string)$filters['search']);
+                }
+                if (!empty($filters['requester_id']) && is_scalar($filters['requester_id'])) {
+                    $suffix .= '&requester_id=' . rawurlencode((string)$filters['requester_id']);
+                }
+                ?>
                 <nav aria-label="Page navigation" class="mt-4">
-                    <ul class="pagination justify-content-center">
-                        <?php
-                        $buildPageUrl = function (int $targetPage) use ($filters) {
-                            $safeFilters = [];
-
-                            if (isset($filters['status']) && is_scalar($filters['status'])) {
-                                $status = trim((string)$filters['status']);
-                                $allowedStatuses = ['draft', 'pending', 'approved', 'rejected', 'cancelled'];
-                                if (in_array($status, $allowedStatuses, true)) {
-                                    $safeFilters['status'] = $status;
-                                }
-                            }
-
-                            if (isset($filters['template_id']) && is_scalar($filters['template_id'])) {
-                                $templateId = trim((string)$filters['template_id']);
-                                if ($templateId !== '' && preg_match('/^\d+$/', $templateId)) {
-                                    $safeFilters['template_id'] = $templateId;
-                                }
-                            }
-
-                            if (isset($filters['search']) && is_scalar($filters['search'])) {
-                                $search = trim((string)$filters['search']);
-                                if ($search !== '') {
-                                    $safeFilters['search'] = $search;
-                                }
-                            }
-
-                            $safeFilters['page'] = max(1, $targetPage);
-                            $query = http_build_query($safeFilters);
-                            return BASE_PATH . '/workflow/requests' . ($query !== '' ? ('?' . $query) : '');
-                        };
-                        ?>
-
-                        <li class="page-item <?php echo $page <= 1 ? 'disabled' : ''; ?>">
-                            <a class="page-link" href="<?php echo htmlspecialchars($buildPageUrl($page - 1), ENT_QUOTES, 'UTF-8'); ?>" aria-label="Previous">
+                    <ul
+                        id="requests-pagination"
+                        class="pagination justify-content-center"
+                        data-current-page="<?php echo $currentPaginationPage; ?>"
+                        data-total-pages="<?php echo (int)$totalPages; ?>">
+                        <?php $prevPage = max(1, $currentPaginationPage - 1); ?>
+                        <li class="page-item <?php echo $currentPaginationPage <= 1 ? 'disabled' : ''; ?>">
+                            <a class="page-link" href="<?php echo BASE_PATH . '/workflow/requests?page=' . $prevPage . $suffix; ?>" data-page="<?php echo $prevPage; ?>" aria-label="Previous">
                                 <span aria-hidden="true">&laquo;</span>
                             </a>
                         </li>
-
-                        <?php for ($i = 1; $i <= $totalPages; $i++): ?>
-                            <li class="page-item <?php echo $page == $i ? 'active' : ''; ?>">
-                                <a class="page-link" href="<?php echo htmlspecialchars($buildPageUrl($i), ENT_QUOTES, 'UTF-8'); ?>"><?php echo $i; ?></a>
+                        <?php for ($i = 1; $i <= (int)$totalPages; $i++): ?>
+                            <li class="page-item <?php echo $i === $currentPaginationPage ? 'active' : ''; ?>">
+                                <a class="page-link" href="<?php echo BASE_PATH . '/workflow/requests?page=' . $i . $suffix; ?>" data-page="<?php echo $i; ?>"><?php echo $i; ?></a>
                             </li>
                         <?php endfor; ?>
-
-                        <li class="page-item <?php echo $page >= $totalPages ? 'disabled' : ''; ?>">
-                            <a class="page-link" href="<?php echo htmlspecialchars($buildPageUrl($page + 1), ENT_QUOTES, 'UTF-8'); ?>" aria-label="Next">
+                        <?php $nextPage = min((int)$totalPages, $currentPaginationPage + 1); ?>
+                        <li class="page-item <?php echo $currentPaginationPage >= (int)$totalPages ? 'disabled' : ''; ?>">
+                            <a class="page-link" href="<?php echo BASE_PATH . '/workflow/requests?page=' . $nextPage . $suffix; ?>" data-page="<?php echo $nextPage; ?>" aria-label="Next">
                                 <span aria-hidden="true">&raquo;</span>
                             </a>
                         </li>
