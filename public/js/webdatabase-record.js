@@ -289,24 +289,49 @@ const WebDatabaseRecord = {
             return;
         }
 
-        const rowTemplate = $('#record-row-template').html();
-        records.forEach((record) => {
-            let row = rowTemplate
-                .replace(/\{\{id\}\}/g, record.id)
-                .replace(/\{\{database_id\}\}/g, databaseId)
-                .replace(/\{\{title\}\}/g, this.escapeHtml(record.title || `ID: ${record.id}`))
-                .replace(/\{\{creator_name\}\}/g, this.escapeHtml(record.creator_name || ''))
-                .replace(/\{\{created_at\}\}/g, this.escapeHtml(this.formatDateTime(record.created_at)));
+        const basePath = (typeof BASE_PATH === 'string') ? BASE_PATH : '';
+        const selectedFieldIds = Array.isArray(visibleFieldIds)
+            ? visibleFieldIds.map((id) => parseInt(id, 10)).filter((id) => id > 0)
+            : [];
 
-            let fieldValuesHtml = '';
-            visibleFieldIds.forEach((fieldId) => {
-                const value = record.field_values && Object.prototype.hasOwnProperty.call(record.field_values, fieldId)
-                    ? record.field_values[fieldId]
-                    : '';
-                fieldValuesHtml += `<td>${this.escapeHtml(value || '')}</td>`;
+        records.forEach((record) => {
+            const row = $('<tr></tr>');
+            const recordId = parseInt(record.id, 10);
+            const safeRecordId = Number.isNaN(recordId) ? 0 : recordId;
+            const title = record.title || `ID: ${safeRecordId}`;
+            const viewUrl = `${basePath}/webdatabase/view/${databaseId}/${safeRecordId}`;
+            const editUrl = `${basePath}/webdatabase/edit/${databaseId}/${safeRecordId}`;
+            const deleteUrl = `${basePath}/api/webdatabase/record/${databaseId}/${safeRecordId}`;
+
+            const titleCell = $('<td></td>');
+            titleCell.append($('<a></a>').attr('href', viewUrl).text(title));
+            row.append(titleCell);
+
+            selectedFieldIds.forEach((fieldId) => {
+                const hasFieldValue = record.field_values && Object.prototype.hasOwnProperty.call(record.field_values, fieldId);
+                const value = hasFieldValue ? record.field_values[fieldId] : '';
+                row.append($('<td></td>').text(value ?? ''));
             });
 
-            row = row.replace(/\{\{field_values\}\}/g, fieldValuesHtml);
+            row.append($('<td></td>').text(record.creator_name || ''));
+            row.append($('<td></td>').text(this.formatDateTime(record.created_at)));
+
+            const actionCell = $('<td></td>');
+            const actionGroup = $('<div></div>').addClass('btn-group').attr('role', 'group');
+            const editLink = $('<a></a>')
+                .addClass('btn btn-sm btn-outline-primary')
+                .attr('href', editUrl)
+                .html('<i class="fas fa-edit"></i> 編集');
+            const deleteButton = $('<button></button>')
+                .addClass('btn btn-sm btn-outline-danger btn-delete')
+                .attr('type', 'button')
+                .attr('data-url', deleteUrl)
+                .attr('data-confirm', 'このレコードを削除しますか？')
+                .html('<i class="fas fa-trash"></i> 削除');
+            actionGroup.append(editLink, deleteButton);
+            actionCell.append(actionGroup);
+            row.append(actionCell);
+
             container.append(row);
         });
     },

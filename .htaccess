@@ -3,7 +3,7 @@
     RewriteBase /groupware/
 
     # public内の静的ファイル（CSS, JS, 画像等）へのアクセスを許可
-    RewriteRule ^(css|js|img_icon|images|uploads|fonts)/(.*)$ public/$1/$2 [L]
+    RewriteRule ^(css|js|img_icon|images|uploads|fonts|icons)/(.*)$ public/$1/$2 [L]
 
     # すべてのリクエストをpublic/index.phpにルーティング
     # （publicディレクトリ自体は除外）
@@ -13,3 +13,11 @@
 
 # ディレクトリ一覧を無効化
 Options -Indexes
+
+# Disable PageSpeed module if available (prevents HTML/URL rewriting side effects)
+<IfModule mod_pagespeed.c>
+    ModPagespeed off
+</IfModule>
+<IfModule pagespeed_module>
+    ModPagespeed Off
+</IfModule>

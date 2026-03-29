@@ -163,7 +163,7 @@ composer test
 
 ## ライセンス
 
-コントリビュートされたコードは [MIT License](LICENSE) のもとで公開されます。
+コントリビュートされたコードは [GNU General Public License v3.0](LICENSE) のもとで公開されます。
 Pull Request を送信することで、このライセンスに同意したものとみなされます。
 
 ---

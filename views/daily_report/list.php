@@ -203,11 +203,31 @@
 
                     <!-- ページネーション -->
                     <?php if ($totalPages > 1): ?>
+                        <?php
+                        $buildPageUrl = function (int $targetPage) use ($filters) {
+                            $params = ['page' => max(1, $targetPage)];
+                            foreach ((array)$filters as $key => $value) {
+                                if ($key === 'page' || !is_string($key) || !preg_match('/^[a-zA-Z0-9_]+$/', $key)) {
+                                    continue;
+                                }
+                                if (!is_scalar($value)) {
+                                    continue;
+                                }
+                                $text = trim((string)$value);
+                                if ($text === '') {
+                                    continue;
+                                }
+                                $params[$key] = $text;
+                            }
+                            $query = http_build_query($params);
+                            return BASE_PATH . '/daily-report/list' . ($query !== '' ? ('?' . $query) : '');
+                        };
+                        ?>
                         <div class="card-footer">
                             <nav>
                                 <ul class="pagination justify-content-center mb-0">
                                     <li class="page-item <?= ($page <= 1) ? 'disabled' : '' ?>">
-                                        <a class="page-link" href="<?= BASE_PATH ?>/daily-report/list?<?= http_build_query(array_merge($filters, ['page' => $page - 1])) ?>">
+                                        <a class="page-link" href="<?= htmlspecialchars($buildPageUrl($page - 1), ENT_QUOTES, 'UTF-8') ?>">
                                             <i class="fas fa-chevron-left"></i>
                                         </a>
                                     </li>
@@ -217,7 +237,7 @@
                                     $endPage = min($totalPages, $page + 2);
 
                                     if ($startPage > 1) {
-                                        echo '<li class="page-item"><a class="page-link" href="' . BASE_PATH . '/daily-report/list?' . http_build_query(array_merge($filters, ['page' => 1])) . '">1</a></li>';
+                                        echo '<li class="page-item"><a class="page-link" href="' . htmlspecialchars($buildPageUrl(1), ENT_QUOTES, 'UTF-8') . '">1</a></li>';
                                         if ($startPage > 2) {
                                             echo '<li class="page-item disabled"><span class="page-link">...</span></li>';
                                         }
@@ -225,7 +245,7 @@
 
                                     for ($i = $startPage; $i <= $endPage; $i++) {
                                         echo '<li class="page-item ' . ($page == $i ? 'active' : '') . '">
-                                            <a class="page-link" href="' . BASE_PATH . '/daily-report/list?' . http_build_query(array_merge($filters, ['page' => $i])) . '">' . $i . '</a>
+                                            <a class="page-link" href="' . htmlspecialchars($buildPageUrl($i), ENT_QUOTES, 'UTF-8') . '">' . $i . '</a>
                                         </li>';
                                     }
 
@@ -233,12 +253,12 @@
                                         if ($endPage < $totalPages - 1) {
                                             echo '<li class="page-item disabled"><span class="page-link">...</span></li>';
                                         }
-                                        echo '<li class="page-item"><a class="page-link" href="' . BASE_PATH . '/daily-report/list?' . http_build_query(array_merge($filters, ['page' => $totalPages])) . '">' . $totalPages . '</a></li>';
+                                        echo '<li class="page-item"><a class="page-link" href="' . htmlspecialchars($buildPageUrl($totalPages), ENT_QUOTES, 'UTF-8') . '">' . $totalPages . '</a></li>';
                                     }
                                     ?>
 
                                     <li class="page-item <?= ($page >= $totalPages) ? 'disabled' : '' ?>">
-                                        <a class="page-link" href="<?= BASE_PATH ?>/daily-report/list?<?= http_build_query(array_merge($filters, ['page' => $page + 1])) ?>">
+                                        <a class="page-link" href="<?= htmlspecialchars($buildPageUrl($page + 1), ENT_QUOTES, 'UTF-8') ?>">
                                             <i class="fas fa-chevron-right"></i>
                                         </a>
                                     </li>

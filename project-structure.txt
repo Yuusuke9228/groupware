@@ -20,9 +20,12 @@ groupware/
 │   ├── MessageController.php
 │   ├── NotificationController.php
 │   ├── OrganizationController.php
+│   ├── PwaController.php
 │   ├── ScheduleController.php
+│   ├── ScimController.php
 │   ├── SearchController.php
 │   ├── SettingController.php
+│   ├── SsoController.php
 │   ├── TaskController.php
 │   ├── UserController.php
 │   ├── WebDatabaseController.php
@@ -35,13 +38,18 @@ groupware/
 │   └── Router.php
 ├── Models/                             # DBモデル
 │   ├── AutomationJob.php
+│   ├── AuthAuditLog.php
 │   ├── CalendarImportSubscription.php
 │   ├── CalendarIntegrationSetting.php
 │   ├── DailyReport.php
+│   ├── ExternalIdentity.php
 │   ├── Message.php
 │   ├── Notification.php
 │   ├── Organization.php
+│   ├── PushSubscription.php
 │   ├── Schedule.php
+│   ├── ScimAuditLog.php
+│   ├── ScimToken.php
 │   ├── Setting.php
 │   ├── Task.php
 │   ├── Team.php
@@ -55,8 +63,11 @@ groupware/
 │   ├── DateRangeHelper.php
 │   ├── FileDiffService.php
 │   ├── FilePermissionService.php
+│   ├── DemoDataService.php
 │   ├── NotificationRecipientHelper.php
-│   └── ScheduleDisplaySettings.php
+│   ├── ScheduleDisplaySettings.php
+│   ├── SsoService.php
+│   └── WebPushService.php
 ├── config/                             # 設定ファイル
 │   ├── config.php
 │   ├── config.production.php
@@ -78,6 +89,7 @@ groupware/
 │   │   └── task.css
 │   ├── img/
 │   ├── img_icon/
+│   ├── icons/
 │   ├── js/
 │   │   ├── app.js
 │   │   ├── automation.js
@@ -87,7 +99,9 @@ groupware/
 │   │   ├── message.js
 │   │   ├── notification.js
 │   │   ├── organization.js
+│   │   ├── pwa.js
 │   │   ├── schedule.js
+│   │   ├── service-worker-template.js
 │   │   ├── setting.js
 │   │   ├── task-board.js
 │   │   ├── task.js
@@ -100,7 +114,8 @@ groupware/
 │   ├── export_shiire_weekly_summary.py
 │   ├── process_automation_jobs.php
 │   ├── process_calendar_imports.php
-│   └── process_email_queue.php
+│   ├── process_email_queue.php
+│   └── rebuild_demo_data.php
 ├── tests/
 │   ├── bootstrap.php
 │   ├── Unit/
@@ -129,8 +144,10 @@ groupware/
 │   ├── schedule/
 │   ├── search/
 │   ├── setting/
+│   │   └── security.php
 │   ├── task/
 │   ├── user/
+│   ├── pwa/
 │   ├── webdatabase/
 │   └── workflow/
 ├── api/

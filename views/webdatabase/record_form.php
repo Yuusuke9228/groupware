@@ -51,6 +51,27 @@ if (empty($sections)) {
         $sections['基本情報'][] = ['field' => $field, 'layout' => $layoutByFieldId[(int)$field['id']] ?? []];
     }
 }
+$normalizeOptions = static function ($rawOptions): array {
+    $decoded = json_decode((string)$rawOptions, true);
+    if (!is_array($decoded)) {
+        return [];
+    }
+    $normalized = [];
+    foreach ($decoded as $option) {
+        if (is_array($option)) {
+            $value = (string)($option['value'] ?? ($option['label'] ?? ''));
+            $label = (string)($option['label'] ?? ($option['value'] ?? ''));
+        } else {
+            $value = (string)$option;
+            $label = (string)$option;
+        }
+        if ($value === '' && $label === '') {
+            continue;
+        }
+        $normalized[] = ['value' => $value, 'label' => $label];
+    }
+    return $normalized;
+};
 ?>
 <div class="container-fluid mt-4">
     <div class="row mb-3">
@@ -100,35 +121,32 @@ if (empty($sections)) {
                             <?php elseif ($fieldType === 'select'): ?>
                                 <select class="form-select" id="field-<?= $fieldId ?>" name="fields[<?= $fieldId ?>]" <?= !empty($field['required']) ? 'required' : '' ?>>
                                     <option value="">選択してください</option>
-                                    <?php $options = json_decode((string)$field['options'], true); if (is_array($options)) { foreach ($options as $option) {
-                                        $selected = ((string)$value === (string)$option['value']) ? 'selected' : '';
-                                        echo '<option value="' . htmlspecialchars((string)$option['value']) . '" ' . $selected . '>' . htmlspecialchars((string)$option['label']) . '</option>';
-                                    }} ?>
+                                    <?php foreach ($normalizeOptions($field['options'] ?? '') as $option): ?>
+                                        <?php $selected = ((string)$value === (string)$option['value']) ? 'selected' : ''; ?>
+                                        <option value="<?= htmlspecialchars((string)$option['value']) ?>" <?= $selected ?>><?= htmlspecialchars((string)$option['label']) ?></option>
+                                    <?php endforeach; ?>
                                 </select>
 
                             <?php elseif ($fieldType === 'radio'): ?>
-                                <?php $options = json_decode((string)$field['options'], true); if (is_array($options)) { foreach ($options as $option) {
-                                    $checked = ((string)$value === (string)$option['value']) ? 'checked' : '';
-                                    echo '<div class="form-check">';
-                                    echo '<input class="form-check-input" type="radio" name="fields[' . $fieldId . ']" id="field-' . $fieldId . '-' . htmlspecialchars((string)$option['value']) . '" value="' . htmlspecialchars((string)$option['value']) . '" ' . $checked . ' ' . (!empty($field['required']) ? 'required' : '') . '>';
-                                    echo '<label class="form-check-label" for="field-' . $fieldId . '-' . htmlspecialchars((string)$option['value']) . '">' . htmlspecialchars((string)$option['label']) . '</label>';
-                                    echo '</div>';
-                                }} ?>
+                                <?php foreach ($normalizeOptions($field['options'] ?? '') as $option): ?>
+                                    <?php $checked = ((string)$value === (string)$option['value']) ? 'checked' : ''; ?>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="fields[<?= $fieldId ?>]" id="field-<?= $fieldId ?>-<?= htmlspecialchars((string)$option['value']) ?>" value="<?= htmlspecialchars((string)$option['value']) ?>" <?= $checked ?> <?= !empty($field['required']) ? 'required' : '' ?>>
+                                        <label class="form-check-label" for="field-<?= $fieldId ?>-<?= htmlspecialchars((string)$option['value']) ?>"><?= htmlspecialchars((string)$option['label']) ?></label>
+                                    </div>
+                                <?php endforeach; ?>
 
                             <?php elseif ($fieldType === 'checkbox'): ?>
                                 <?php
                                 $currentValues = is_array($value) ? $value : explode(',', (string)$value);
-                                $options = json_decode((string)$field['options'], true);
-                                if (is_array($options)) {
-                                    foreach ($options as $option) {
-                                        $checked = in_array((string)$option['value'], array_map('strval', $currentValues), true) ? 'checked' : '';
-                                        echo '<div class="form-check">';
-                                        echo '<input class="form-check-input" type="checkbox" name="fields[' . $fieldId . '][]" id="field-' . $fieldId . '-' . htmlspecialchars((string)$option['value']) . '" value="' . htmlspecialchars((string)$option['value']) . '" ' . $checked . '>';
-                                        echo '<label class="form-check-label" for="field-' . $fieldId . '-' . htmlspecialchars((string)$option['value']) . '">' . htmlspecialchars((string)$option['label']) . '</label>';
-                                        echo '</div>';
-                                    }
-                                }
                                 ?>
+                                <?php foreach ($normalizeOptions($field['options'] ?? '') as $option): ?>
+                                    <?php $checked = in_array((string)$option['value'], array_map('strval', $currentValues), true) ? 'checked' : ''; ?>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="fields[<?= $fieldId ?>][]" id="field-<?= $fieldId ?>-<?= htmlspecialchars((string)$option['value']) ?>" value="<?= htmlspecialchars((string)$option['value']) ?>" <?= $checked ?>>
+                                        <label class="form-check-label" for="field-<?= $fieldId ?>-<?= htmlspecialchars((string)$option['value']) ?>"><?= htmlspecialchars((string)$option['label']) ?></label>
+                                    </div>
+                                <?php endforeach; ?>
 
                             <?php elseif ($fieldType === 'file'): ?>
                                 <input type="file" class="form-control" id="field-<?= $fieldId ?>" name="<?= $fieldId ?>" <?= !empty($field['required']) ? 'required' : '' ?>>

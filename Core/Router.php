@@ -204,7 +204,7 @@ class Router
                 // JSONリクエストの処理
                 $requestData = [];
 
-                if ($method === 'POST' || $method === 'PUT') {
+                if ($method === 'POST' || $method === 'PUT' || $method === 'PATCH') {
                     // まず$_POSTを確認
                     if (!empty($_POST)) {
                         $requestData = $_POST;
@@ -252,8 +252,19 @@ class Router
                 }
 
                 // JSON応答を返す
+                $statusCode = 200;
+                if (is_array($response) && isset($response['code']) && is_numeric($response['code'])) {
+                    $statusCode = (int)$response['code'];
+                    unset($response['code']);
+                }
+
+                http_response_code($statusCode);
                 $this->sendNoCacheHeaders();
-                header('Content-Type: application/json');
+                if (strpos($path, '/api/scim/') === 0) {
+                    header('Content-Type: application/scim+json; charset=utf-8');
+                } else {
+                    header('Content-Type: application/json');
+                }
                 echo json_encode($response);
                 exit;
             }

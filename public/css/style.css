@@ -938,6 +938,31 @@ body {
     -ms-overflow-style: -ms-autohiding-scrollbar;
 }
 
+.sticky-table-wrap {
+    max-height: calc(100vh - 280px);
+    overflow: auto;
+}
+
+.sticky-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    background: var(--bg-sidebar);
+}
+
+.sticky-table.sticky-first-col th:first-child,
+.sticky-table.sticky-first-col td:first-child {
+    position: sticky;
+    left: 0;
+    z-index: 2;
+    background: #fff;
+}
+
+.sticky-table.sticky-first-col thead th:first-child {
+    z-index: 4;
+    background: var(--bg-sidebar);
+}
+
 /* ========================================
    Forms
    ======================================== */
@@ -1197,6 +1222,41 @@ body {
     font-size: 11px;
     border-radius: 3px;
     margin-bottom: 2px;
+}
+
+.daily-report-month-table-wrap {
+    overflow: auto;
+}
+
+.daily-report-month-table {
+    min-width: 760px;
+    table-layout: fixed;
+}
+
+.daily-report-month-table th {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    background: #f8f9fa;
+}
+
+.daily-report-month-table .daily-report-day-cell {
+    min-height: 116px;
+    vertical-align: top;
+    padding: 8px;
+}
+
+.daily-report-month-table .daily-report-day-cell.sunday strong {
+    color: #dc3545;
+}
+
+.daily-report-month-table .daily-report-day-cell.saturday strong {
+    color: #0d6efd;
+}
+
+.daily-report-month-table .daily-report-count-badge {
+    font-size: 12px;
+    padding: 4px 8px;
 }
 
 /* ========================================
@@ -1643,6 +1703,19 @@ body {
         min-width: 480px;
     }
 
+    .sticky-table-wrap {
+        max-height: calc(100vh - 230px);
+    }
+
+    .sticky-table {
+        min-width: 680px;
+    }
+
+    .sticky-table td,
+    .sticky-table th {
+        white-space: nowrap;
+    }
+
     .card-body > .table-responsive,
     .gw-widget-body > .table-responsive {
         margin: 0;
@@ -1681,6 +1754,21 @@ body {
 
     .month-calendar .day-cell {
         min-height: 80px;
+    }
+
+    .daily-report-month-table {
+        min-width: 640px;
+    }
+
+    .daily-report-month-table .daily-report-day-cell {
+        min-height: 96px;
+        padding: 6px;
+        font-size: 13px;
+    }
+
+    .daily-report-month-table .daily-report-count-badge {
+        font-size: 11px;
+        padding: 3px 6px;
     }
 
     .gw-stats-row {

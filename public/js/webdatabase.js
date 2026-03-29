@@ -488,30 +488,56 @@ const WebDatabase = {
             return;
         }
 
-        // テンプレートを使用してレコード行を表示
-        const template = $('#record-row-template').html();
-        const displayFields = [];
-
-        // 表示するフィールドを取得
-        $('#record-list').closest('table').find('th').each(function (index) {
-            if (index > 0 && index < $('#record-list').closest('table').find('th').length - 3) {
-                displayFields.push($(this).text());
+        const basePath = (typeof BASE_PATH === 'string') ? BASE_PATH : '';
+        const visibleFieldIds = [];
+        $('#record-table-head').find('th[data-field-id]').each(function () {
+            const fieldId = parseInt($(this).attr('data-field-id'), 10);
+            if (!Number.isNaN(fieldId) && fieldId > 0) {
+                visibleFieldIds.push(fieldId);
             }
         });
 
         records.forEach(function (record) {
-            let row = template
-                .replace(/{{id}}/g, record.id)
-                .replace(/{{database_id}}/g, databaseId)
-                .replace(/{{title}}/g, record.title)
-                .replace(/{{creator_name}}/g, record.creator_name)
-                .replace(/{{created_at}}/g, WebDatabase.formatDateTime(record.created_at));
+            const row = $('<tr></tr>');
+            const recordId = parseInt(record.id, 10);
+            const safeRecordId = Number.isNaN(recordId) ? 0 : recordId;
+            const title = record.title || ('ID: ' + safeRecordId);
 
-            // フィールド値の置換
-            let fieldValuesHtml = '';
-            // ここでフィールド値を表示する処理を実装
+            const titleCell = $('<td></td>');
+            titleCell.append(
+                $('<a></a>')
+                    .attr('href', basePath + '/webdatabase/view/' + databaseId + '/' + safeRecordId)
+                    .text(title)
+            );
+            row.append(titleCell);
 
-            row = row.replace(/{{field_values}}/g, fieldValuesHtml);
+            visibleFieldIds.forEach(function (fieldId) {
+                const hasFieldValue = record.field_values && Object.prototype.hasOwnProperty.call(record.field_values, fieldId);
+                const value = hasFieldValue ? record.field_values[fieldId] : '';
+                row.append($('<td></td>').text(value || ''));
+            });
+
+            row.append($('<td></td>').text(record.creator_name || ''));
+            row.append($('<td></td>').text(WebDatabase.formatDateTime(record.created_at)));
+
+            const actionCell = $('<td></td>');
+            const actionGroup = $('<div></div>').addClass('btn-group').attr('role', 'group');
+            actionGroup.append(
+                $('<a></a>')
+                    .addClass('btn btn-sm btn-outline-primary')
+                    .attr('href', basePath + '/webdatabase/edit/' + databaseId + '/' + safeRecordId)
+                    .html('<i class="fas fa-edit"></i> 編集')
+            );
+            actionGroup.append(
+                $('<button></button>')
+                    .addClass('btn btn-sm btn-outline-danger btn-delete')
+                    .attr('type', 'button')
+                    .attr('data-url', basePath + '/api/webdatabase/record/' + databaseId + '/' + safeRecordId)
+                    .attr('data-confirm', 'このレコードを削除しますか？')
+                    .html('<i class="fas fa-trash"></i> 削除')
+            );
+            actionCell.append(actionGroup);
+            row.append(actionCell);
 
             container.append(row);
         });

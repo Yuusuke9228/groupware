@@ -10,6 +10,9 @@
 <!-- フッター -->
 <footer class="gw-footer">
     <span>&copy; 2024-<?php echo date('Y'); ?> Yuusuke9228. All rights reserved.</span>
+    <?php if (!empty($appVersion)): ?>
+        <span class="text-muted">Version <?php echo htmlspecialchars($appVersion); ?></span>
+    <?php endif; ?>
     <span class="gw-footer-links">
         <a href="<?= BASE_PATH ?>/help" target="_blank">ヘルプ</a>
         <a href="<?= BASE_PATH ?>/terms" target="_blank">利用規約</a>
@@ -48,6 +51,10 @@
 <!-- アプリケーションJSファイル -->
 <?php $appJsVersion = @filemtime(__DIR__ . '/../../public/js/app.js') ?: time(); ?>
 <script src="<?= BASE_PATH ?>/js/app.js?v=<?= $appJsVersion ?>"></script>
+<?php if (!empty($pwaEnabled)): ?>
+    <?php $pwaJsVersion = @filemtime(__DIR__ . '/../../public/js/pwa.js') ?: $appJsVersion; ?>
+    <script src="<?= BASE_PATH ?>/js/pwa.js?v=<?= $pwaJsVersion ?>"></script>
+<?php endif; ?>
 
 <!-- モジュールナビ スクロールインジケータ -->
 <script>

@@ -851,7 +851,7 @@ $pageTitle = 'ご利用ガイド';
                 <i class="fas fa-chevron-down toggle-icon"></i>
             </div>
             <div class="help-card-body">
-                <p><?php echo htmlspecialchars($appName); ?> はレスポンシブデザインを採用しており、スマートフォンやタブレットのブラウザからもご利用いただけます。専用アプリのインストールは不要です。</p>
+                <p><?php echo htmlspecialchars($appName); ?> はレスポンシブデザインに対応し、PWA（ホーム画面追加）にも対応しています。スマートフォンやタブレットでも、アプリのように快適にご利用いただけます。</p>
 
                 <h4>画面の操作方法</h4>
                 <ul>
@@ -868,8 +868,45 @@ $pageTitle = 'ご利用ガイド';
                     <li>安定したWi-Fi環境でのご利用をお勧めいたします。モバイル回線では表示に時間がかかる場合がございます。</li>
                 </ul>
 
-                <h4>ホーム画面への追加</h4>
-                <div class="help-tip"><strong><i class="fas fa-lightbulb me-1"></i>ヒント：</strong>iPhone の Safari では「共有」ボタン → 「ホーム画面に追加」、Android の Chrome では「メニュー」 → 「ホーム画面に追加」で、アプリのようにホーム画面からすぐにアクセスできるようになります。</div>
+                <h4>PWAインストール手順（iPhone / iPad）</h4>
+                <ol>
+                    <li>Safari で <?php echo htmlspecialchars($appName); ?> を開きます。</li>
+                    <li>下部（または上部）の共有ボタンをタップします。</li>
+                    <li>「ホーム画面に追加」を選択します。</li>
+                    <li>名前を確認して「追加」を押します。</li>
+                </ol>
+
+                <h4>PWAインストール手順（Android / Chrome）</h4>
+                <ol>
+                    <li>Chrome で <?php echo htmlspecialchars($appName); ?> を開きます。</li>
+                    <li>アドレスバーの「インストール」アイコン、またはメニューを開きます。</li>
+                    <li>「ホーム画面に追加」または「アプリをインストール」を選択します。</li>
+                    <li>確認ダイアログでインストールします。</li>
+                </ol>
+
+                <h4>PWAインストール手順（PCブラウザ）</h4>
+                <ol>
+                    <li>Chrome または Edge でログイン画面またはトップ画面を開きます。</li>
+                    <li>アドレスバー右側のインストールアイコンをクリックします。</li>
+                    <li>「インストール」を選択します。</li>
+                </ol>
+
+                <h4>通知を有効にする</h4>
+                <ol>
+                    <li>「設定 &gt; 認証・PWA・SCIM」で PWA Push通知が有効になっていることを確認します。</li>
+                    <li>同画面の「このブラウザで購読」を押します。</li>
+                    <li>ブラウザの通知許可ダイアログで「許可」を選択します。</li>
+                </ol>
+
+                <h4>通知が来ない場合の確認</h4>
+                <ul>
+                    <li>ブラウザ設定で通知がブロックされていないか</li>
+                    <li>OS側（iOS/Android/Windows/Mac）の通知が無効になっていないか</li>
+                    <li>「このブラウザで購読」を再実行し、必要なら「購読解除」後に再購読する</li>
+                    <li>管理者に「テストPush送信」を依頼して疎通確認する</li>
+                </ul>
+
+                <div class="help-tip"><strong><i class="fas fa-lightbulb me-1"></i>ヒント：</strong>iOSではブラウザ通知が制限される場合があります。ホーム画面追加後に通知許可を行うと安定します。</div>
             </div>
         </div>
     </div>

@@ -1,10 +1,6 @@
 <IfModule mod_rewrite.c>
     RewriteEngine On
 
-    # /groupware/public/ へのアクセスを /groupware/ にリダイレクト
-    RewriteCond %{THE_REQUEST} /public/ [NC]
-    RewriteRule ^(.*)$ /groupware/$1 [R=301,L]
-
     # ファイルやディレクトリが存在しない場合index.phpにリダイレクト
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteCond %{REQUEST_FILENAME} !-d

@@ -200,7 +200,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['install_step'])) {
                     $appConfig = "<?php\n// config/config.php\nreturn [\n"
                         . "    'app' => [\n"
                         . "        'name' => " . var_export($settings['app_name'], true) . ",\n"
-                        . "        'version' => '1.0.0',\n"
+                        . "        'version' => '1.2.0',\n"
                         . "        'timezone' => " . var_export($settings['timezone'], true) . ",\n"
                         . "        'debug' => true,\n"
                         . "        'url' => " . var_export($fullUrl, true) . "\n"

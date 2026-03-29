@@ -16,6 +16,7 @@
                     <a href="<?= BASE_PATH ?>/settings" class="list-group-item list-group-item-action">基本設定</a>
                     <a href="<?= BASE_PATH ?>/settings/smtp" class="list-group-item list-group-item-action">メール設定</a>
                     <a href="<?= BASE_PATH ?>/settings/notification" class="list-group-item list-group-item-action active">通知設定</a>
+                    <a href="<?= BASE_PATH ?>/settings/security" class="list-group-item list-group-item-action">認証・PWA・SCIM</a>
                 </div>
             </div>
         </div>

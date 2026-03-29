@@ -225,23 +225,42 @@
 
                 <!-- ページネーション -->
                 <?php if ($totalPages > 1): ?>
+                    <?php
+                    $buildPageUrl = function (int $targetPage) use ($currentCategory, $search) {
+                        $params = ['page' => max(1, $targetPage)];
+                        if (is_scalar($currentCategory)) {
+                            $category = trim((string)$currentCategory);
+                            if ($category !== '' && preg_match('/^\d+$/', $category)) {
+                                $params['category'] = $category;
+                            }
+                        }
+                        if (is_scalar($search)) {
+                            $searchText = trim((string)$search);
+                            if ($searchText !== '') {
+                                $params['search'] = $searchText;
+                            }
+                        }
+                        $query = http_build_query($params);
+                        return BASE_PATH . '/bulletin' . ($query !== '' ? ('?' . $query) : '');
+                    };
+                    ?>
                     <div class="card-footer py-2">
                         <nav>
                             <ul class="pagination pagination-sm justify-content-center mb-0">
                                 <li class="page-item <?php echo $page <= 1 ? 'disabled' : ''; ?>">
-                                    <a class="page-link" href="<?php echo BASE_PATH; ?>/bulletin?page=<?php echo $page - 1; ?><?php echo $currentCategory ? '&category=' . $currentCategory : ''; ?><?php echo $search ? '&search=' . urlencode($search) : ''; ?>">
+                                    <a class="page-link" href="<?php echo htmlspecialchars($buildPageUrl($page - 1), ENT_QUOTES, 'UTF-8'); ?>">
                                         <i class="fas fa-chevron-left"></i>
                                     </a>
                                 </li>
                                 <?php for ($i = max(1, $page - 2); $i <= min($totalPages, $page + 2); $i++): ?>
                                     <li class="page-item <?php echo $i == $page ? 'active' : ''; ?>">
-                                        <a class="page-link" href="<?php echo BASE_PATH; ?>/bulletin?page=<?php echo $i; ?><?php echo $currentCategory ? '&category=' . $currentCategory : ''; ?><?php echo $search ? '&search=' . urlencode($search) : ''; ?>">
+                                        <a class="page-link" href="<?php echo htmlspecialchars($buildPageUrl($i), ENT_QUOTES, 'UTF-8'); ?>">
                                             <?php echo $i; ?>
                                         </a>
                                     </li>
                                 <?php endfor; ?>
                                 <li class="page-item <?php echo $page >= $totalPages ? 'disabled' : ''; ?>">
-                                    <a class="page-link" href="<?php echo BASE_PATH; ?>/bulletin?page=<?php echo $page + 1; ?><?php echo $currentCategory ? '&category=' . $currentCategory : ''; ?><?php echo $search ? '&search=' . urlencode($search) : ''; ?>">
+                                    <a class="page-link" href="<?php echo htmlspecialchars($buildPageUrl($page + 1), ENT_QUOTES, 'UTF-8'); ?>">
                                         <i class="fas fa-chevron-right"></i>
                                     </a>
                                 </li>

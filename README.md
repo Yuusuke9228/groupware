@@ -1,5 +1,5 @@
 <p align="center">
-  <h1 align="center">GroupWare</h1>
+  <h1 align="center">TeamSpace</h1>
   <p align="center">
     <strong>オープンソースのPHP製グループウェア</strong><br>
     A modern, open-source groupware system built with PHP
@@ -7,8 +7,8 @@
 </p>
 
 <p align="center">
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT"></a>
-  <img src="https://img.shields.io/badge/PHP-7.4%2B-8892BF.svg" alt="PHP 7.4+">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-GPLv3-blue.svg" alt="License: GPL-3.0"></a>
+  <img src="https://img.shields.io/badge/PHP-8.1%2B-8892BF.svg" alt="PHP 8.1+">
   <img src="https://img.shields.io/badge/MySQL-5.7%2B-4479A1.svg" alt="MySQL 5.7+">
   <img src="https://img.shields.io/badge/lang-日本語-red.svg" alt="Language: Japanese">
 </p>
@@ -17,7 +17,7 @@
 
 ## Overview / 概要
 
-**GroupWare** は、組織内の業務効率化を目的としたオールインワンのグループウェアシステムです。スケジュール管理、メッセージ、ワークフロー（稟議・申請）、タスク管理、掲示板、日報、ファイル管理、WEBデータベースなど、日常業務に必要な機能を網羅しています。
+**TeamSpace** は、組織内の業務効率化を目的としたオールインワンのグループウェアシステムです。スケジュール管理、メッセージ、ワークフロー（稟議・申請）、タスク管理、掲示板、日報、ファイル管理、WEBデータベースなど、日常業務に必要な機能を網羅しています。
 
 外部サービスへの依存がなく、自社サーバーやVPS上にセルフホストできるため、データの完全な管理が可能です。
 
@@ -25,6 +25,12 @@
 - 利用者向けヘルプ: `/help`
 - 管理者マニュアル: `/help/admin-manual`
 - インストールマニュアル: `/help/install-manual`
+
+### エンタープライズ認証（新規）
+- OIDC / SAML 2.0 ログイン: `設定 > 認証・PWA・SCIM`
+- SCIM 2.0 ベースURL: `https://<host>/api/scim/v2`
+- SAML SP Metadata: `https://<host>/auth/saml/metadata`
+- SSO誤設定時の非常口ログイン: `https://<host>/login/local-admin`
 
 ---
 
@@ -115,6 +121,13 @@
 - メール通知（SMTP / sendmail / PHP mail()）
 - 通知設定のカスタマイズ
 - メール送信キュー処理
+- PWA Push 通知（購読 / 解除 / テスト送信）
+
+### 📱 PWA（Progressive Web App）
+- ホーム画面追加・インストール対応（iOS/Android/PC）
+- `manifest.json` / `service-worker.js` によるアプリ体験
+- オフライン時のフォールバック画面
+- ブラウザ通知基盤（Web Push）連携
 
 ### 🔍 全文検索
 - 横断的な全文検索機能
@@ -124,12 +137,17 @@
 - iCal 形式でのカレンダー公開
 - 外部カレンダー購読・同期
 - CSV エクスポート
+- SSO 連携（OIDC / SAML 2.0）
+- SCIM 2.0 によるユーザープロビジョニング
 
 ### ⚙️ 管理機能
 - ユーザー管理（作成・編集・パスワード変更）
 - 組織管理（階層構造対応）
 - CSV一括インポート（ユーザー・組織・アドレス帳）
 - システム設定（メール設定・通知設定）
+- 認証・PWA・SCIM 設定
+- 非常用ローカル管理者ログイン導線（SSO誤設定時の復旧）
+- デモデータ管理（本日から3年分の補充 / 全再構築）
 
 ### 📱 レスポンシブ対応
 - モバイルフレンドリーなUI
@@ -140,7 +158,7 @@
 
 | 項目 | 要件 |
 |------|------|
-| PHP | 7.4 以上 |
+| PHP | 8.1 以上 |
 | MySQL | 5.7 以上 |
 | Webサーバー | Apache（mod_rewrite 有効）または Nginx |
 | Composer | 2.x |
@@ -221,7 +239,7 @@ return [
 return [
     'app' => [
         'name'     => 'GroupWare',
-        'version'  => '1.0.0',
+        'version'  => '1.2.0',
         'timezone' => 'Asia/Tokyo',
         'debug'    => false,        // 本番環境では false に設定
         'url'      => 'https://your-domain.com'
@@ -305,6 +323,18 @@ chmod 775 uploads exports public/uploads
 ```bash
 # crontab -e
 * * * * * php /path/to/groupware/scripts/process_email_queue.php
+# デモサイト自動復旧（毎月1日 03:30）
+30 3 1 * * php /path/to/groupware/scripts/rebuild_demo_data.php --mode=rebuild --years=3
+```
+
+### デモデータの手動実行
+
+```bash
+# 本日から3年分のデモデータを補充
+php scripts/rebuild_demo_data.php --mode=refresh --years=3
+
+# 全データをデモ用に再構築（破壊的）
+php scripts/rebuild_demo_data.php --mode=rebuild --years=3
 ```
 
 ### 方法2: Webインストーラー
@@ -428,7 +458,7 @@ vendor/bin/phpunit
 
 ## License / ライセンス
 
-このプロジェクトは [MIT License](LICENSE) のもとで公開されています。
+このプロジェクトは [GNU General Public License v3.0](LICENSE) のもとで公開されています。
 
 ---
 

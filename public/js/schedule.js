@@ -12,6 +12,123 @@ const Schedule = {
     // 現在表示中のユーザーID
     currentUserId: null,
 
+    getAppHelper: function () {
+        if (typeof App !== 'undefined' && App) {
+            return App;
+        }
+        if (typeof window !== 'undefined' && window.App) {
+            return window.App;
+        }
+        return null;
+    },
+
+    notify: function (message, type) {
+        const app = this.getAppHelper();
+        if (app && typeof app.showNotification === 'function') {
+            app.showNotification(message, type || 'info');
+            return;
+        }
+
+        if (type === 'error') {
+            console.error(message);
+            return;
+        }
+
+        console.log(message);
+    },
+
+    buildApiUrl: function (endpoint, params = {}) {
+        const app = this.getAppHelper();
+        if (app && typeof app.buildApiUrl === 'function') {
+            return app.buildApiUrl(endpoint, params);
+        }
+
+        let basePath = '';
+        if (typeof BASE_PATH !== 'undefined' && BASE_PATH) {
+            basePath = BASE_PATH;
+        }
+
+        let rawUrl = endpoint;
+        if (!/^https?:\/\//i.test(rawUrl)) {
+            if (rawUrl.charAt(0) === '/') {
+                rawUrl = basePath + rawUrl;
+            } else {
+                rawUrl = basePath + '/' + rawUrl;
+            }
+        }
+
+        const urlObj = new URL(rawUrl, window.location.origin);
+        Object.keys(params || {}).forEach((key) => {
+            const value = params[key];
+            if (value === null || typeof value === 'undefined' || value === '') {
+                return;
+            }
+            urlObj.searchParams.set(key, value);
+        });
+        urlObj.searchParams.set('_ts', Date.now().toString());
+
+        if (/^https?:\/\//i.test(rawUrl)) {
+            return urlObj.toString();
+        }
+
+        return urlObj.pathname + urlObj.search + urlObj.hash;
+    },
+
+    requestJson: function (endpoint, method, payload, params = {}) {
+        const app = this.getAppHelper();
+        if (app) {
+            if (method === 'GET' && typeof app.apiGet === 'function') {
+                return app.apiGet(endpoint, params);
+            }
+            if (method === 'POST' && typeof app.apiPost === 'function') {
+                return app.apiPost(endpoint, payload || {});
+            }
+            if (method === 'DELETE' && typeof app.apiDelete === 'function') {
+                return app.apiDelete(endpoint);
+            }
+        }
+
+        const requestUrl = this.buildApiUrl(endpoint, method === 'GET' ? params : {});
+        const headers = {
+            'X-Requested-With': 'XMLHttpRequest',
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0'
+        };
+        const options = {
+            method: method,
+            credentials: 'same-origin',
+            headers: headers
+        };
+
+        if (method !== 'GET' && method !== 'HEAD') {
+            options.headers['Content-Type'] = 'application/json';
+            if (typeof payload !== 'undefined' && payload !== null) {
+                options.body = JSON.stringify(payload);
+            }
+        }
+
+        return fetch(requestUrl, options)
+            .then((response) => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            });
+    },
+
+    apiGet: function (endpoint, params = {}) {
+        return this.requestJson(endpoint, 'GET', null, params);
+    },
+
+    apiPost: function (endpoint, payload = {}) {
+        return this.requestJson(endpoint, 'POST', payload);
+    },
+
+    apiDelete: function (endpoint) {
+        return this.requestJson(endpoint, 'DELETE');
+    },
+
     formatDayTitle: function (date) {
         const dayOfWeek = ['日', '月', '火', '水', '木', '金', '土'][moment(date).day()];
         return `${moment(date).format('YYYY年M月D日')} (${dayOfWeek})`;
@@ -677,7 +794,7 @@ const Schedule = {
             </div>
         `);
 
-        App.apiGet('/api/schedule/organization-day', { date: date, organization_id: organizationId })
+        Schedule.apiGet('/api/schedule/organization-day', { date: date, organization_id: organizationId })
             .then(response => {
                 if (response.success) {
                     this.renderOrganizationDaySchedules(response.data.schedules, response.data.users, date);
@@ -753,7 +870,7 @@ const Schedule = {
             </div>
         `);
 
-        App.apiGet('/api/schedule/organization-month', { year: year, month: month, organization_id: organizationId })
+        Schedule.apiGet('/api/schedule/organization-month', { year: year, month: month, organization_id: organizationId })
             .then(response => {
                 if (response.success) {
                     const data = response.data;
@@ -867,7 +984,7 @@ const Schedule = {
             </div>
         `);
 
-        App.apiGet('/api/schedule/organization-week', { date: date, organization_id: organizationId })
+        Schedule.apiGet('/api/schedule/organization-week', { date: date, organization_id: organizationId })
             .then(response => {
                 console.log("Organization week schedules response:", response);
                 console.log("Data: ",date + ' ' + organizationId);
@@ -880,7 +997,7 @@ const Schedule = {
                             ${response.error || 'スケジュールの読み込みに失敗しました'}
                         </div>
                     `);
-                    App.showNotification('スケジュールの読み込みに失敗しました', 'error');
+                    Schedule.notify('スケジュールの読み込みに失敗しました', 'error');
                 }
             })
             .catch(error => {
@@ -890,7 +1007,7 @@ const Schedule = {
                         サーバーとの通信に失敗しました。ネットワーク接続を確認してください。
                     </div>
                 `);
-                App.showNotification('スケジュールの読み込みに失敗しました', 'error');
+                Schedule.notify('スケジュールの読み込みに失敗しました', 'error');
             });
         return false;
     },
@@ -1152,13 +1269,13 @@ const Schedule = {
                 success: function (response) {
                     console.log("Form submission response:", response);
                     if (response.success) {
-                        App.showNotification(response.message || 'スケジュールを保存しました', 'success');
+                        Schedule.notify(response.message || 'スケジュールを保存しました', 'success');
                         $('#schedule-modal').modal('hide');
 
                         // カレンダー再読み込み
                         Schedule.reloadCurrentView();
                     } else {
-                        App.showNotification(response.error || 'エラーが発生しました', 'error');
+                        Schedule.notify(response.error || 'エラーが発生しました', 'error');
 
                         // バリデーションエラー表示
                         if (response.validation) {
@@ -1173,7 +1290,7 @@ const Schedule = {
                 },
                 error: function (xhr, status, error) {
                     console.error("Form submission error:", xhr, status, error);
-                    App.showNotification('エラーが発生しました', 'error');
+                    Schedule.notify('エラーが発生しました', 'error');
                 },
                 complete: function () {
                     $('#schedule-form button[type="submit"]').prop('disabled', false);
@@ -1192,20 +1309,20 @@ const Schedule = {
 
             if (confirm('このスケジュールを削除しますか？')) {
                 console.log("Deleting schedule:", scheduleId);
-                App.apiDelete('/schedule/' + scheduleId)
+                Schedule.apiDelete('/schedule/' + scheduleId)
                     .then(response => {
                         console.log("Delete response:", response);
                         if (response.success) {
-                            App.showNotification(response.message || 'スケジュールを削除しました', 'success');
+                            Schedule.notify(response.message || 'スケジュールを削除しました', 'success');
                             $('#schedule-modal').modal('hide');
                             Schedule.reloadCurrentView();
                         } else {
-                            App.showNotification(response.error || 'エラーが発生しました', 'error');
+                            Schedule.notify(response.error || 'エラーが発生しました', 'error');
                         }
                     })
                     .catch(error => {
                         console.error("Delete error:", error);
-                        App.showNotification('エラーが発生しました', 'error');
+                        Schedule.notify('エラーが発生しました', 'error');
                     });
             }
         });
@@ -1312,7 +1429,7 @@ const Schedule = {
         console.log("Showing view modal for schedule:", scheduleId);
 
         // スケジュールデータを取得
-        App.apiGet('/schedule/' + scheduleId)
+        Schedule.apiGet('/schedule/' + scheduleId)
             .then(response => {
                 console.log("Schedule data:", response);
                 if (response.success) {
@@ -1396,12 +1513,12 @@ const Schedule = {
                     // モーダル表示
                     $('#schedule-modal').modal('show');
                 } else {
-                    App.showNotification('スケジュールの読み込みに失敗しました', 'error');
+                    Schedule.notify('スケジュールの読み込みに失敗しました', 'error');
                 }
             })
             .catch(error => {
                 console.error("Error loading schedule:", error);
-                App.showNotification('スケジュールの読み込みに失敗しました', 'error');
+                Schedule.notify('スケジュールの読み込みに失敗しました', 'error');
             });
     },
 
@@ -1775,7 +1892,7 @@ const Schedule = {
                 // 指定期間のスケジュールを取得
                 const userId = $('#user-id').val();
 
-                App.apiGet('/schedule/range', {
+                Schedule.apiGet('/schedule/range', {
                     start_date: moment(info.start).format('YYYY-MM-DD'),
                     end_date: moment(info.end).format('YYYY-MM-DD'),
                     user_id: userId
@@ -1911,19 +2028,19 @@ const Schedule = {
     // 日単位スケジュールの読み込み
     loadDaySchedules: function (date, userId) {
         console.log("Loading day schedules for date:", date, "user:", userId);
-        App.apiGet('/api/schedule/day', { date: date, user_id: userId })
+        Schedule.apiGet('/api/schedule/day', { date: date, user_id: userId })
             .then(response => {
                 console.log("Day schedules response:", response);
                 if (response.success) {
                     const schedules = response.data;
                     this.renderDaySchedules(schedules, date);
                 } else {
-                    App.showNotification('スケジュールの読み込みに失敗しました', 'error');
+                    Schedule.notify('スケジュールの読み込みに失敗しました', 'error');
                 }
             })
             .catch(error => {
                 console.error("Error loading day schedules:", error);
-                App.showNotification('スケジュールの読み込みに失敗しました', 'error');
+                Schedule.notify('スケジュールの読み込みに失敗しました', 'error');
             });
     },
 
@@ -2159,19 +2276,19 @@ const Schedule = {
     // 週単位スケジュールの読み込み
     loadWeekSchedules: function (date, userId) {
         console.log("Loading week schedules for date:", date, "user:", userId);
-        App.apiGet('/api/schedule/week', { date: date, user_id: userId })
+        Schedule.apiGet('/api/schedule/week', { date: date, user_id: userId })
             .then(response => {
                 console.log("Week schedules response:", response);
                 if (response.success) {
                     const data = response.data;
                     this.renderWeekSchedules(data.schedules, data.week_dates);
                 } else {
-                    App.showNotification('スケジュールの読み込みに失敗しました', 'error');
+                    Schedule.notify('スケジュールの読み込みに失敗しました', 'error');
                 }
             })
             .catch(error => {
                 console.error("Error loading week schedules:", error);
-                App.showNotification('スケジュールの読み込みに失敗しました', 'error');
+                Schedule.notify('スケジュールの読み込みに失敗しました', 'error');
             });
     },
 
@@ -2563,19 +2680,19 @@ const Schedule = {
     // 月単位スケジュールの読み込み
     loadMonthSchedules: function (year, month, userId) {
         console.log("Loading month schedules for year:", year, "month:", month, "user:", userId);
-        App.apiGet('/api/schedule/month', { year: year, month: month, user_id: userId })
+        Schedule.apiGet('/api/schedule/month', { year: year, month: month, user_id: userId })
             .then(response => {
                 console.log("Month schedules response:", response);
                 if (response.success) {
                     const data = response.data;
                     this.renderMonthSchedules(data.schedules, year, month, data.days_in_month, data.first_day_of_week);
                 } else {
-                    App.showNotification('スケジュールの読み込みに失敗しました', 'error');
+                    Schedule.notify('スケジュールの読み込みに失敗しました', 'error');
                 }
             })
             .catch(error => {
                 console.error("Error loading month schedules:", error);
-                App.showNotification('スケジュールの読み込みに失敗しました', 'error');
+                Schedule.notify('スケジュールの読み込みに失敗しました', 'error');
             });
     },
 
@@ -2827,19 +2944,19 @@ const Schedule = {
 
     // 参加ステータスを更新
     updateParticipationStatus: function (scheduleId, status) {
-        App.apiPost('/api/schedule/' + scheduleId + '/participation-status', { status: status })
+        Schedule.apiPost('/api/schedule/' + scheduleId + '/participation-status', { status: status })
             .then(response => {
                 if (response.success) {
-                    App.showNotification(response.message || '参加ステータスを更新しました', 'success');
+                    Schedule.notify(response.message || '参加ステータスを更新しました', 'success');
 
                     // ステータス表示を更新
                     this.updateParticipationStatusDisplay(status);
                 } else {
-                    App.showNotification(response.error || 'エラーが発生しました', 'error');
+                    Schedule.notify(response.error || 'エラーが発生しました', 'error');
                 }
             })
             .catch(error => {
-                App.showNotification('エラーが発生しました', 'error');
+                Schedule.notify('エラーが発生しました', 'error');
                 console.error(error);
             });
     },

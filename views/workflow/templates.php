@@ -94,13 +94,27 @@ $pageTitle = 'ワークフローテンプレート';
         </div>
         <div class="card-footer">
             <?php if (isset($totalPages) && $totalPages > 1): ?>
+                <?php
+                $buildPageUrl = function (int $targetPage) use ($search) {
+                    $params = ['page' => max(1, $targetPage)];
+                    if (is_scalar($search)) {
+                        $searchText = trim((string)$search);
+                        if ($searchText !== '') {
+                            $params['search'] = $searchText;
+                        }
+                    }
+
+                    $query = http_build_query($params);
+                    return BASE_PATH . '/workflow/templates' . ($query !== '' ? ('?' . $query) : '');
+                };
+                ?>
                 <nav aria-label="ページネーション">
                     <ul class="pagination justify-content-center mb-0">
                         <?php
                         // 前のページリンク
                         if ($page > 1): ?>
                             <li class="page-item">
-                                <a class="page-link" href="<?php echo BASE_PATH; ?>/workflow/templates?page=<?php echo ($page - 1); ?><?php echo isset($_GET['search']) ? '&search=' . htmlspecialchars($_GET['search']) : ''; ?>">前へ</a>
+                                <a class="page-link" href="<?php echo htmlspecialchars($buildPageUrl($page - 1), ENT_QUOTES, 'UTF-8'); ?>">前へ</a>
                             </li>
                         <?php else: ?>
                             <li class="page-item disabled"><span class="page-link">前へ</span></li>
@@ -115,7 +129,7 @@ $pageTitle = 'ワークフローテンプレート';
 
                         for ($i = $startPage; $i <= $endPage; $i++): ?>
                             <li class="page-item <?php echo $i == $page ? 'active' : ''; ?>">
-                                <a class="page-link" href="<?php echo BASE_PATH; ?>/workflow/templates?page=<?php echo $i; ?><?php echo isset($_GET['search']) ? '&search=' . htmlspecialchars($_GET['search']) : ''; ?>">
+                                <a class="page-link" href="<?php echo htmlspecialchars($buildPageUrl($i), ENT_QUOTES, 'UTF-8'); ?>">
                                     <?php echo $i; ?>
                                 </a>
                             </li>
@@ -124,7 +138,7 @@ $pageTitle = 'ワークフローテンプレート';
                         // 次のページリンク
                         if ($page < $totalPages): ?>
                             <li class="page-item">
-                                <a class="page-link" href="<?php echo BASE_PATH; ?>/workflow/templates?page=<?php echo ($page + 1); ?><?php echo isset($_GET['search']) ? '&search=' . htmlspecialchars($_GET['search']) : ''; ?>">次へ</a>
+                                <a class="page-link" href="<?php echo htmlspecialchars($buildPageUrl($page + 1), ENT_QUOTES, 'UTF-8'); ?>">次へ</a>
                             </li>
                         <?php else: ?>
                             <li class="page-item disabled"><span class="page-link">次へ</span></li>

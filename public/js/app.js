@@ -35,6 +35,9 @@ const App = {
 
         // Select2の初期化（複数選択セレクトボックスをリッチUIに変換）
         this.initSelect2();
+
+        // 異常なページネーションURL（PageSpeed混入等）を補正
+        this.sanitizePaginationLinks();
     },
 
     initAjaxDefaults: function () {
@@ -751,8 +754,63 @@ const App = {
         if (text.length <= length) return text;
 
         return text.substring(0, length) + '...';
+    },
+
+    sanitizePaginationLinks: function () {
+        const paginations = document.querySelectorAll('.pagination');
+        if (!paginations.length) {
+            return;
+        }
+
+        paginations.forEach((pagination) => {
+            const activePageEl = pagination.querySelector('.page-item.active .page-link');
+            const activeText = activePageEl ? (activePageEl.textContent || '').trim() : '';
+            const currentPageFromActive = parseInt(activeText, 10);
+            const currentPageFromUrl = parseInt(new URL(window.location.href).searchParams.get('page') || '1', 10);
+            const currentPage = Number.isInteger(currentPageFromActive) ? currentPageFromActive : (Number.isInteger(currentPageFromUrl) ? currentPageFromUrl : 1);
+
+            pagination.querySelectorAll('a.page-link').forEach((link) => {
+                const href = (link.getAttribute('href') || '').trim();
+                if (!href) {
+                    return;
+                }
+
+                const suspicious = /(?:<script|&lt;script|pagespeed|javascript:)/i.test(href);
+                if (!suspicious) {
+                    return;
+                }
+
+                const label = (link.getAttribute('aria-label') || '').toLowerCase();
+                const text = (link.textContent || '').trim();
+                let targetPage = null;
+
+                if (label.includes('previous') || text === '«' || text === '‹') {
+                    targetPage = Math.max(1, currentPage - 1);
+                } else if (label.includes('next') || text === '»' || text === '›') {
+                    targetPage = currentPage + 1;
+                } else {
+                    const numeric = parseInt(text, 10);
+                    if (Number.isInteger(numeric) && numeric > 0) {
+                        targetPage = numeric;
+                    }
+                }
+
+                if (!targetPage) {
+                    link.setAttribute('href', '#');
+                    return;
+                }
+
+                const safeUrl = new URL(window.location.href);
+                safeUrl.searchParams.set('page', String(targetPage));
+                link.setAttribute('href', safeUrl.pathname + '?' + safeUrl.searchParams.toString());
+            });
+        });
     }
 };
+
+if (typeof window !== 'undefined') {
+    window.App = App;
+}
 
 // DOMが読み込まれたら初期化
 $(document).ready(function () {

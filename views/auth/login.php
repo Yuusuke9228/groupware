@@ -2,6 +2,16 @@
 // views/auth/login.php
 $settingModel = new \Models\Setting();
 $appName = $settingModel->getAppName();
+$pwaEnabled = filter_var((string)$settingModel->get('pwa_enabled', '0'), FILTER_VALIDATE_BOOLEAN);
+$pwaThemeColor = (string)$settingModel->get('pwa_theme_color', '#2b7de9');
+$ssoEnabled = filter_var((string)$settingModel->get('sso_enabled', '0'), FILTER_VALIDATE_BOOLEAN);
+$localLoginEnabled = filter_var((string)$settingModel->get('sso_local_login_enabled', '1'), FILTER_VALIDATE_BOOLEAN);
+$oidcEnabled = filter_var((string)$settingModel->get('oidc_enabled', '0'), FILTER_VALIDATE_BOOLEAN);
+$samlEnabled = filter_var((string)$settingModel->get('saml_enabled', '0'), FILTER_VALIDATE_BOOLEAN);
+$ssoProvider = (string)$settingModel->get('sso_provider', 'oidc');
+$isLocalAdminOnly = !empty($localAdminOnly);
+$showLocalLoginForm = $isLocalAdminOnly || !$ssoEnabled || $localLoginEnabled;
+$redirectParam = isset($_GET['redirect']) ? '&redirect=' . urlencode((string)$_GET['redirect']) : '';
 ?>
 <!DOCTYPE html>
 <html lang="ja">
@@ -9,7 +19,11 @@ $appName = $settingModel->getAppName();
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="theme-color" content="#2b7de9">
+    <meta name="theme-color" content="<?php echo htmlspecialchars($pwaThemeColor); ?>">
+    <?php if ($pwaEnabled): ?>
+    <link rel="manifest" href="<?php echo BASE_PATH; ?>/manifest.json">
+    <link rel="apple-touch-icon" href="<?php echo BASE_PATH; ?>/icons/pwa-192.png">
+    <?php endif; ?>
     <title>ログイン - <?php echo htmlspecialchars($appName); ?></title>
     <link rel="icon" type="image/svg+xml" href="<?php echo BASE_PATH; ?>/img_icon/favicon.svg">
 
@@ -193,12 +207,12 @@ $appName = $settingModel->getAppName();
 
 <body>
     <main class="login-card">
-        <form action="<?php echo BASE_PATH; ?>/login<?php echo isset($_GET['redirect']) ? '?redirect=' . urlencode($_GET['redirect']) : ''; ?>" method="post">
+        <form action="<?php echo $isLocalAdminOnly ? (BASE_PATH . '/login/local-admin') : (BASE_PATH . '/login' . (isset($_GET['redirect']) ? '?redirect=' . urlencode($_GET['redirect']) : '')); ?>" method="post">
             <div class="login-logo">
                 <i class="fas fa-th-large"></i>
             </div>
             <h1 class="login-title"><img src="<?php echo BASE_PATH; ?>/img_icon/favicon.svg" alt="" style="height:36px;border-radius:8px;margin-right:8px;vertical-align:middle;"><?php echo htmlspecialchars($appName); ?></h1>
-            <p class="login-subtitle">アカウントにログイン</p>
+            <p class="login-subtitle"><?php echo $isLocalAdminOnly ? '非常用ローカル管理者ログイン' : 'アカウントにログイン'; ?></p>
 
             <?php if (isset($_SESSION['login_error'])): ?>
                 <div class="alert alert-danger" role="alert">
@@ -208,23 +222,45 @@ $appName = $settingModel->getAppName();
                 </div>
             <?php endif; ?>
 
-            <div class="form-floating">
-                <input type="text" class="form-control" id="username" name="username" placeholder="ユーザー名" required autofocus>
-                <label for="username"><i class="fas fa-user me-1"></i> ユーザー名</label>
-            </div>
-            <div class="form-floating">
-                <input type="password" class="form-control" id="password" name="password" placeholder="パスワード" required>
-                <label for="password"><i class="fas fa-lock me-1"></i> パスワード</label>
-            </div>
+            <?php if ($showLocalLoginForm): ?>
+                <div class="form-floating">
+                    <input type="text" class="form-control" id="username" name="username" placeholder="ユーザー名" required autofocus>
+                    <label for="username"><i class="fas fa-user me-1"></i> ユーザー名</label>
+                </div>
+                <div class="form-floating">
+                    <input type="password" class="form-control" id="password" name="password" placeholder="パスワード" required>
+                    <label for="password"><i class="fas fa-lock me-1"></i> パスワード</label>
+                </div>
 
-            <div class="form-check text-start">
-                <input class="form-check-input" type="checkbox" value="1" id="remember" name="remember">
-                <label class="form-check-label" for="remember">ログイン状態を保持する</label>
-            </div>
+                <div class="form-check text-start">
+                    <input class="form-check-input" type="checkbox" value="1" id="remember" name="remember">
+                    <label class="form-check-label" for="remember">ログイン状態を保持する</label>
+                </div>
 
-            <button class="btn btn-login" type="submit">
-                <i class="fas fa-sign-in-alt me-1"></i> ログイン
-            </button>
+                <button class="btn btn-login" type="submit">
+                    <i class="fas fa-sign-in-alt me-1"></i> ログイン
+                </button>
+            <?php else: ?>
+                <div class="alert alert-info">
+                    ローカルログインは無効です。以下のSSOログインをご利用ください。<br>
+                    設定復旧時は <a href="<?= BASE_PATH ?>/login/local-admin">非常口ローカル管理者ログイン</a> を利用できます。
+                </div>
+            <?php endif; ?>
+
+            <?php if (!$isLocalAdminOnly && $ssoEnabled): ?>
+                <div class="mt-3 d-grid gap-2">
+                    <?php if ($oidcEnabled): ?>
+                        <a class="btn btn-outline-primary" href="<?= BASE_PATH ?>/auth/oidc/login?provider=oidc<?= $redirectParam ?>">
+                            <i class="fas fa-id-card me-1"></i> OIDCでログイン
+                        </a>
+                    <?php endif; ?>
+                    <?php if ($samlEnabled): ?>
+                        <a class="btn btn-outline-secondary" href="<?= BASE_PATH ?>/auth/saml/login<?= $redirectParam !== '' ? ('?' . ltrim($redirectParam, '&')) : '' ?>">
+                            <i class="fas fa-user-shield me-1"></i> SAMLでログイン
+                        </a>
+                    <?php endif; ?>
+                </div>
+            <?php endif; ?>
 
 
             <?php
@@ -278,6 +314,13 @@ $appName = $settingModel->getAppName();
 
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <?php if ($pwaEnabled): ?>
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('<?php echo BASE_PATH; ?>/service-worker.js', { scope: '<?php echo BASE_PATH; ?>/' }).catch(function () {});
+        }
+    </script>
+    <?php endif; ?>
 </body>
 
 </html>

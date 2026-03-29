@@ -16,6 +16,7 @@
                     <a href="<?= BASE_PATH ?>/settings" class="list-group-item list-group-item-action active">基本設定</a>
                     <a href="<?= BASE_PATH ?>/settings/smtp" class="list-group-item list-group-item-action">メール設定</a>
                     <a href="<?= BASE_PATH ?>/settings/notification" class="list-group-item list-group-item-action">通知設定</a>
+                    <a href="<?= BASE_PATH ?>/settings/security" class="list-group-item list-group-item-action">認証・PWA・SCIM</a>
                 </div>
             </div>
         </div>
@@ -92,6 +93,51 @@
                             <button type="submit" class="btn btn-primary">設定を保存</button>
                         </div>
                     </form>
+                </div>
+            </div>
+
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">デモデータ管理</h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-success d-none" id="demoDataSuccessAlert"></div>
+                    <div class="alert alert-danger d-none" id="demoDataErrorAlert"></div>
+
+                    <p class="mb-2">
+                        デモ環境を見栄えよく維持するための一括処理です。
+                    </p>
+                    <ul class="mb-3">
+                        <li><strong>3年分更新</strong>: 既存データを残したまま、本日から3年分のデモデータを補充します。</li>
+                        <li><strong>全再構築</strong>: 業務データを削除し、デモデータに作り直します（破壊的）。</li>
+                    </ul>
+
+                    <div class="row g-2 align-items-end">
+                        <div class="col-md-3">
+                            <label for="demoDataYears" class="form-label">生成年数</label>
+                            <select id="demoDataYears" class="form-select">
+                                <option value="1">1年</option>
+                                <option value="2">2年</option>
+                                <option value="3" selected>3年</option>
+                                <option value="4">4年</option>
+                                <option value="5">5年</option>
+                            </select>
+                        </div>
+                        <div class="col-md-9">
+                            <div class="d-flex flex-wrap gap-2">
+                                <button type="button" class="btn btn-outline-primary" id="btnRefreshDemoData">
+                                    本日から3年分を更新
+                                </button>
+                                <button type="button" class="btn btn-danger" id="btnRebuildDemoData">
+                                    全データをデモ用に再構築
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="small text-muted mt-3">
+                        定期運用は <code>php scripts/rebuild_demo_data.php --mode=rebuild --years=3</code> をCRONで月1回実行してください。
+                    </div>
                 </div>
             </div>
         </div>

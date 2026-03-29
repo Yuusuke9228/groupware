@@ -153,6 +153,9 @@ $appName = $settingModel->getAppName();
             <li><a href="#sec-security"><i class="fas fa-shield-alt"></i> 10. セキュリティ設定の推奨事項</a></li>
             <li><a href="#sec-daily-report-admin"><i class="fas fa-file-alt"></i> 11. 日報機能の管理運用</a></li>
             <li><a href="#sec-webdb-admin"><i class="fas fa-database"></i> 12. WEBデータベース運用設計</a></li>
+            <li><a href="#sec-demo-data-admin"><i class="fas fa-magic"></i> 13. デモデータ運用（再生成/復旧）</a></li>
+            <li><a href="#sec-pwa-admin"><i class="fas fa-mobile-alt"></i> 14. PWA運用（導入・通知）</a></li>
+            <li><a href="#sec-sso-scim-admin"><i class="fas fa-user-shield"></i> 15. SSO/SAML/OIDC/SCIM設定</a></li>
         </ul>
     </div>
 
@@ -688,6 +691,124 @@ tar -xzf uploads_backup_20260326.tar.gz</pre>
 
                 <h4>サンプルアプリの活用</h4>
                 <p>管理者は「デモ業務サンプル投入」で売上・売上明細の構成を投入し、親子入力、集計、グラフ表示、CSV連携の運用イメージを社内説明に活用できます。</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== 13. デモデータ運用 ===== -->
+    <div class="manual-section" id="sec-demo-data-admin">
+        <div class="manual-card">
+            <div class="manual-card-head">
+                <span class="sec-icon"><i class="fas fa-magic"></i></span>
+                <h2>13. デモデータ運用（再生成/復旧）</h2>
+            </div>
+            <div class="manual-card-body">
+                <p>公開デモ環境では、試用者による編集や削除でデータが崩れる可能性があります。管理者は「設定 > デモデータ管理」から、必要に応じてデータを即時復旧できます。</p>
+
+                <h4>画面からの実行</h4>
+                <ul>
+                    <li><strong>本日から3年分を更新</strong>：既存データを残しつつ、将来分を含むデモデータを補充します。</li>
+                    <li><strong>全データをデモ用に再構築</strong>：業務データを削除して、全機能のデモデータを再投入します（破壊的）。</li>
+                </ul>
+
+                <h4>CRONでの定期復旧</h4>
+                <p>月1回の定期復旧を推奨します。以下は毎月1日 03:30 に全再構築する例です。</p>
+                <div class="code-block">
+                    <pre style="margin:0;white-space:pre-wrap;color:#f8f8f2;">30 3 1 * * php /path/to/groupware/scripts/rebuild_demo_data.php --mode=rebuild --years=3</pre>
+                </div>
+
+                <div class="manual-warn">
+                    <strong><i class="fas fa-exclamation-triangle me-1"></i>注意：</strong>
+                    <code>--mode=rebuild</code> は破壊的処理です。必ずデモ環境専用で実行し、本番環境では使用しないでください。
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== 14. PWA運用 ===== -->
+    <div class="manual-section" id="sec-pwa-admin">
+        <div class="manual-card">
+            <div class="manual-card-head">
+                <span class="sec-icon"><i class="fas fa-mobile-alt"></i></span>
+                <h2>14. PWA運用（導入・通知）</h2>
+            </div>
+            <div class="manual-card-body">
+                <p>TeamSpace は PWA に対応しています。管理者は「設定 &gt; 認証・PWA・SCIM」で段階的に有効化してください。</p>
+
+                <h4>有効化手順</h4>
+                <div class="manual-step"><span class="manual-step-num">1</span><span class="manual-step-text">「PWAを有効にする」をONにします。</span></div>
+                <div class="manual-step"><span class="manual-step-num">2</span><span class="manual-step-text">アプリ名・短縮名・テーマカラー・背景カラーを設定します。</span></div>
+                <div class="manual-step"><span class="manual-step-num">3</span><span class="manual-step-text">Push通知を使う場合は「PWA Push通知を有効にする」をONにします。</span></div>
+                <div class="manual-step"><span class="manual-step-num">4</span><span class="manual-step-text">VAPID subject を設定し、必要なら鍵を管理します（空欄時は自動生成）。</span></div>
+
+                <h4>通知運用</h4>
+                <ul>
+                    <li>利用者側で「このブラウザで購読」を実行し、通知許可を与える必要があります。</li>
+                    <li>「テストPush送信」でブラウザ到達を確認できます。</li>
+                    <li>無効購読（404/410）は自動的に非アクティブ化されます。</li>
+                </ul>
+
+                <div class="manual-info">
+                    <strong><i class="fas fa-info-circle me-1"></i>補足：</strong>
+                    iOS ではホーム画面追加後に通知許可が必要になることがあります。ヘルプの一般ユーザー向け手順も併せて案内してください。
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== 15. SSO/SCIM ===== -->
+    <div class="manual-section" id="sec-sso-scim-admin">
+        <div class="manual-card">
+            <div class="manual-card-head">
+                <span class="sec-icon"><i class="fas fa-user-shield"></i></span>
+                <h2>15. SSO/SAML/OIDC/SCIM設定</h2>
+            </div>
+            <div class="manual-card-body">
+                <p>企業導入時は、ローカル認証に加えて OIDC / SAML / SCIM を段階導入できます。設定はすべて「設定 &gt; 認証・PWA・SCIM」で行います。</p>
+
+                <h4>OIDC 設定</h4>
+                <ul>
+                    <li>必須: Issuer URL, Client ID（必要に応じて Client Secret）</li>
+                    <li>任意: Authorization/Token/UserInfo Endpoint の個別指定</li>
+                    <li>推奨スコープ: <code>openid profile email</code></li>
+                    <li>属性マッピング: ユーザー名 / メール / 表示名をキー名で指定</li>
+                </ul>
+
+                <h4>SAML 設定</h4>
+                <ul>
+                    <li>必須: IdP Entity ID, IdP SSO URL, IdP 証明書</li>
+                    <li>必要に応じて SLO URL を設定</li>
+                    <li>SPメタデータは「SPメタデータを表示」から取得し、IdP側へ登録</li>
+                </ul>
+
+                <h4>JITプロビジョニングと権限マッピング</h4>
+                <ul>
+                    <li>JIT ON: 初回SSO時に未登録ユーザーを自動作成</li>
+                    <li>JIT既定ロール: <code>user / manager / admin</code> を指定</li>
+                    <li>JIT既定組織ID: 初期所属組織を指定</li>
+                </ul>
+
+                <h4>SCIM 設定</h4>
+                <ul>
+                    <li>「SCIM APIを有効にする」をON</li>
+                    <li>ベースURLを IdP 側プロビジョニング設定に登録</li>
+                    <li>「SCIMトークン発行」で Bearer トークンを生成（平文表示は発行時のみ）</li>
+                    <li>不要トークンは一覧から無効化</li>
+                </ul>
+
+                <h4>ロックアウト回避（非常口）</h4>
+                <div class="manual-warn">
+                    <strong><i class="fas fa-exclamation-triangle me-1"></i>重要：</strong>
+                    通常ローカルログインをOFFにしても、<code>/login/local-admin</code> から管理者の非常用ログインが可能です。SSO誤設定時の復旧導線として必ず保持してください。
+                </div>
+
+                <h4>トラブルシューティング</h4>
+                <ul>
+                    <li>OIDCで失敗する場合: Redirect URI と Issuer の不一致を確認</li>
+                    <li>SAMLで失敗する場合: IdP証明書、Entity ID、ACS URL を再確認</li>
+                    <li>SCIMで401になる場合: Bearerトークン再発行と有効状態を確認</li>
+                    <li>想定外ユーザーが作成される場合: 属性マッピングキーを見直し</li>
+                </ul>
             </div>
         </div>
     </div>

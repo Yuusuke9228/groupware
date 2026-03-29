@@ -44,8 +44,8 @@ $pageTitle = '承認待ち一覧';
     <!-- 承認待ち申請一覧テーブル -->
     <div class="card">
         <div class="card-body">
-            <div class="table-responsive">
-                <table id="approvals-table" class="table table-striped table-hover">
+            <div class="table-responsive sticky-table-wrap">
+                <table id="approvals-table" class="table table-striped table-hover sticky-table sticky-first-col">
                     <thead>
                         <tr>
                             <th>申請番号</th>
@@ -98,25 +98,43 @@ $pageTitle = '承認待ち一覧';
                 <nav aria-label="Page navigation" class="mt-4">
                     <ul class="pagination justify-content-center">
                         <?php
-                        $url = BASE_PATH . '/workflow/approvals?';
-                        if (isset($filters['template_id'])) $url .= 'template_id=' . $filters['template_id'] . '&';
-                        if (isset($filters['search'])) $url .= 'search=' . urlencode($filters['search']) . '&';
+                        $buildPageUrl = function (int $targetPage) use ($filters) {
+                            $safeFilters = [];
+
+                            if (isset($filters['template_id']) && is_scalar($filters['template_id'])) {
+                                $templateId = trim((string)$filters['template_id']);
+                                if ($templateId !== '' && preg_match('/^\d+$/', $templateId)) {
+                                    $safeFilters['template_id'] = $templateId;
+                                }
+                            }
+
+                            if (isset($filters['search']) && is_scalar($filters['search'])) {
+                                $search = trim((string)$filters['search']);
+                                if ($search !== '') {
+                                    $safeFilters['search'] = $search;
+                                }
+                            }
+
+                            $safeFilters['page'] = max(1, $targetPage);
+                            $query = http_build_query($safeFilters);
+                            return BASE_PATH . '/workflow/approvals' . ($query !== '' ? ('?' . $query) : '');
+                        };
                         ?>
 
                         <li class="page-item <?php echo $page <= 1 ? 'disabled' : ''; ?>">
-                            <a class="page-link" href="<?php echo $url . 'page=' . ($page - 1); ?>" aria-label="Previous">
+                            <a class="page-link" href="<?php echo htmlspecialchars($buildPageUrl($page - 1), ENT_QUOTES, 'UTF-8'); ?>" aria-label="Previous">
                                 <span aria-hidden="true">&laquo;</span>
                             </a>
                         </li>
 
                         <?php for ($i = 1; $i <= $totalPages; $i++): ?>
                             <li class="page-item <?php echo $page == $i ? 'active' : ''; ?>">
-                                <a class="page-link" href="<?php echo $url . 'page=' . $i; ?>"><?php echo $i; ?></a>
+                                <a class="page-link" href="<?php echo htmlspecialchars($buildPageUrl($i), ENT_QUOTES, 'UTF-8'); ?>"><?php echo $i; ?></a>
                             </li>
                         <?php endfor; ?>
 
                         <li class="page-item <?php echo $page >= $totalPages ? 'disabled' : ''; ?>">
-                            <a class="page-link" href="<?php echo $url . 'page=' . ($page + 1); ?>" aria-label="Next">
+                            <a class="page-link" href="<?php echo htmlspecialchars($buildPageUrl($page + 1), ENT_QUOTES, 'UTF-8'); ?>" aria-label="Next">
                                 <span aria-hidden="true">&raquo;</span>
                             </a>
                         </li>

@@ -126,12 +126,25 @@ $currentUser = $this->auth->user();
                         全 <?php echo $totalMessages; ?> 件中 <?php echo count($messages); ?> 件表示
                     </div>
                     <div>
+                        <?php
+                        $buildPageUrl = function (int $targetPage) use ($filters) {
+                            $params = ['page' => max(1, $targetPage)];
+                            if (isset($filters['search']) && is_scalar($filters['search'])) {
+                                $searchText = trim((string)$filters['search']);
+                                if ($searchText !== '') {
+                                    $params['search'] = $searchText;
+                                }
+                            }
+                            $query = http_build_query($params);
+                            return BASE_PATH . '/messages/starred' . ($query !== '' ? ('?' . $query) : '');
+                        };
+                        ?>
                         <?php if ($totalPages > 1): ?>
                             <nav aria-label="Page navigation">
                                 <ul class="pagination pagination-sm mb-0">
                                     <?php if ($page > 1): ?>
                                         <li class="page-item">
-                                            <a class="page-link" href="<?php echo BASE_PATH; ?>/messages/starred?page=<?php echo $page - 1; ?>&search=<?php echo urlencode($filters['search'] ?? ''); ?>" aria-label="Previous">
+                                            <a class="page-link" href="<?php echo htmlspecialchars($buildPageUrl($page - 1), ENT_QUOTES, 'UTF-8'); ?>" aria-label="Previous">
                                                 <span aria-hidden="true">&laquo;</span>
                                             </a>
                                         </li>
@@ -144,7 +157,7 @@ $currentUser = $this->auth->user();
 
                                     <?php for ($i = $startPage; $i <= $endPage; $i++): ?>
                                         <li class="page-item <?php echo ($i == $page) ? 'active' : ''; ?>">
-                                            <a class="page-link" href="<?php echo BASE_PATH; ?>/messages/starred?page=<?php echo $i; ?>&search=<?php echo urlencode($filters['search'] ?? ''); ?>">
+                                            <a class="page-link" href="<?php echo htmlspecialchars($buildPageUrl($i), ENT_QUOTES, 'UTF-8'); ?>">
                                                 <?php echo $i; ?>
                                             </a>
                                         </li>
@@ -152,7 +165,7 @@ $currentUser = $this->auth->user();
 
                                     <?php if ($page < $totalPages): ?>
                                         <li class="page-item">
-                                            <a class="page-link" href="<?php echo BASE_PATH; ?>/messages/starred?page=<?php echo $page + 1; ?>&search=<?php echo urlencode($filters['search'] ?? ''); ?>" aria-label="Next">
+                                            <a class="page-link" href="<?php echo htmlspecialchars($buildPageUrl($page + 1), ENT_QUOTES, 'UTF-8'); ?>" aria-label="Next">
                                                 <span aria-hidden="true">&raquo;</span>
                                             </a>
                                         </li>

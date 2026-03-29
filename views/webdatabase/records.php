@@ -37,6 +37,27 @@ foreach ($fields as $field) {
     }
 }
 $aggregate = isset($selectedSettings['aggregate']) && is_array($selectedSettings['aggregate']) ? $selectedSettings['aggregate'] : [];
+$normalizeOptions = static function ($rawOptions): array {
+    $decoded = json_decode((string)$rawOptions, true);
+    if (!is_array($decoded)) {
+        return [];
+    }
+    $normalized = [];
+    foreach ($decoded as $option) {
+        if (is_array($option)) {
+            $value = (string)($option['value'] ?? ($option['label'] ?? ''));
+            $label = (string)($option['label'] ?? ($option['value'] ?? ''));
+        } else {
+            $value = (string)$option;
+            $label = (string)$option;
+        }
+        if ($value === '' && $label === '') {
+            continue;
+        }
+        $normalized[] = ['value' => $value, 'label' => $label];
+    }
+    return $normalized;
+};
 ?>
 <div class="container-fluid mt-4">
     <div class="row mb-3">
@@ -153,7 +174,9 @@ $aggregate = isset($selectedSettings['aggregate']) && is_array($selectedSettings
                                     <?php if (in_array($field['type'], ['select', 'radio', 'checkbox'])): ?>
                                         <select class="form-select filter-field" id="filter-<?= $field['id'] ?>" name="filters[<?= $field['id'] ?>]">
                                             <option value="">すべて</option>
-                                            <?php $options = json_decode($field['options'], true); if ($options) { foreach ($options as $option) { echo '<option value="' . htmlspecialchars($option['value']) . '">' . htmlspecialchars($option['label']) . '</option>'; } } ?>
+                                            <?php foreach ($normalizeOptions($field['options'] ?? '') as $option): ?>
+                                                <option value="<?= htmlspecialchars((string)$option['value']) ?>"><?= htmlspecialchars((string)$option['label']) ?></option>
+                                            <?php endforeach; ?>
                                         </select>
                                     <?php elseif ($field['type'] == 'user'): ?>
                                         <select class="form-select filter-field" id="filter-<?= $field['id'] ?>" name="filters[<?= $field['id'] ?>]"><option value="">すべて</option></select>

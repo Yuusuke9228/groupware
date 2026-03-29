@@ -57,11 +57,25 @@ $pageTitle = '申請テンプレート選択';
     </div>
 
     <?php if (!empty($totalPages) && $totalPages > 1): ?>
+        <?php
+        $buildPageUrl = function (int $targetPage) use ($search) {
+            $params = ['page' => max(1, $targetPage)];
+            if (is_scalar($search)) {
+                $searchText = trim((string)$search);
+                if ($searchText !== '') {
+                    $params['search'] = $searchText;
+                }
+            }
+
+            $query = http_build_query($params);
+            return BASE_PATH . '/workflow/create' . ($query !== '' ? ('?' . $query) : '');
+        };
+        ?>
         <nav class="mt-4" aria-label="申請テンプレートページネーション">
             <ul class="pagination justify-content-center">
                 <?php for ($i = 1; $i <= $totalPages; $i++): ?>
                     <li class="page-item <?php echo $page === $i ? 'active' : ''; ?>">
-                        <a class="page-link" href="<?php echo BASE_PATH; ?>/workflow/create?page=<?php echo $i; ?><?php echo $search ? '&search=' . urlencode($search) : ''; ?>">
+                        <a class="page-link" href="<?php echo htmlspecialchars($buildPageUrl($i), ENT_QUOTES, 'UTF-8'); ?>">
                             <?php echo $i; ?>
                         </a>
                     </li>

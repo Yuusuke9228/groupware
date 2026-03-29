@@ -45,6 +45,17 @@ $unreadNotificationCount = 0;
 $settingModel = new \Models\Setting();
 $appName = $settingModel->getAppName();
 $companyName = $settingModel->getCompanyName();
+$appVersion = (string)$settingModel->get('app_version', '');
+if ($appVersion === '') {
+    $configPath = __DIR__ . '/../../config/config.php';
+    if (file_exists($configPath)) {
+        $cfg = require $configPath;
+        $appVersion = (string)($cfg['app']['version'] ?? '');
+    }
+}
+$pwaEnabled = filter_var((string)$settingModel->get('pwa_enabled', '0'), FILTER_VALIDATE_BOOLEAN);
+$pwaThemeColor = (string)$settingModel->get('pwa_theme_color', '#2b7de9');
+$pwaAppName = (string)$settingModel->get('pwa_app_name', $appName);
 
 if ($currentUser) {
     $messageModel = new \Models\Message();
@@ -62,11 +73,17 @@ if ($currentUser) {
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <meta name="theme-color" content="#2b7de9">
+    <meta name="theme-color" content="<?php echo htmlspecialchars($pwaThemeColor); ?>">
+    <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="<?php echo htmlspecialchars($pwaAppName); ?>">
     <title><?php echo htmlspecialchars($pageTitle); ?> - <?php echo htmlspecialchars($appName); ?></title>
     <link rel="icon" type="image/svg+xml" href="<?php echo BASE_PATH; ?>/img_icon/favicon.svg">
+    <?php if ($pwaEnabled): ?>
+    <link rel="manifest" href="<?php echo BASE_PATH; ?>/manifest.json">
+    <link rel="apple-touch-icon" href="<?php echo BASE_PATH; ?>/public/icons/pwa-192.png">
+    <?php endif; ?>
 
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">

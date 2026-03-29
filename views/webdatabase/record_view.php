@@ -1,4 +1,27 @@
 <!-- views/webdatabase/record_view.php -->
+<?php
+$normalizeOptions = static function ($rawOptions): array {
+    $decoded = json_decode((string)$rawOptions, true);
+    if (!is_array($decoded)) {
+        return [];
+    }
+    $normalized = [];
+    foreach ($decoded as $option) {
+        if (is_array($option)) {
+            $value = (string)($option['value'] ?? ($option['label'] ?? ''));
+            $label = (string)($option['label'] ?? ($option['value'] ?? ''));
+        } else {
+            $value = (string)$option;
+            $label = (string)$option;
+        }
+        if ($value === '' && $label === '') {
+            continue;
+        }
+        $normalized[] = ['value' => $value, 'label' => $label];
+    }
+    return $normalized;
+};
+?>
 <div class="container-fluid mt-4">
     <div class="row mb-3">
         <div class="col">
@@ -72,12 +95,12 @@
 
                                             case 'select':
                                             case 'radio':
-                                                $options = json_decode($field['options'], true);
+                                                $options = $normalizeOptions($field['options'] ?? '');
                                                 $displayValue = $value;
                                                 if (is_array($options)) {
                                                     foreach ($options as $option) {
-                                                        if ($option['value'] == $value) {
-                                                            $displayValue = $option['label'];
+                                                        if ((string)$option['value'] === (string)$value) {
+                                                            $displayValue = $option['label'] ?? $option['value'];
                                                             break;
                                                         }
                                                     }
@@ -86,14 +109,14 @@
                                                 break;
 
                                             case 'checkbox':
-                                                $options = json_decode($field['options'], true);
+                                                $options = $normalizeOptions($field['options'] ?? '');
                                                 $checkedValues = is_array($value) ? $value : [$value];
                                                 $displayValues = [];
 
                                                 if (is_array($options)) {
                                                     foreach ($options as $option) {
-                                                        if (in_array($option['value'], $checkedValues)) {
-                                                            $displayValues[] = $option['label'];
+                                                        if (in_array((string)$option['value'], array_map('strval', $checkedValues), true)) {
+                                                            $displayValues[] = $option['label'] ?? $option['value'];
                                                         }
                                                     }
                                                 }

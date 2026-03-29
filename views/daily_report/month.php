@@ -25,8 +25,8 @@ $nextMonth = date('Y-m', strtotime('+1 month', $firstDayTs));
                     <a class="btn btn-outline-primary btn-sm" href="<?= BASE_PATH ?>/daily-report/month?month=<?= $nextMonth ?>">翌月<i class="fas fa-chevron-right ms-1"></i></a>
                 </div>
 
-                <div class="table-responsive">
-                    <table class="table table-bordered align-middle text-center bg-white">
+                <div class="table-responsive daily-report-month-table-wrap">
+                    <table class="table table-bordered align-middle text-center bg-white daily-report-month-table">
                         <thead class="table-light">
                             <tr>
                                 <th>日</th><th>月</th><th>火</th><th>水</th><th>木</th><th>金</th><th>土</th>
@@ -45,13 +45,21 @@ $nextMonth = date('Y-m', strtotime('+1 month', $firstDayTs));
                                 }
                                 $date = sprintf('%s-%02d', $month, $day);
                                 $count = (int)($dailyCounts[$date] ?? 0);
-                                echo '<td style="min-height:100px;">';
-                                echo '<div class="d-flex justify-content-between align-items-center">';
+                                $weekday = (int)date('w', strtotime($date));
+                                $cellClass = 'daily-report-day-cell';
+                                if ($weekday === 0) {
+                                    $cellClass .= ' sunday';
+                                } elseif ($weekday === 6) {
+                                    $cellClass .= ' saturday';
+                                }
+
+                                echo '<td class="' . $cellClass . '">';
+                                echo '<div class="d-flex justify-content-between align-items-center mb-1">';
                                 echo '<strong>' . $day . '</strong>';
-                                echo '<a class="small" href="' . BASE_PATH . '/daily-report/create?date=' . $date . '">作成</a>';
+                                echo '<a class="small btn btn-link p-0 text-decoration-none" href="' . BASE_PATH . '/daily-report/create?date=' . $date . '">作成</a>';
                                 echo '</div>';
                                 if ($count > 0) {
-                                    echo '<a class="badge bg-primary text-decoration-none mt-2" href="' . BASE_PATH . '/daily-report/timeline?date=' . $date . '">' . $count . '件</a>';
+                                    echo '<a class="badge bg-primary text-decoration-none mt-2 daily-report-count-badge" href="' . BASE_PATH . '/daily-report/timeline?date=' . $date . '">' . $count . '件</a>';
                                 } else {
                                     echo '<div class="small text-muted mt-2">0件</div>';
                                 }

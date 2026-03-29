@@ -77,6 +77,50 @@ if (!$auth->check()) {
     $auth->authenticateFromRememberToken();
 }
 
+// PWA公開エンドポイント（認証不要）
+$router->get('/manifest.json', function () {
+    $controller = new Controllers\PwaController();
+    $controller->manifest();
+});
+
+$router->get('/service-worker.js', function () {
+    $controller = new Controllers\PwaController();
+    $controller->serviceWorker();
+});
+
+$router->get('/offline', function () {
+    $controller = new Controllers\PwaController();
+    $controller->offline();
+});
+
+$router->get('/icons/:name', function ($params) {
+    $name = (string)($params['name'] ?? '');
+    if ($name === '' || !preg_match('/^[a-zA-Z0-9._-]+$/', $name)) {
+        http_response_code(400);
+        echo 'Invalid icon name';
+        exit;
+    }
+
+    $iconPath = __DIR__ . '/icons/' . $name;
+    if (!is_file($iconPath)) {
+        http_response_code(404);
+        echo 'Icon not found';
+        exit;
+    }
+
+    $extension = strtolower((string)pathinfo($iconPath, PATHINFO_EXTENSION));
+    $contentTypes = [
+        'png' => 'image/png',
+        'svg' => 'image/svg+xml',
+        'ico' => 'image/x-icon',
+        'webp' => 'image/webp'
+    ];
+    header('Content-Type: ' . ($contentTypes[$extension] ?? 'application/octet-stream'));
+    header('Cache-Control: public, max-age=86400');
+    readfile($iconPath);
+    exit;
+});
+
 // ルーティングの設定
 // ホームページ 
 $router->get('/', function () use ($auth) {
@@ -103,6 +147,15 @@ $router->post('/login', function () use ($auth) {
     $password = $_POST['password'] ?? '';
     $remember = isset($_POST['remember']) ? true : false;
 
+    $settingModel = new Models\Setting();
+    $ssoEnabled = filter_var((string)$settingModel->get('sso_enabled', '0'), FILTER_VALIDATE_BOOLEAN);
+    $localEnabled = filter_var((string)$settingModel->get('sso_local_login_enabled', '1'), FILTER_VALIDATE_BOOLEAN);
+    if ($ssoEnabled && !$localEnabled) {
+        $_SESSION['login_error'] = 'ローカルログインは無効です。SSOログインをご利用ください。';
+        header('Location: ' . BASE_PATH . '/login/local-admin');
+        exit;
+    }
+
     if ($auth->login($username, $password, $remember)) {
         $redirect = $_GET['redirect'] ?? '/';
         header('Location: ' . BASE_PATH . $redirect);
@@ -115,6 +168,43 @@ $router->post('/login', function () use ($auth) {
 $router->get('/logout', function () use ($auth) {
     $auth->logout();
     header('Location: ' . BASE_PATH . '/login');
+});
+
+// SSO誤設定時の非常口: ローカル管理者専用ログイン
+$router->get('/login/local-admin', function () {
+    $controller = new Controllers\SsoController();
+    $controller->localAdminLoginForm();
+});
+
+$router->post('/login/local-admin', function () {
+    $controller = new Controllers\SsoController();
+    $controller->localAdminLoginPost();
+});
+
+// SSO/OIDC/SAML
+$router->get('/auth/oidc/login', function () {
+    $controller = new Controllers\SsoController();
+    $controller->oidcLogin();
+});
+
+$router->get('/auth/oidc/callback', function () {
+    $controller = new Controllers\SsoController();
+    $controller->oidcCallback();
+});
+
+$router->get('/auth/saml/login', function () {
+    $controller = new Controllers\SsoController();
+    $controller->samlLogin();
+});
+
+$router->post('/auth/saml/acs', function () {
+    $controller = new Controllers\SsoController();
+    $controller->samlAcs();
+});
+
+$router->get('/auth/saml/metadata', function () {
+    $controller = new Controllers\SsoController();
+    $controller->samlMetadata();
 });
 
 // 組織管理
@@ -724,6 +814,12 @@ $router->get('/settings/notification', function () {
     $controller->notification();
 }, true);
 
+// 認証/PWA/SCIM設定
+$router->get('/settings/security', function () {
+    $controller = new Controllers\SettingController();
+    $controller->security();
+}, true);
+
 // システム設定API
 $router->apiPost('/settings', function ($params, $data) {
     $controller = new Controllers\SettingController();
@@ -751,6 +847,22 @@ $router->apiPost('/settings/process-email-queue', function ($params, $data) {
             'failed_count' => $result['failed_count']
         ]
     ];
+}, true);
+
+// デモデータ生成API
+$router->apiPost('/settings/demo-data', function ($params, $data) {
+    $controller = new Controllers\SettingController();
+    return $controller->apiManageDemoData($params, $data);
+}, true);
+
+$router->apiPost('/settings/scim-token', function ($params, $data) {
+    $controller = new Controllers\SettingController();
+    return $controller->apiGenerateScimToken($params, $data);
+}, true);
+
+$router->apiPost('/settings/scim-token/:id', function ($params, $data) {
+    $controller = new Controllers\SettingController();
+    return $controller->apiToggleScimToken($params, $data);
 }, true);
 
 // 通知関連のルート
@@ -800,6 +912,27 @@ $router->apiGet('/notifications/unread', function () {
 $router->apiGet('/home/unread-counts', function () {
     $controller = new Controllers\HomeController();
     return $controller->apiGetUnreadCounts();
+}, true);
+
+// PWA / Push API
+$router->apiGet('/pwa/config', function () {
+    $controller = new Controllers\PwaController();
+    return $controller->apiConfig();
+}, true);
+
+$router->apiPost('/pwa/subscribe', function ($params, $data) {
+    $controller = new Controllers\PwaController();
+    return $controller->apiSubscribe($params, $data);
+}, true);
+
+$router->apiPost('/pwa/unsubscribe', function ($params, $data) {
+    $controller = new Controllers\PwaController();
+    return $controller->apiUnsubscribe($params, $data);
+}, true);
+
+$router->apiPost('/pwa/test-push', function () {
+    $controller = new Controllers\PwaController();
+    return $controller->apiTestPush();
 }, true);
 
 // WEBデータベース関連のルート
@@ -1602,6 +1735,42 @@ $router->get('/facility/delete-facility/{id}', function ($params) {
     $controller = new Controllers\FacilityController();
     $controller->deleteFacility($params);
 }, true);
+
+// SCIM 2.0 API（Bearer Token認証）
+$router->apiGet('/scim/v2/ServiceProviderConfig', function () {
+    $controller = new Controllers\ScimController();
+    return $controller->apiServiceProviderConfig();
+});
+
+$router->apiGet('/scim/v2/Users', function () {
+    $controller = new Controllers\ScimController();
+    return $controller->apiListUsers();
+});
+
+$router->apiPost('/scim/v2/Users', function ($params, $data) {
+    $controller = new Controllers\ScimController();
+    return $controller->apiCreateUser($params, $data);
+});
+
+$router->apiGet('/scim/v2/Users/:id', function ($params) {
+    $controller = new Controllers\ScimController();
+    return $controller->apiGetUser($params);
+});
+
+$router->api('PUT', '/scim/v2/Users/:id', function ($params, $data) {
+    $controller = new Controllers\ScimController();
+    return $controller->apiPutUser($params, $data);
+});
+
+$router->api('PATCH', '/scim/v2/Users/:id', function ($params, $data) {
+    $controller = new Controllers\ScimController();
+    return $controller->apiPatchUser($params, $data);
+});
+
+$router->apiDelete('/scim/v2/Users/:id', function ($params) {
+    $controller = new Controllers\ScimController();
+    return $controller->apiDeleteUser($params);
+});
 
 // ヘルプ・利用規約
 $router->get('/help', function () {

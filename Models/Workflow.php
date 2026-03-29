@@ -733,9 +733,6 @@ class Workflow
             });
         }
 
-        // デバッグ用
-        error_log("determineApprovers for step {$step['step_number']}: " . json_encode($approvers));
-
         return array_values(array_unique($approvers));
     }
 

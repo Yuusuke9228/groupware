@@ -164,16 +164,24 @@ const Workflow = {
         $('#filter-form').on('submit', function (e) {
             e.preventDefault();
 
-            let url = BASE_PATH + '/workflow/requests?';
+            const params = new URLSearchParams();
             const status = $('#filter-status').val();
             const templateId = $('#filter-template').val();
-            const search = $('#filter-search').val();
+            const search = ($('#filter-search').val() || '').trim();
 
-            if (status) url += `status=${status}&`;
-            if (templateId) url += `template_id=${templateId}&`;
-            if (search) url += `search=${encodeURIComponent(search)}&`;
+            const allowedStatuses = ['draft', 'pending', 'approved', 'rejected', 'cancelled'];
+            if (status && allowedStatuses.includes(status)) {
+                params.set('status', status);
+            }
+            if (templateId && /^\d+$/.test(templateId)) {
+                params.set('template_id', templateId);
+            }
+            if (search !== '') {
+                params.set('search', search);
+            }
 
-            window.location.href = url;
+            const query = params.toString();
+            window.location.href = BASE_PATH + '/workflow/requests' + (query ? ('?' + query) : '');
         });
 
         // フィルタクリアボタン
@@ -199,14 +207,19 @@ const Workflow = {
         $('#filter-form').on('submit', function (e) {
             e.preventDefault();
 
-            let url = BASE_PATH + '/workflow/approvals?';
+            const params = new URLSearchParams();
             const templateId = $('#filter-template').val();
-            const search = $('#filter-search').val();
+            const search = ($('#filter-search').val() || '').trim();
 
-            if (templateId) url += `template_id=${templateId}&`;
-            if (search) url += `search=${encodeURIComponent(search)}&`;
+            if (templateId && /^\d+$/.test(templateId)) {
+                params.set('template_id', templateId);
+            }
+            if (search !== '') {
+                params.set('search', search);
+            }
 
-            window.location.href = url;
+            const query = params.toString();
+            window.location.href = BASE_PATH + '/workflow/approvals' + (query ? ('?' + query) : '');
         });
 
         // フィルタクリアボタン

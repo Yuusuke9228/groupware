@@ -103,14 +103,21 @@ $pageTitle = 'ユーザー管理';
                     <?php
                     // ページネーションリンクの生成
                     if (isset($totalPages) && $totalPages > 1) {
-                        $url = '?';
-                        if (isset($_GET['search'])) {
-                            $url .= 'search=' . urlencode($_GET['search']) . '&';
-                        }
+                        $buildPageUrl = function (int $targetPage) {
+                            $params = ['page' => max(1, $targetPage)];
+                            if (isset($_GET['search']) && is_scalar($_GET['search'])) {
+                                $searchText = trim((string)$_GET['search']);
+                                if ($searchText !== '') {
+                                    $params['search'] = $searchText;
+                                }
+                            }
+                            $query = http_build_query($params);
+                            return BASE_PATH . '/users' . ($query !== '' ? ('?' . $query) : '');
+                        };
 
                         // 前のページリンク
                         if ($page > 1) {
-                            echo '<li class="page-item"><a class="page-link" href="' . $url . 'page=' . ($page - 1) . '">前へ</a></li>';
+                            echo '<li class="page-item"><a class="page-link" href="' . htmlspecialchars($buildPageUrl($page - 1), ENT_QUOTES, 'UTF-8') . '">前へ</a></li>';
                         } else {
                             echo '<li class="page-item disabled"><span class="page-link">前へ</span></li>';
                         }
@@ -126,13 +133,13 @@ $pageTitle = 'ユーザー管理';
                             if ($i == $page) {
                                 echo '<li class="page-item active"><span class="page-link">' . $i . '</span></li>';
                             } else {
-                                echo '<li class="page-item"><a class="page-link" href="' . $url . 'page=' . $i . '">' . $i . '</a></li>';
+                                echo '<li class="page-item"><a class="page-link" href="' . htmlspecialchars($buildPageUrl($i), ENT_QUOTES, 'UTF-8') . '">' . $i . '</a></li>';
                             }
                         }
 
                         // 次のページリンク
                         if ($page < $totalPages) {
-                            echo '<li class="page-item"><a class="page-link" href="' . $url . 'page=' . ($page + 1) . '">次へ</a></li>';
+                            echo '<li class="page-item"><a class="page-link" href="' . htmlspecialchars($buildPageUrl($page + 1), ENT_QUOTES, 'UTF-8') . '">次へ</a></li>';
                         } else {
                             echo '<li class="page-item disabled"><span class="page-link">次へ</span></li>';
                         }

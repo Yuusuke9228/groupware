@@ -112,13 +112,44 @@
 
     <!-- ページネーション -->
     <?php if ($totalPages > 1): ?>
+        <?php
+        $buildPageUrl = function (int $targetPage) use ($filters) {
+            $params = ['page' => max(1, $targetPage)];
+
+            if (isset($filters['type']) && is_scalar($filters['type'])) {
+                $type = trim((string)$filters['type']);
+                $allowed = ['schedule', 'workflow', 'message', 'system'];
+                if (in_array($type, $allowed, true)) {
+                    $params['type'] = $type;
+                }
+            }
+
+            if (array_key_exists('is_read', $filters)) {
+                if ($filters['is_read'] === true || $filters['is_read'] === '1' || $filters['is_read'] === 1) {
+                    $params['is_read'] = '1';
+                } elseif ($filters['is_read'] === false || $filters['is_read'] === '0' || $filters['is_read'] === 0) {
+                    $params['is_read'] = '0';
+                }
+            }
+
+            if (isset($filters['search']) && is_scalar($filters['search'])) {
+                $searchText = trim((string)$filters['search']);
+                if ($searchText !== '') {
+                    $params['search'] = $searchText;
+                }
+            }
+
+            $query = http_build_query($params);
+            return BASE_PATH . '/notifications' . ($query !== '' ? ('?' . $query) : '');
+        };
+        ?>
         <div class="row mt-4">
             <div class="col-md-12">
                 <nav aria-label="Page navigation">
                     <ul class="pagination justify-content-center">
                         <?php if ($page > 1): ?>
                             <li class="page-item">
-                                <a class="page-link" href="<?= BASE_PATH ?>/notifications?page=<?= $page - 1 ?>&<?= http_build_query(array_filter($filters)) ?>">前へ</a>
+                                <a class="page-link" href="<?= htmlspecialchars($buildPageUrl($page - 1), ENT_QUOTES, 'UTF-8') ?>">前へ</a>
                             </li>
                         <?php else: ?>
                             <li class="page-item disabled">
@@ -128,13 +159,13 @@
 
                         <?php for ($i = 1; $i <= $totalPages; $i++): ?>
                             <li class="page-item <?= $i === $page ? 'active' : '' ?>">
-                                <a class="page-link" href="<?= BASE_PATH ?>/notifications?page=<?= $i ?>&<?= http_build_query(array_filter($filters)) ?>"><?= $i ?></a>
+                                <a class="page-link" href="<?= htmlspecialchars($buildPageUrl($i), ENT_QUOTES, 'UTF-8') ?>"><?= $i ?></a>
                             </li>
                         <?php endfor; ?>
 
                         <?php if ($page < $totalPages): ?>
                             <li class="page-item">
-                                <a class="page-link" href="<?= BASE_PATH ?>/notifications?page=<?= $page + 1 ?>&<?= http_build_query(array_filter($filters)) ?>">次へ</a>
+                                <a class="page-link" href="<?= htmlspecialchars($buildPageUrl($page + 1), ENT_QUOTES, 'UTF-8') ?>">次へ</a>
                             </li>
                         <?php else: ?>
                             <li class="page-item disabled">
