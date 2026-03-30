@@ -9,7 +9,7 @@
     var endpoint = window.RUNTIME_I18N_ENDPOINT || ((window.BASE_PATH || '') + '/api/i18n/translate');
     var cache = Object.create(null);
     var endpointCalls = 0;
-    var endpointCallLimit = 260;
+    var endpointCallLimit = 1200;
     var scanning = false;
 
     function hasJapanese(text) {
