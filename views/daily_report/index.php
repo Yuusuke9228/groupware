@@ -281,7 +281,10 @@
             if (parentDiv) {
                 const templateBtn = document.createElement('button');
                 templateBtn.className = 'btn btn-outline-primary ms-2';
-                templateBtn.innerHTML = '<i class="fas fa-file-alt me-2"></i>テンプレートから作成';
+                const templateCreateLabel = (window.tLiteral
+                    ? window.tLiteral('テンプレートから作成', 'Create from template')
+                    : 'Create from template');
+                templateBtn.innerHTML = '<i class="fas fa-file-alt me-2"></i>' + templateCreateLabel;
                 templateBtn.addEventListener('click', function() {
                     $('#templateModal').modal('show');
                 });
