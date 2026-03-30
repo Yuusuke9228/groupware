@@ -158,7 +158,7 @@ $router->get('/locale/:lang', function ($params) {
     exit;
 });
 
-$router->apiPost('/api/i18n/translate', function ($params, $data) {
+$router->apiPost('/i18n/translate', function ($params, $data) {
     $text = trim((string)($data['text'] ?? ''));
     if ($text === '' || mb_strlen($text) > 280) {
         return ['error' => tr_text('翻訳対象テキストが不正です。', 'Invalid translation target text.'), 'code' => 422];
