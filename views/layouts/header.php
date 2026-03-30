@@ -16,7 +16,7 @@ $pageMap = [
     '/organizations' => 'organizations', '/users' => 'users',
     '/schedule' => 'schedule', '/workflow' => 'workflow',
     '/messages' => 'messages', '/search' => 'search',
-    '/task' => 'task', '/daily-report' => 'daily-report',
+    '/task' => 'task', '/daily-report' => 'daily-report', '/visual-boards' => 'visual-boards',
     '/webdatabase' => 'webdatabase', '/notifications' => 'notifications',
     '/integrations' => 'integrations', '/settings' => 'settings',
     '/bulletin' => 'bulletin',
@@ -395,6 +395,12 @@ if ($currentUser) {
                 <a class="gw-module-link <?php echo $currentPage === 'daily-report' ? 'active' : ''; ?>" href="<?php echo BASE_PATH; ?>/daily-report">
                     <img src="<?php echo BASE_PATH; ?>/img_icon/icon_report.svg" alt="" class="gw-module-icon">
                     <span class="gw-module-label"><?php echo htmlspecialchars(t('menu.daily_report')); ?></span>
+                </a>
+            </li>
+            <li class="gw-module-item">
+                <a class="gw-module-link <?php echo $currentPage === 'visual-boards' ? 'active' : ''; ?>" href="<?php echo BASE_PATH; ?>/visual-boards">
+                    <img src="<?php echo BASE_PATH; ?>/img_icon/icon_project_management.svg" alt="" class="gw-module-icon">
+                    <span class="gw-module-label"><?php echo htmlspecialchars(tr_text('Visual Boards', 'Visual Boards')); ?></span>
                 </a>
             </li>
             <li class="gw-module-item">
