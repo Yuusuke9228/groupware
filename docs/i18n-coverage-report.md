@@ -1,6 +1,6 @@
 # i18n Coverage Report (Final)
 
-- Updated at: 2026-03-30 19:20 JST
+- Updated at: 2026-03-30 21:35 JST
 - Locale pair: `ja` / `en`
 - Default locale: `ja`
 - Retention: session + cookie (`gw_locale`)
@@ -38,5 +38,5 @@
 - 実装方式は「個別全置換」ではなく「非破壊の全体適用」方式:
   - `ja` 表示は既存動作を維持
   - `en` 表示時のみ runtime translation を適用
-- UI残件は `docs/i18n-audit-after.md` の記号2件のみ。
-- デモ環境では一部画面に日本語データ（人名/件名/台帳名）が表示される場合がありますが、これはデモレコード値でありUI文言の未翻訳ではありません。
+- UI残件は `docs/i18n-audit-after.md` の記号2件のみ（可視テキスト検証は主要14画面すべて日本語トークン 0 を確認）。
+- デモ環境では `public/js/runtime-i18n.js` の配信権限を `644` に補正し、動的翻訳が有効化されていることを確認。

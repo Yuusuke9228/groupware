@@ -1,6 +1,6 @@
 # i18n Audit After
 
-- Generated at: 2026-03-30 19:20 JST
+- Generated at: 2026-03-30 21:35 JST
 - Branch: `main`
 - Method:
   - Runtime dictionary generation: `python3 -u scripts/generate_runtime_i18n_map.py`
@@ -26,19 +26,26 @@
 
 ## Demo Verification (2026-03-30)
 
-Playwrightで `?lang=en` の可視テキストを確認した結果:
+Playwrightで `?lang=en` の可視テキストを確認した結果（管理者ログイン後）:
 
 | 画面 | 日本語トークン件数 | 判定 |
 |---|---:|---|
+| `/` | 0 | UI残件なし |
+| `/schedule` | 0 | UI残件なし |
+| `/task` | 0 | UI残件なし |
+| `/workflow` | 0 | UI残件なし |
+| `/messages` | 0 | UI残件なし |
+| `/bulletin` | 0 | UI残件なし |
 | `/daily-report` | 0 | UI残件なし |
+| `/webdatabase` | 0 | UI残件なし |
 | `/settings` | 0 | UI残件なし |
+| `/users` | 0 | UI残件なし |
+| `/organizations` | 0 | UI残件なし |
+| `/notifications` | 0 | UI残件なし |
 | `/help` | 0 | UI残件なし |
 | `/help/admin-manual` | 0 | UI残件なし |
-| `/notifications` | 0 | UI残件なし |
-| `/organizations` | 0 | UI残件なし |
-| `/schedule`, `/workflow`, `/messages`, `/bulletin`, `/webdatabase`, `/` | 残あり | 主にデモ投入済みレコード値（件名・人名・台帳名など） |
 
-補足: 英語UIにおけるラベル/操作文/ヘルプ本文は翻訳済み。残留語はユーザー・デモデータ値由来で、UI文言の未翻訳ではありません。
+補足: 途中で `public/js/runtime-i18n.js` がデモ環境で `403`（配信権限不備）となり、動的翻訳が効かない期間がありました。`644` に修正し再検証済みです。
 
 ## Runtime Coverage Notes
 
