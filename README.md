@@ -41,13 +41,6 @@
 - User 3: `suzuki` / `demo1234`
 - Demo data is reset periodically. Do not enter production data.
 
-### Demo Accounts
-- Admin: `admin` / `demo1234`
-- User 1: `yamada` / `demo1234`
-- User 2: `tanaka` / `demo1234`
-- User 3: `suzuki` / `demo1234`
-- Demo data is reset periodically. Do not enter production data.
-
 ### エンタープライズ認証（新規）
 - OIDC / SAML 2.0 ログイン: `設定 > 認証・PWA・SCIM`
 - SCIM 2.0 ベースURL: `https://<host>/api/scim/v2`
@@ -100,6 +93,16 @@
 - ドラッグ&ドロップでのカード移動
 - チェックリスト、ラベル、コメント機能
 - チームの作成と管理
+
+### 🧠 Visual Boards
+- ノードベースの思考整理ボード（カンバンと分離）
+- 無限キャンバス（パン / ズーム）
+- Enter: 兄弟ノード追加、Tab: 子ノード追加
+- 接続線、折りたたみ、Undo / Redo、自動レイアウト
+- 個人 / チーム / 組織での共有
+- タスク連携（ノードからタスク参照）
+- JSON / PDF / PNG 出力
+- URL: `/visual-boards`
 
 ### 📊 日報
 - テンプレート + 構造化項目による日報作成
