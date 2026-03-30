@@ -7,6 +7,7 @@ namespace Core;
 class RuntimeI18n
 {
     private const MAP_PATH = __DIR__ . '/../config/runtime_i18n_en.php';
+    private const OVERRIDE_MAP_PATH = __DIR__ . '/../config/runtime_i18n_en_overrides.php';
     private const CACHE_PATH = __DIR__ . '/../storage/i18n/runtime_i18n_en_cache.json';
     private const MAX_API_CALLS_PER_REQUEST = 220;
 
@@ -191,10 +192,30 @@ class RuntimeI18n
         }
 
         $map = [];
+        if (is_file(self::OVERRIDE_MAP_PATH)) {
+            $override = require self::OVERRIDE_MAP_PATH;
+            if (is_array($override)) {
+                foreach ($override as $k => $v) {
+                    if (is_string($k) && is_string($v) && $k !== '') {
+                        $map[$k] = $v;
+                    }
+                }
+            }
+        }
         if (is_file(self::MAP_PATH)) {
             $loaded = require self::MAP_PATH;
             if (is_array($loaded)) {
                 foreach ($loaded as $k => $v) {
+                    if (is_string($k) && is_string($v) && $k !== '') {
+                        $map[$k] = $v;
+                    }
+                }
+            }
+        }
+        if (is_file(self::OVERRIDE_MAP_PATH)) {
+            $override = require self::OVERRIDE_MAP_PATH;
+            if (is_array($override)) {
+                foreach ($override as $k => $v) {
                     if (is_string($k) && is_string($v) && $k !== '') {
                         $map[$k] = $v;
                     }
