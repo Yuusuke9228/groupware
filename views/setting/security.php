@@ -297,6 +297,7 @@ $isJaLocale = get_locale() === 'ja';
                     <div class="alert alert-danger d-none" id="backupErrorAlert"></div>
 
                     <div class="d-flex flex-wrap gap-2 mb-3">
+                        <input type="hidden" id="backupCsrfToken" value="<?= htmlspecialchars((string)($csrfToken ?? '')) ?>">
                         <button type="button" class="btn btn-primary" id="runBackupBtn"><?= htmlspecialchars(t('settings.backup.run')) ?></button>
                     </div>
 

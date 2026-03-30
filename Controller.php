@@ -16,6 +16,8 @@ class Controller
     {
         $this->sendNoCacheHeaders();
 
+        ob_start();
+
         // データを変数として展開
         extract($data);
 
@@ -33,6 +35,9 @@ class Controller
 
         // フッター表示
         require_once __DIR__ . '/../views/layouts/footer.php';
+
+        $html = (string)ob_get_clean();
+        echo RuntimeI18n::translateHtml($html);
     }
 
     // リダイレクト
@@ -48,7 +53,7 @@ class Controller
         http_response_code($statusCode);
         $this->sendNoCacheHeaders();
         header('Content-Type: application/json');
-        echo json_encode($data);
+        echo json_encode(RuntimeI18n::translateApiPayload($data), JSON_UNESCAPED_UNICODE);
         exit;
     }
 

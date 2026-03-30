@@ -183,7 +183,7 @@ class Router
 
             $this->sendNoCacheHeaders();
             header('Content-Type: application/json');
-            echo json_encode($response);
+            echo json_encode(RuntimeI18n::translateApiPayload($response), JSON_UNESCAPED_UNICODE);
             exit;
         }
 
@@ -197,7 +197,10 @@ class Router
                     $this->sendNoCacheHeaders();
                     header('Content-Type: application/json');
                     http_response_code(401);
-                    echo json_encode(['error' => '認証が必要です']);
+                    echo json_encode(
+                        RuntimeI18n::translateApiPayload(['error' => tr_text('認証が必要です', 'Authentication is required.')]),
+                        JSON_UNESCAPED_UNICODE
+                    );
                     exit;
                 }
 
@@ -265,7 +268,7 @@ class Router
                 } else {
                     header('Content-Type: application/json');
                 }
-                echo json_encode($response);
+                echo json_encode(RuntimeI18n::translateApiPayload($response), JSON_UNESCAPED_UNICODE);
                 exit;
             }
         }

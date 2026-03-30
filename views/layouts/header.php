@@ -114,6 +114,7 @@ if ($currentUser) {
     $styleCssVersion = @filemtime(__DIR__ . '/../../public/css/style.css') ?: time();
     $homeCssVersion = @filemtime(__DIR__ . '/../../public/css/home.css') ?: $styleCssVersion;
     $taskCssVersion = @filemtime(__DIR__ . '/../../public/css/task.css') ?: $styleCssVersion;
+    $runtimeI18nJsVersion = @filemtime(__DIR__ . '/../../public/js/runtime-i18n.js') ?: $styleCssVersion;
     ?>
     <link href="<?php echo BASE_PATH; ?>/css/style.css?v=<?php echo $styleCssVersion; ?>" rel="stylesheet">
     <link href="<?php echo BASE_PATH; ?>/css/home.css?v=<?php echo $homeCssVersion; ?>" rel="stylesheet">
@@ -124,6 +125,7 @@ if ($currentUser) {
         var BASE_PATH = "<?php echo BASE_PATH; ?>";
         var APP_LOCALE = "<?php echo htmlspecialchars($locale, ENT_QUOTES); ?>";
         var APP_DATA_LOCALE = "<?php echo htmlspecialchars($dataLocale, ENT_QUOTES); ?>";
+        var RUNTIME_I18N_ENDPOINT = BASE_PATH + '/api/i18n/translate';
         var APP_I18N = <?php
             echo json_encode(
                 \Core\I18n::messagesForJs([
@@ -189,6 +191,7 @@ if ($currentUser) {
             return APP_DATA_LOCALE || 'ja-JP';
         };
     </script>
+    <script src="<?php echo BASE_PATH; ?>/js/runtime-i18n.js?v=<?php echo $runtimeI18nJsVersion; ?>"></script>
 
     <!-- 共通ライブラリ -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>

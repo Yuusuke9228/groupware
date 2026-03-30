@@ -132,6 +132,7 @@ class SettingController extends Controller
             'settings' => $settingsArray,
             'scimTokens' => $scimTokens,
             'scimSchemaReady' => $scimSchemaReady,
+            'csrfToken' => $this->generateCsrfToken(),
             'jsFiles' => ['setting.js']
         ];
 
@@ -500,6 +501,9 @@ class SettingController extends Controller
         }
         if (!$this->auth->isAdmin()) {
             return ['error' => 'Permission denied', 'code' => 403];
+        }
+        if (!$this->validateCsrfToken((string)($data['csrf_token'] ?? ''))) {
+            return ['error' => tr_text('CSRFトークンが無効です。', 'Invalid CSRF token.'), 'code' => 403];
         }
 
         try {

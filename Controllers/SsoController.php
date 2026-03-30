@@ -206,8 +206,9 @@ class SsoController extends Controller
             $this->redirect(BASE_PATH . '/');
             return;
         }
-        $localAdminOnly = true;
-        require_once __DIR__ . '/../views/auth/login.php';
+        \Core\RuntimeI18n::renderPhp(__DIR__ . '/../views/auth/login.php', [
+            'localAdminOnly' => true,
+        ]);
     }
 
     public function localAdminLoginPost()

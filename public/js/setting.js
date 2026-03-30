@@ -526,6 +526,7 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     const runBackupBtn = document.getElementById('runBackupBtn');
+    const backupCsrfToken = document.getElementById('backupCsrfToken');
     const backupHistoryBody = document.getElementById('backupHistoryBody');
     const backupSuccessAlert = document.getElementById('backupSuccessAlert');
     const backupErrorAlert = document.getElementById('backupErrorAlert');
@@ -622,7 +623,9 @@ document.addEventListener('DOMContentLoaded', function () {
             fetch(`${BASE_PATH}/api/settings/backup/run`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({})
+                body: JSON.stringify({
+                    csrf_token: backupCsrfToken ? backupCsrfToken.value : ''
+                })
             })
                 .then((r) => r.json())
                 .then((data) => {

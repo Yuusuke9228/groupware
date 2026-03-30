@@ -12,7 +12,7 @@ class HelpController extends Controller
 
     public function index()
     {
-        $view = get_locale() === 'en' ? 'help/index_en' : 'help/index';
+        $view = 'help/index';
         $this->view($view, [
             'title' => t('help.title')
         ]);
@@ -20,7 +20,7 @@ class HelpController extends Controller
 
     public function terms()
     {
-        $view = get_locale() === 'en' ? 'help/terms_en' : 'help/terms';
+        $view = 'help/terms';
         $this->view($view, [
             'title' => t('header.terms')
         ]);
@@ -28,7 +28,7 @@ class HelpController extends Controller
 
     public function installManual()
     {
-        $view = get_locale() === 'en' ? 'help/install_manual_en' : 'help/install_manual';
+        $view = 'help/install_manual';
         $this->view($view, [
             'title' => t('help.install_manual')
         ]);
@@ -36,7 +36,7 @@ class HelpController extends Controller
 
     public function adminManual()
     {
-        $view = get_locale() === 'en' ? 'help/admin_manual_en' : 'help/admin_manual';
+        $view = 'help/admin_manual';
         $this->view($view, [
             'title' => t('help.admin_manual')
         ]);

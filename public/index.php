@@ -158,6 +158,18 @@ $router->get('/locale/:lang', function ($params) {
     exit;
 });
 
+$router->apiPost('/api/i18n/translate', function ($params, $data) {
+    $text = trim((string)($data['text'] ?? ''));
+    if ($text === '' || mb_strlen($text) > 280) {
+        return ['error' => tr_text('翻訳対象テキストが不正です。', 'Invalid translation target text.'), 'code' => 422];
+    }
+
+    return [
+        'success' => true,
+        'message' => \Core\RuntimeI18n::translatePlainText($text),
+    ];
+}, false);
+
 // ルーティングの設定
 // ホームページ 
 $router->get('/', function () use ($auth) {
@@ -176,7 +188,7 @@ $router->get('/login', function () use ($auth) {
         exit;
     }
 
-    require_once __DIR__ . '/../views/auth/login.php';
+    \Core\RuntimeI18n::renderPhp(__DIR__ . '/../views/auth/login.php');
 });
 
 $router->post('/login', function () use ($auth) {

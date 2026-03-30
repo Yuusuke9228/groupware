@@ -34,6 +34,13 @@ $languageRedirect = urlencode((string)($_SERVER['REQUEST_URI'] ?? (BASE_PATH . '
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Font Awesome -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" rel="stylesheet">
+    <?php $runtimeI18nJsVersion = @filemtime(__DIR__ . '/../../public/js/runtime-i18n.js') ?: time(); ?>
+    <script>
+        var BASE_PATH = "<?php echo BASE_PATH; ?>";
+        var APP_LOCALE = "<?php echo htmlspecialchars($locale, ENT_QUOTES); ?>";
+        var RUNTIME_I18N_ENDPOINT = BASE_PATH + '/api/i18n/translate';
+    </script>
+    <script src="<?php echo BASE_PATH; ?>/js/runtime-i18n.js?v=<?php echo $runtimeI18nJsVersion; ?>"></script>
 
     <style>
         :root {
