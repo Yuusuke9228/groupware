@@ -67,6 +67,9 @@ spl_autoload_register(function ($class) {
     return false;
 });
 
+require_once __DIR__ . '/../Core/i18n_functions.php';
+\Core\I18n::init($_GET['lang'] ?? null);
+
 // コアクラスのインスタンス取得
 $router = Core\Router::getInstance();
 $auth = Core\Auth::getInstance();
@@ -121,6 +124,40 @@ $router->get('/icons/:name', function ($params) {
     exit;
 });
 
+$router->get('/locale/:lang', function ($params) {
+    $requested = (string)($params['lang'] ?? '');
+    $locale = set_locale($requested, true);
+
+    $redirect = (string)($_GET['redirect'] ?? ($_SERVER['HTTP_REFERER'] ?? '/'));
+    $parsed = parse_url($redirect);
+
+    // 外部URLオープンリダイレクトを防止し、同一アプリ内パスに限定
+    if (!empty($parsed['host']) && strcasecmp((string)$parsed['host'], (string)($_SERVER['HTTP_HOST'] ?? '')) !== 0) {
+        $redirect = '/';
+    } else {
+        $path = (string)($parsed['path'] ?? $redirect);
+        $query = isset($parsed['query']) ? ('?' . $parsed['query']) : '';
+        $redirect = ($path !== '' ? $path : '/') . $query;
+    }
+
+    if ($redirect === '' || $redirect[0] !== '/') {
+        $redirect = '/';
+    }
+
+    if (BASE_PATH !== '' && strpos($redirect, BASE_PATH) !== 0) {
+        $redirect = BASE_PATH . $redirect;
+    }
+
+    // ループ防止
+    if (strpos($redirect, '/locale/') !== false) {
+        $redirect = BASE_PATH . '/';
+    }
+
+    header('X-App-Locale: ' . $locale);
+    header('Location: ' . $redirect);
+    exit;
+});
+
 // ルーティングの設定
 // ホームページ 
 $router->get('/', function () use ($auth) {
@@ -151,7 +188,7 @@ $router->post('/login', function () use ($auth) {
     $ssoEnabled = filter_var((string)$settingModel->get('sso_enabled', '0'), FILTER_VALIDATE_BOOLEAN);
     $localEnabled = filter_var((string)$settingModel->get('sso_local_login_enabled', '1'), FILTER_VALIDATE_BOOLEAN);
     if ($ssoEnabled && !$localEnabled) {
-        $_SESSION['login_error'] = 'ローカルログインは無効です。SSOログインをご利用ください。';
+        $_SESSION['login_error'] = t('auth.error.local_login_disabled');
         header('Location: ' . BASE_PATH . '/login/local-admin');
         exit;
     }
@@ -160,7 +197,7 @@ $router->post('/login', function () use ($auth) {
         $redirect = $_GET['redirect'] ?? '/';
         header('Location: ' . BASE_PATH . $redirect);
     } else {
-        $_SESSION['login_error'] = 'ユーザー名またはパスワードが正しくありません';
+        $_SESSION['login_error'] = t('auth.error.invalid_credentials');
         header('Location: ' . BASE_PATH . '/login');
     }
 });
@@ -820,6 +857,11 @@ $router->get('/settings/security', function () {
     $controller->security();
 }, true);
 
+$router->get('/settings/backup/download/:id', function ($params) {
+    $controller = new Controllers\SettingController();
+    $controller->downloadBackup($params);
+}, true);
+
 // システム設定API
 $router->apiPost('/settings', function ($params, $data) {
     $controller = new Controllers\SettingController();
@@ -847,6 +889,16 @@ $router->apiPost('/settings/process-email-queue', function ($params, $data) {
             'failed_count' => $result['failed_count']
         ]
     ];
+}, true);
+
+$router->apiPost('/settings/backup/run', function ($params, $data) {
+    $controller = new Controllers\SettingController();
+    return $controller->apiRunBackup($params, $data);
+}, true);
+
+$router->apiGet('/settings/backup/history', function ($params) {
+    $controller = new Controllers\SettingController();
+    return $controller->apiBackupHistory($params);
 }, true);
 
 // デモデータ生成API

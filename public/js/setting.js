@@ -2,6 +2,19 @@
  * 設定管理用JavaScript
  */
 document.addEventListener('DOMContentLoaded', function () {
+    const tr = (key, replace = {}) => {
+        if (typeof window.tJs === 'function') {
+            return window.tJs(key, replace);
+        }
+        return key;
+    };
+    const tl = (ja, en) => {
+        if (typeof window.tLiteral === 'function') {
+            return window.tLiteral(ja, en);
+        }
+        return ja;
+    };
+
     // 基本設定フォーム
     const settingsForm = document.getElementById('settingsForm');
     if (settingsForm) {
@@ -44,14 +57,14 @@ document.addEventListener('DOMContentLoaded', function () {
                             successAlert.classList.add('d-none');
                         }, 3000);
                     } else {
-                        errorAlert.textContent = data.error || '設定の保存に失敗しました。';
+                        errorAlert.textContent = data.error || tr('js.settings.save_failed');
                         errorAlert.classList.remove('d-none');
                         successAlert.classList.add('d-none');
                     }
                 })
                 .catch(error => {
                     const errorAlert = document.getElementById('settingsErrorAlert');
-                    errorAlert.textContent = '通信エラーが発生しました。';
+                    errorAlert.textContent = tr('js.error.communication');
                     errorAlert.classList.remove('d-none');
                     document.getElementById('settingsSuccessAlert').classList.add('d-none');
                 });
@@ -132,14 +145,14 @@ document.addEventListener('DOMContentLoaded', function () {
                             successAlert.classList.add('d-none');
                         }, 3000);
                     } else {
-                        errorAlert.textContent = data.error || '設定の保存に失敗しました。';
+                        errorAlert.textContent = data.error || tr('js.settings.save_failed');
                         errorAlert.classList.remove('d-none');
                         successAlert.classList.add('d-none');
                     }
                 })
                 .catch(error => {
                     const errorAlert = document.getElementById('smtpErrorAlert');
-                    errorAlert.textContent = '通信エラーが発生しました。';
+                    errorAlert.textContent = tr('js.error.communication');
                     errorAlert.classList.remove('d-none');
                     document.getElementById('smtpSuccessAlert').classList.add('d-none');
                 });
@@ -153,12 +166,12 @@ document.addEventListener('DOMContentLoaded', function () {
             const testEmail = document.getElementById('test_email').value;
 
             if (!testEmail) {
-                alert('テスト送信先メールアドレスを入力してください。');
+                alert(tr('js.settings.test_email_required'));
                 return;
             }
 
             testEmailBtn.disabled = true;
-            testEmailBtn.textContent = '送信中...';
+            testEmailBtn.textContent = tr('js.settings.sending');
 
             // API呼び出し
             fetch(`${BASE_PATH}/api/settings/test-smtp`, {
@@ -171,18 +184,18 @@ document.addEventListener('DOMContentLoaded', function () {
                 .then(response => response.json())
                 .then(data => {
                     testEmailBtn.disabled = false;
-                    testEmailBtn.textContent = 'テスト送信';
+                    testEmailBtn.textContent = tr('js.settings.send_test');
 
                     if (data.success) {
-                        alert(`テストメールを送信しました。\n送信先: ${testEmail}`);
+                        alert(tr('js.settings.test_email_success', { email: testEmail }));
                     } else {
-                        alert(`メール送信に失敗しました。\nエラー: ${data.error}`);
+                        alert(tr('js.settings.test_email_failed', { error: data.error || '-' }));
                     }
                 })
                 .catch(error => {
                     testEmailBtn.disabled = false;
-                    testEmailBtn.textContent = 'テスト送信';
-                    alert('通信エラーが発生しました。');
+                    testEmailBtn.textContent = tr('js.settings.send_test');
+                    alert(tr('js.error.communication'));
                 });
         });
     }
@@ -229,14 +242,14 @@ document.addEventListener('DOMContentLoaded', function () {
                             successAlert.classList.add('d-none');
                         }, 3000);
                     } else {
-                        errorAlert.textContent = data.error || '設定の保存に失敗しました。';
+                        errorAlert.textContent = data.error || tr('js.settings.save_failed');
                         errorAlert.classList.remove('d-none');
                         successAlert.classList.add('d-none');
                     }
                 })
                 .catch(error => {
                     const errorAlert = document.getElementById('notificationErrorAlert');
-                    errorAlert.textContent = '通信エラーが発生しました。';
+                    errorAlert.textContent = tr('js.error.communication');
                     errorAlert.classList.remove('d-none');
                     document.getElementById('notificationSuccessAlert').classList.add('d-none');
                 });
@@ -248,7 +261,7 @@ document.addEventListener('DOMContentLoaded', function () {
     if (processCronManually) {
         processCronManually.addEventListener('click', function () {
             processCronManually.disabled = true;
-            processCronManually.textContent = '処理中...';
+            processCronManually.textContent = tr('js.settings.processing');
 
             // API呼び出し
             fetch(`${BASE_PATH}/api/settings/process-email-queue`, {
@@ -260,18 +273,22 @@ document.addEventListener('DOMContentLoaded', function () {
                 .then(response => response.json())
                 .then(data => {
                     processCronManually.disabled = false;
-                    processCronManually.textContent = '手動でメール送信処理を実行';
+                    processCronManually.textContent = tr('js.settings.process_email_now');
 
                     if (data.success) {
-                        alert(`メール送信処理を実行しました。\n処理件数: ${data.data.processed}\n成功: ${data.data.success_count}\n失敗: ${data.data.failed_count}`);
+                        alert(tr('js.settings.process_email_success', {
+                            processed: data.data.processed,
+                            success: data.data.success_count,
+                            failed: data.data.failed_count
+                        }));
                     } else {
-                        alert(`処理に失敗しました。\nエラー: ${data.error}`);
+                        alert(tr('js.settings.process_email_failed', { error: data.error || '-' }));
                     }
                 })
                 .catch(error => {
                     processCronManually.disabled = false;
-                    processCronManually.textContent = '手動でメール送信処理を実行';
-                    alert('通信エラーが発生しました。');
+                    processCronManually.textContent = tr('js.settings.process_email_now');
+                    alert(tr('js.error.communication'));
                 });
         });
     }
@@ -285,8 +302,8 @@ document.addEventListener('DOMContentLoaded', function () {
         const years = demoDataYearsEl ? parseInt(demoDataYearsEl.value, 10) || 3 : 3;
         const isRebuild = action === 'rebuild';
         const message = isRebuild
-            ? '全再構築は破壊的処理です。業務データを削除してデモデータに作り直します。実行しますか？'
-            : `本日から${years}年分のデモデータを生成します。実行しますか？`;
+            ? tl('全再構築は破壊的処理です。業務データを削除してデモデータに作り直します。実行しますか？', 'Rebuild is destructive. Business data will be removed and replaced with demo data. Continue?')
+            : tl(`本日から${years}年分のデモデータを生成します。実行しますか？`, `Generate ${years} year(s) of demo data from today. Continue?`);
 
         if (!window.confirm(message)) {
             return;
@@ -300,7 +317,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         if (activeBtn) {
             activeBtn.disabled = true;
-            activeBtn.textContent = '処理中...';
+            activeBtn.textContent = tr('js.settings.processing');
         }
         if (inactiveBtn) {
             inactiveBtn.disabled = true;
@@ -319,18 +336,18 @@ document.addEventListener('DOMContentLoaded', function () {
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    const msg = data.message || 'デモデータ処理が完了しました。';
+                    const msg = data.message || tl('デモデータ処理が完了しました。', 'Demo data processing completed.');
                     successAlert.textContent = msg;
                     successAlert.classList.remove('d-none');
                     errorAlert.classList.add('d-none');
                 } else {
-                    errorAlert.textContent = data.error || 'デモデータ処理に失敗しました。';
+                    errorAlert.textContent = data.error || tl('デモデータ処理に失敗しました。', 'Demo data processing failed.');
                     errorAlert.classList.remove('d-none');
                     successAlert.classList.add('d-none');
                 }
             })
             .catch(() => {
-                errorAlert.textContent = '通信エラーが発生しました。';
+                errorAlert.textContent = tr('js.error.communication');
                 errorAlert.classList.remove('d-none');
                 successAlert.classList.add('d-none');
             })
@@ -381,13 +398,13 @@ document.addEventListener('DOMContentLoaded', function () {
                     errorEl.classList.add('d-none');
                     setTimeout(() => successEl.classList.add('d-none'), 3000);
                 } else {
-                    errorEl.textContent = data.error || '設定保存に失敗しました。';
+                    errorEl.textContent = data.error || tr('js.settings.save_failed');
                     errorEl.classList.remove('d-none');
                     successEl.classList.add('d-none');
                 }
             })
             .catch(() => {
-                errorEl.textContent = '通信エラーが発生しました。';
+                errorEl.textContent = tr('js.error.communication');
                 errorEl.classList.remove('d-none');
                 successEl.classList.add('d-none');
             });
@@ -431,9 +448,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
     const btnSendTestPush = document.getElementById('btnSendTestPush');
     if (btnSendTestPush) {
-        btnSendTestPush.addEventListener('click', function () {
-            btnSendTestPush.disabled = true;
-            btnSendTestPush.textContent = '送信中...';
+            btnSendTestPush.addEventListener('click', function () {
+                btnSendTestPush.disabled = true;
+            btnSendTestPush.textContent = tr('js.settings.sending');
             fetch(`${BASE_PATH}/api/pwa/test-push`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -442,17 +459,17 @@ document.addEventListener('DOMContentLoaded', function () {
                 .then(r => r.json())
                 .then(data => {
                     if (data.success) {
-                        alert(data.message || 'Push通知を送信しました。');
+                        alert(data.message || tl('Push通知を送信しました。', 'Push notification sent.'));
                     } else {
-                        alert(data.error || 'Push通知の送信に失敗しました。');
+                        alert(data.error || tl('Push通知の送信に失敗しました。', 'Failed to send push notification.'));
                     }
                 })
                 .catch(() => {
-                    alert('通信エラーが発生しました。');
+                    alert(tr('js.error.communication'));
                 })
                 .finally(() => {
                     btnSendTestPush.disabled = false;
-                    btnSendTestPush.textContent = 'テストPush送信';
+                    btnSendTestPush.textContent = tl('テストPush送信', 'Send test push');
                 });
         });
     }
@@ -470,18 +487,18 @@ document.addEventListener('DOMContentLoaded', function () {
                 .then(r => r.json())
                 .then(data => {
                     if (!data.success) {
-                        alert(data.error || 'SCIMトークン発行に失敗しました。');
+                        alert(data.error || tl('SCIMトークン発行に失敗しました。', 'Failed to issue SCIM token.'));
                         return;
                     }
                     const alertEl = document.getElementById('scimTokenPlainAlert');
                     if (alertEl) {
                         alertEl.classList.remove('d-none');
-                        alertEl.textContent = `発行トークン（この表示のみ）: ${data.data?.token || ''}`;
+                        alertEl.textContent = tl('発行トークン（この表示のみ）: ', 'Issued token (shown only once): ') + (data.data?.token || '');
                     }
                     window.location.reload();
                 })
                 .catch(() => {
-                    alert('通信エラーが発生しました。');
+                    alert(tr('js.error.communication'));
                 });
         });
     }
@@ -497,14 +514,139 @@ document.addEventListener('DOMContentLoaded', function () {
                 .then(r => r.json())
                 .then(data => {
                     if (!data.success) {
-                        alert(data.error || 'SCIMトークン更新に失敗しました。');
+                        alert(data.error || tl('SCIMトークン更新に失敗しました。', 'Failed to update SCIM token.'));
                         this.checked = !this.checked;
                     }
                 })
                 .catch(() => {
-                    alert('通信エラーが発生しました。');
+                    alert(tr('js.error.communication'));
                     this.checked = !this.checked;
                 });
         });
     });
+
+    const runBackupBtn = document.getElementById('runBackupBtn');
+    const backupHistoryBody = document.getElementById('backupHistoryBody');
+    const backupSuccessAlert = document.getElementById('backupSuccessAlert');
+    const backupErrorAlert = document.getElementById('backupErrorAlert');
+
+    const formatBytes = (size) => {
+        const value = Number(size || 0);
+        if (!Number.isFinite(value) || value <= 0) return '0 B';
+        const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+        let idx = 0;
+        let num = value;
+        while (num >= 1024 && idx < units.length - 1) {
+            num /= 1024;
+            idx += 1;
+        }
+        return `${num.toFixed(idx === 0 ? 0 : 2)} ${units[idx]}`;
+    };
+
+    const statusLabel = (status) => {
+        if (status === 'success') return tr('settings.backup.status_success');
+        if (status === 'failed') return tr('settings.backup.status_failed');
+        if (status === 'running') return tr('settings.backup.status_running');
+        return String(status || '-');
+    };
+
+    const renderBackupHistory = (rows) => {
+        if (!backupHistoryBody) return;
+        const list = Array.isArray(rows) ? rows : [];
+        if (list.length === 0) {
+            backupHistoryBody.innerHTML = `<tr><td colspan=\"8\" class=\"text-center text-muted\">${tr('settings.backup.none') || 'No backup history yet.'}</td></tr>`;
+            return;
+        }
+
+        backupHistoryBody.innerHTML = list.map((row) => {
+            const id = Number(row.id || 0);
+            const createdAt = row.created_at || row.started_at || '';
+            const actor = row.executed_by_name || row.executed_by || '-';
+            const fileName = row.file_name || '-';
+            const size = formatBytes(row.file_size || 0);
+            const status = statusLabel(row.status);
+            const error = row.error_message || '-';
+            const canDownload = row.status === 'success' && id > 0;
+            const downloadLink = canDownload
+                ? `<a href=\"${BASE_PATH}/settings/backup/download/${id}\" class=\"btn btn-sm btn-outline-primary\">${tr('js.backup.download')}</a>`
+                : '<span class=\"text-muted\">-</span>';
+            return `
+                <tr>
+                    <td>${id}</td>
+                    <td>${actor}</td>
+                    <td>${createdAt}</td>
+                    <td>${fileName}</td>
+                    <td>${size}</td>
+                    <td>${status}</td>
+                    <td>${error}</td>
+                    <td>${downloadLink}</td>
+                </tr>
+            `;
+        }).join('');
+    };
+
+    const loadBackupHistory = () => {
+        if (!backupHistoryBody) return;
+        fetch(`${BASE_PATH}/api/settings/backup/history`, {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' }
+        })
+            .then((r) => r.json())
+            .then((data) => {
+                if (!data.success) {
+                    throw new Error(data.error || tr('js.backup.run_failed'));
+                }
+                renderBackupHistory(data.data);
+            })
+            .catch((error) => {
+                if (backupErrorAlert) {
+                    backupErrorAlert.textContent = error.message || tr('js.error.communication');
+                    backupErrorAlert.classList.remove('d-none');
+                }
+            });
+    };
+
+    if (runBackupBtn) {
+        runBackupBtn.addEventListener('click', () => {
+            if (!window.confirm(tr('js.backup.run_confirm'))) {
+                return;
+            }
+
+            if (backupSuccessAlert) backupSuccessAlert.classList.add('d-none');
+            if (backupErrorAlert) backupErrorAlert.classList.add('d-none');
+
+            runBackupBtn.disabled = true;
+            const originalLabel = runBackupBtn.textContent;
+            runBackupBtn.textContent = tr('js.settings.processing');
+
+            fetch(`${BASE_PATH}/api/settings/backup/run`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({})
+            })
+                .then((r) => r.json())
+                .then((data) => {
+                    if (!data.success) {
+                        throw new Error(data.error || tr('js.backup.run_failed'));
+                    }
+                    if (backupSuccessAlert) {
+                        backupSuccessAlert.textContent = data.message || tr('js.backup.run_success');
+                        backupSuccessAlert.classList.remove('d-none');
+                    }
+                    loadBackupHistory();
+                })
+                .catch((error) => {
+                    if (backupErrorAlert) {
+                        backupErrorAlert.textContent = error.message || tr('js.backup.run_failed');
+                        backupErrorAlert.classList.remove('d-none');
+                    }
+                })
+                .finally(() => {
+                    runBackupBtn.disabled = false;
+                    runBackupBtn.textContent = originalLabel;
+                });
+        });
+
+        loadBackupHistory();
+    }
 });

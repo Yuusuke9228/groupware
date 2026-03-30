@@ -210,22 +210,23 @@ $normalizeOptions = function ($options) {
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    const localeForNumber = window.getAppDataLocale ? window.getAppDataLocale() : 'ja-JP';
     function formatCalcValue(result, format, decimals) {
         if (format === 'currency') {
-            return '¥' + result.toLocaleString('ja-JP', {
+            return '¥' + result.toLocaleString(localeForNumber, {
                 minimumFractionDigits: decimals,
                 maximumFractionDigits: decimals
             });
         }
 
         if (format === 'percent') {
-            return result.toLocaleString('ja-JP', {
+            return result.toLocaleString(localeForNumber, {
                 minimumFractionDigits: decimals,
                 maximumFractionDigits: decimals
             }) + '%';
         }
 
-        return result.toLocaleString('ja-JP', {
+        return result.toLocaleString(localeForNumber, {
             minimumFractionDigits: decimals,
             maximumFractionDigits: decimals
         });

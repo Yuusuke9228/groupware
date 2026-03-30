@@ -12,9 +12,12 @@ $ssoProvider = (string)$settingModel->get('sso_provider', 'oidc');
 $isLocalAdminOnly = !empty($localAdminOnly);
 $showLocalLoginForm = $isLocalAdminOnly || !$ssoEnabled || $localLoginEnabled;
 $redirectParam = isset($_GET['redirect']) ? '&redirect=' . urlencode((string)$_GET['redirect']) : '';
+$locale = get_locale();
+$isJaLocale = $locale === 'ja';
+$languageRedirect = urlencode((string)($_SERVER['REQUEST_URI'] ?? (BASE_PATH . '/login')));
 ?>
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="<?php echo htmlspecialchars($locale); ?>">
 
 <head>
     <meta charset="UTF-8">
@@ -24,7 +27,7 @@ $redirectParam = isset($_GET['redirect']) ? '&redirect=' . urlencode((string)$_G
     <link rel="manifest" href="<?php echo BASE_PATH; ?>/manifest.json">
     <link rel="apple-touch-icon" href="<?php echo BASE_PATH; ?>/icons/pwa-192.png">
     <?php endif; ?>
-    <title>ログイン - <?php echo htmlspecialchars($appName); ?></title>
+    <title><?php echo htmlspecialchars(t('login.title')); ?> - <?php echo htmlspecialchars($appName); ?></title>
     <link rel="icon" type="image/svg+xml" href="<?php echo BASE_PATH; ?>/img_icon/favicon.svg">
 
     <!-- Bootstrap CSS -->
@@ -207,12 +210,17 @@ $redirectParam = isset($_GET['redirect']) ? '&redirect=' . urlencode((string)$_G
 
 <body>
     <main class="login-card">
+        <div class="d-flex justify-content-end gap-2 mb-2" style="font-size:12px;">
+            <a href="<?= BASE_PATH ?>/locale/ja?redirect=<?= $languageRedirect ?>"><?= htmlspecialchars(t('lang.ja')) ?></a>
+            <span>/</span>
+            <a href="<?= BASE_PATH ?>/locale/en?redirect=<?= $languageRedirect ?>"><?= htmlspecialchars(t('lang.en')) ?></a>
+        </div>
         <form action="<?php echo $isLocalAdminOnly ? (BASE_PATH . '/login/local-admin') : (BASE_PATH . '/login' . (isset($_GET['redirect']) ? '?redirect=' . urlencode($_GET['redirect']) : '')); ?>" method="post">
             <div class="login-logo">
                 <i class="fas fa-th-large"></i>
             </div>
             <h1 class="login-title"><img src="<?php echo BASE_PATH; ?>/img_icon/favicon.svg" alt="" style="height:36px;border-radius:8px;margin-right:8px;vertical-align:middle;"><?php echo htmlspecialchars($appName); ?></h1>
-            <p class="login-subtitle"><?php echo $isLocalAdminOnly ? '非常用ローカル管理者ログイン' : 'アカウントにログイン'; ?></p>
+            <p class="login-subtitle"><?php echo $isLocalAdminOnly ? t('login.emergency_local_admin') : t('login.account_login'); ?></p>
 
             <?php if (isset($_SESSION['login_error'])): ?>
                 <div class="alert alert-danger" role="alert">
@@ -224,26 +232,28 @@ $redirectParam = isset($_GET['redirect']) ? '&redirect=' . urlencode((string)$_G
 
             <?php if ($showLocalLoginForm): ?>
                 <div class="form-floating">
-                    <input type="text" class="form-control" id="username" name="username" placeholder="ユーザー名" required autofocus>
-                    <label for="username"><i class="fas fa-user me-1"></i> ユーザー名</label>
+                    <input type="text" class="form-control" id="username" name="username" placeholder="<?php echo htmlspecialchars(t('login.username')); ?>" required autofocus>
+                    <label for="username"><i class="fas fa-user me-1"></i> <?php echo htmlspecialchars(t('login.username')); ?></label>
                 </div>
                 <div class="form-floating">
-                    <input type="password" class="form-control" id="password" name="password" placeholder="パスワード" required>
-                    <label for="password"><i class="fas fa-lock me-1"></i> パスワード</label>
+                    <input type="password" class="form-control" id="password" name="password" placeholder="<?php echo htmlspecialchars(t('login.password')); ?>" required>
+                    <label for="password"><i class="fas fa-lock me-1"></i> <?php echo htmlspecialchars(t('login.password')); ?></label>
                 </div>
 
                 <div class="form-check text-start">
                     <input class="form-check-input" type="checkbox" value="1" id="remember" name="remember">
-                    <label class="form-check-label" for="remember">ログイン状態を保持する</label>
+                    <label class="form-check-label" for="remember"><?php echo htmlspecialchars(t('login.remember')); ?></label>
                 </div>
 
                 <button class="btn btn-login" type="submit">
-                    <i class="fas fa-sign-in-alt me-1"></i> ログイン
+                    <i class="fas fa-sign-in-alt me-1"></i> <?php echo htmlspecialchars(t('login.submit')); ?>
                 </button>
             <?php else: ?>
                 <div class="alert alert-info">
-                    ローカルログインは無効です。以下のSSOログインをご利用ください。<br>
-                    設定復旧時は <a href="<?= BASE_PATH ?>/login/local-admin">非常口ローカル管理者ログイン</a> を利用できます。
+                    <?php echo htmlspecialchars(t('login.local_disabled')); ?><br>
+                    <?php echo htmlspecialchars(t('login.local_recovery')); ?>
+                    <a href="<?= BASE_PATH ?>/login/local-admin"><?php echo htmlspecialchars(t('login.local_recovery_link')); ?></a>
+                    <?php echo htmlspecialchars(t('login.local_recovery_suffix')); ?>
                 </div>
             <?php endif; ?>
 
@@ -251,12 +261,12 @@ $redirectParam = isset($_GET['redirect']) ? '&redirect=' . urlencode((string)$_G
                 <div class="mt-3 d-grid gap-2">
                     <?php if ($oidcEnabled): ?>
                         <a class="btn btn-outline-primary" href="<?= BASE_PATH ?>/auth/oidc/login?provider=oidc<?= $redirectParam ?>">
-                            <i class="fas fa-id-card me-1"></i> OIDCでログイン
+                            <i class="fas fa-id-card me-1"></i> <?php echo htmlspecialchars(t('login.sso_oidc')); ?>
                         </a>
                     <?php endif; ?>
                     <?php if ($samlEnabled): ?>
                         <a class="btn btn-outline-secondary" href="<?= BASE_PATH ?>/auth/saml/login<?= $redirectParam !== '' ? ('?' . ltrim($redirectParam, '&')) : '' ?>">
-                            <i class="fas fa-user-shield me-1"></i> SAMLでログイン
+                            <i class="fas fa-user-shield me-1"></i> <?php echo htmlspecialchars(t('login.sso_saml')); ?>
                         </a>
                     <?php endif; ?>
                 </div>
@@ -274,34 +284,34 @@ $redirectParam = isset($_GET['redirect']) ? '&redirect=' . urlencode((string)$_G
             ?>
             <div class="demo-hint" style="margin-top:20px;padding:16px;background:linear-gradient(135deg,#fff8e1,#fff3cd);border:1px solid #ffc107;border-radius:10px;font-size:13px;">
                 <div style="font-weight:700;color:#856404;margin-bottom:10px;font-size:14px;">
-                    <i class="fas fa-info-circle me-1"></i> デモサイトへようこそ
+                    <i class="fas fa-info-circle me-1"></i> <?php echo $isJaLocale ? 'デモサイトへようこそ' : 'Welcome to the demo site'; ?>
                 </div>
-                <p style="margin:0 0 10px;color:#664d03;">以下のアカウントでログインしてお試しいただけます。</p>
+                <p style="margin:0 0 10px;color:#664d03;"><?php echo $isJaLocale ? '以下のアカウントでログインしてお試しいただけます。' : 'You can sign in using the following accounts.'; ?></p>
                 <table style="width:100%;font-size:12px;border-collapse:collapse;">
                     <tr style="border-bottom:1px solid rgba(0,0,0,0.1);">
-                        <td style="padding:4px 0;font-weight:600;color:#856404;">管理者</td>
+                        <td style="padding:4px 0;font-weight:600;color:#856404;"><?php echo $isJaLocale ? '管理者' : 'Admin'; ?></td>
                         <td style="padding:4px 8px;"><code style="background:#fff;padding:2px 6px;border-radius:4px;">admin</code></td>
                         <td style="padding:4px 0;"><code style="background:#fff;padding:2px 6px;border-radius:4px;">demo1234</code></td>
                     </tr>
                     <tr style="border-bottom:1px solid rgba(0,0,0,0.1);">
-                        <td style="padding:4px 0;font-weight:600;color:#856404;">一般①</td>
+                        <td style="padding:4px 0;font-weight:600;color:#856404;"><?php echo $isJaLocale ? '一般①' : 'User 1'; ?></td>
                         <td style="padding:4px 8px;"><code style="background:#fff;padding:2px 6px;border-radius:4px;">yamada</code></td>
                         <td style="padding:4px 0;"><code style="background:#fff;padding:2px 6px;border-radius:4px;">demo1234</code></td>
                     </tr>
                     <tr style="border-bottom:1px solid rgba(0,0,0,0.1);">
-                        <td style="padding:4px 0;font-weight:600;color:#856404;">一般②</td>
+                        <td style="padding:4px 0;font-weight:600;color:#856404;"><?php echo $isJaLocale ? '一般②' : 'User 2'; ?></td>
                         <td style="padding:4px 8px;"><code style="background:#fff;padding:2px 6px;border-radius:4px;">tanaka</code></td>
                         <td style="padding:4px 0;"><code style="background:#fff;padding:2px 6px;border-radius:4px;">demo1234</code></td>
                     </tr>
                     <tr>
-                        <td style="padding:4px 0;font-weight:600;color:#856404;">一般③</td>
+                        <td style="padding:4px 0;font-weight:600;color:#856404;"><?php echo $isJaLocale ? '一般③' : 'User 3'; ?></td>
                         <td style="padding:4px 8px;"><code style="background:#fff;padding:2px 6px;border-radius:4px;">suzuki</code></td>
                         <td style="padding:4px 0;"><code style="background:#fff;padding:2px 6px;border-radius:4px;">demo1234</code></td>
                     </tr>
                 </table>
                 <p style="margin:10px 0 0;color:#856404;font-size:11px;">
                     <i class="fas fa-exclamation-triangle me-1"></i>
-                    デモ環境のデータは定期的にリセットされます。本番データの入力はお控えください。
+                    <?php echo $isJaLocale ? 'デモ環境のデータは定期的にリセットされます。本番データの入力はお控えください。' : 'Demo data is reset periodically. Do not enter production data.'; ?>
                 </p>
             </div>
             <?php endif; ?>

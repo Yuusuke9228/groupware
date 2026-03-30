@@ -1795,7 +1795,7 @@ const Schedule = {
         // 日付ピッカーの初期化
         flatpickr("#start_time_date, #end_time_date, #repeat_end_date", {
             dateFormat: 'Y-m-d',
-            locale: 'ja',
+            locale: (window.getAppLocale ? window.getAppLocale() : 'ja'),
             disableMobile: true,
             onChange: function (selectedDates, dateStr, instance) {
                 // 開始日が変更された場合、終了日も更新（終了日が開始日より前の場合）
@@ -1878,13 +1878,10 @@ const Schedule = {
                 center: 'title',
                 right: 'dayGridMonth,timeGridWeek,timeGridDay'
             },
-            locale: 'ja',
-            buttonText: {
-                today: '今日',
-                month: '月',
-                week: '週',
-                day: '日'
-            },
+            locale: (window.getAppLocale ? window.getAppLocale() : 'ja'),
+            buttonText: (window.getAppLocale && window.getAppLocale() === 'en')
+                ? { today: 'Today', month: 'Month', week: 'Week', day: 'Day' }
+                : { today: '今日', month: '月', week: '週', day: '日' },
             navLinks: true,
             editable: false,
             dayMaxEvents: true,

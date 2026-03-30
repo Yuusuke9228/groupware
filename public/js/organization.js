@@ -275,9 +275,7 @@ const Organization = {
                 }
             ],
             order: [[2, 'asc']], // 表示名でソート
-            language: {
-                url: BASE_PATH + '/js/vendor/dataTables.japanese.json'
-            }
+            language: (window.getDataTablesLanguageOption ? window.getDataTablesLanguageOption() : {})
         });
     },
 

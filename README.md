@@ -28,7 +28,18 @@
 
 ### Release Channel / リリースチャネル
 - Current public beta: `v0.9.0-beta.1`
+
+### Links
 - Live Demo: https://groupware.yuus-program.com/
+- GitHub Repository: https://github.com/Yuusuke9228/groupware
+- Blog: https://www.yuus-program.com/
+
+### Demo Accounts
+- Admin: `admin` / `demo1234`
+- User 1: `yamada` / `demo1234`
+- User 2: `tanaka` / `demo1234`
+- User 3: `suzuki` / `demo1234`
+- Demo data is reset periodically. Do not enter production data.
 
 ### Demo Accounts
 - Admin: `admin` / `demo1234`

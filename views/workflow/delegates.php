@@ -148,7 +148,7 @@ $pageTitle = '代理承認設定';
         if (typeof flatpickr !== 'undefined') {
             flatpickr('.date-picker', {
                 dateFormat: 'Y-m-d',
-                locale: 'ja',
+                locale: (window.getAppLocale ? window.getAppLocale() : 'ja'),
                 minDate: 'today'
             });
         }
