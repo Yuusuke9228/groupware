@@ -6,6 +6,34 @@
 
 ---
 
+## [Unreleased]
+
+### Added / 追加
+
+- 新機能 `Visual Boards` を追加（既存カンバン機能とは分離）
+  - ノードベースの思考整理キャンバス（パン / ズーム / 親子ノード / 接続線）
+  - テンプレート（Mind Map / Flowchart / Brainstorm / Planning）
+  - Undo / Redo、折りたたみ、自動レイアウト
+  - 個人 / チーム / 組織共有、タスク連携
+  - JSON / PDF / PNG 出力
+  - 新規追加ファイル:
+    - `Core/VisualBoardModule.php`
+    - `Models/VisualBoard.php`
+    - `Core/visual_boards_views/*.php`
+    - `scripts/upgrade_20260331_visual_boards.sql`
+
+### Changed / 変更
+
+- `Core/Router.php` に `Visual Boards` 用の拡張ルート登録を追加
+- README の Demo Accounts 重複記載を解消
+
+### i18n / 多言語
+
+- `Visual Boards` 画面内UIの日本語 / 英語切替表示を追加（`tr_text()` ベース）
+- テンプレート名、操作ラベル、ショートカット案内、出力導線を日英対応
+
+---
+
 ## [0.9.0-beta.1] - 2026-03-30
 
 ### Added / 追加

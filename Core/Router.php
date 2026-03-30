@@ -14,6 +14,74 @@ class Router
     {
         $this->basePath = defined("BASE_PATH") ? BASE_PATH : "";
         $this->auth = Auth::getInstance();
+        $this->registerExtensionRoutes();
+    }
+
+    private function registerExtensionRoutes()
+    {
+        if (!class_exists('\\Core\\VisualBoardModule')) {
+            return;
+        }
+
+        $this->get('/visual-boards', function () {
+            $module = new \Core\VisualBoardModule();
+            $module->index();
+        }, true);
+
+        $this->get('/visual-boards/create-board', function () {
+            $module = new \Core\VisualBoardModule();
+            $module->createBoard();
+        }, true);
+
+        $this->get('/visual-boards/board/:id', function ($params) {
+            $module = new \Core\VisualBoardModule();
+            $module->board($params);
+        }, true);
+
+        $this->get('/visual-boards/export/json/:id', function ($params) {
+            $module = new \Core\VisualBoardModule();
+            $module->exportJson($params);
+        }, true);
+
+        $this->get('/visual-boards/export/pdf/:id', function ($params) {
+            $module = new \Core\VisualBoardModule();
+            $module->exportPdf($params);
+        }, true);
+
+        $this->get('/help/visual-boards', function () {
+            $module = new \Core\VisualBoardModule();
+            $module->help();
+        }, true);
+
+        $this->apiPost('/visual-boards/boards', function ($params, $data) {
+            $module = new \Core\VisualBoardModule();
+            return $module->apiCreateBoard($params, $data);
+        }, true);
+
+        $this->apiDelete('/visual-boards/boards/:id', function ($params) {
+            $module = new \Core\VisualBoardModule();
+            return $module->apiDeleteBoard($params);
+        }, true);
+
+        $this->apiGet('/visual-boards/:id/data', function ($params) {
+            $module = new \Core\VisualBoardModule();
+            return $module->apiGetBoardData($params);
+        }, true);
+
+        $this->apiPost('/visual-boards/:id/sync', function ($params, $data) {
+            $module = new \Core\VisualBoardModule();
+            return $module->apiSyncBoard($params, $data);
+        }, true);
+
+        $this->apiPost('/visual-boards/:id/auto-layout', function ($params, $data) {
+            $module = new \Core\VisualBoardModule();
+            return $module->apiAutoLayout($params, $data);
+        }, true);
+
+        $this->apiGet('/visual-boards/:id/tasks', function ($params) {
+            $module = new \Core\VisualBoardModule();
+            return $module->apiTaskOptions($params);
+        }, true);
     }
 
     private function isAjaxRequest()
