@@ -2,29 +2,33 @@
     <div class="row g-4">
         <div class="col-12">
             <div class="bg-light rounded p-4 mb-4">
-                <div class="d-flex justify-content-between align-items-center mb-4">
-                    <h3 class="mb-0">日報ダッシュボード</h3>
-                    <div>
-                        <a href="<?= BASE_PATH ?>/daily-report/create" class="btn btn-primary">
-                            <i class="fas fa-plus me-2"></i>新規作成
+                <div class="daily-report-dashboard-header mb-4">
+                    <div class="d-flex justify-content-between align-items-xl-center flex-column flex-xl-row gap-3">
+                        <h3 class="mb-0">日報ダッシュボード</h3>
+                        <div class="d-flex flex-wrap gap-2 daily-report-dashboard-primary-actions">
+                            <a href="<?= BASE_PATH ?>/daily-report/create" class="btn btn-primary btn-sm">
+                                <i class="fas fa-plus me-1"></i>新規作成
+                            </a>
+                            <button id="createWithTemplate" class="btn btn-outline-primary btn-sm">
+                                <i class="fas fa-file-alt me-1"></i>テンプレートから作成
+                            </button>
+                        </div>
+                    </div>
+                    <div class="daily-report-dashboard-nav mt-3">
+                        <a href="<?= BASE_PATH ?>/daily-report/list" class="btn btn-secondary btn-sm">
+                            <i class="fas fa-list me-1"></i>一覧表示
                         </a>
-                        <button id="createWithTemplate" class="btn btn-outline-primary ms-2">
-                            <i class="fas fa-file-alt me-2"></i>テンプレートから作成
-                        </button>
-                        <a href="<?= BASE_PATH ?>/daily-report/list" class="btn btn-secondary ms-2">
-                            <i class="fas fa-list me-2"></i>一覧表示
+                        <a href="<?= BASE_PATH ?>/daily-report/week" class="btn btn-outline-secondary btn-sm">
+                            <i class="fas fa-calendar-week me-1"></i>週間
                         </a>
-                        <a href="<?= BASE_PATH ?>/daily-report/week" class="btn btn-outline-secondary ms-2">
-                            <i class="fas fa-calendar-week me-2"></i>週間
+                        <a href="<?= BASE_PATH ?>/daily-report/month" class="btn btn-outline-secondary btn-sm">
+                            <i class="fas fa-calendar-alt me-1"></i>月間
                         </a>
-                        <a href="<?= BASE_PATH ?>/daily-report/month" class="btn btn-outline-secondary ms-2">
-                            <i class="fas fa-calendar-alt me-2"></i>月間
+                        <a href="<?= BASE_PATH ?>/daily-report/timeline" class="btn btn-outline-secondary btn-sm">
+                            <i class="fas fa-stream me-1"></i>タイムライン
                         </a>
-                        <a href="<?= BASE_PATH ?>/daily-report/timeline" class="btn btn-outline-secondary ms-2">
-                            <i class="fas fa-stream me-2"></i>タイムライン
-                        </a>
-                        <a href="<?= BASE_PATH ?>/daily-report/analysis" class="btn btn-outline-success ms-2">
-                            <i class="fas fa-chart-line me-2"></i>分析
+                        <a href="<?= BASE_PATH ?>/daily-report/analysis" class="btn btn-outline-success btn-sm">
+                            <i class="fas fa-chart-line me-1"></i>分析
                         </a>
                     </div>
                 </div>

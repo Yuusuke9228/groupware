@@ -1224,11 +1224,31 @@ body {
     margin-bottom: 2px;
 }
 
-.daily-report-month-table-wrap {
-    overflow: auto;
+.daily-report-dashboard-header {
+    padding: 16px;
+    border: 1px solid var(--border-light);
+    border-radius: 12px;
+    background: linear-gradient(180deg, #ffffff 0%, #f7faff 100%);
 }
 
-.daily-report-month-table {
+.daily-report-dashboard-nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.daily-report-dashboard-nav .btn {
+    border-radius: 999px;
+}
+
+.daily-report-month-table-wrap {
+    overflow: auto;
+    border: 1px solid var(--border-light);
+    border-radius: 12px;
+    background: #fff;
+}
+
+.daily-report-month-table-wrap table.daily-report-month-table {
     min-width: 760px;
     table-layout: fixed;
 }
@@ -1756,19 +1776,63 @@ body {
         min-height: 80px;
     }
 
-    .daily-report-month-table {
-        min-width: 640px;
+    .daily-report-dashboard-header {
+        padding: 12px;
+    }
+
+    .daily-report-dashboard-primary-actions {
+        width: 100%;
+    }
+
+    .daily-report-dashboard-primary-actions .btn {
+        flex: 1 1 calc(50% - 4px);
+        white-space: nowrap;
+    }
+
+    .daily-report-dashboard-nav {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        padding-bottom: 4px;
+    }
+
+    .daily-report-dashboard-nav .btn {
+        flex: 0 0 auto;
+    }
+
+    .daily-report-month-table-wrap {
+        margin-left: calc(50% - 50vw);
+        margin-right: calc(50% - 50vw);
+        width: 100vw;
+        border-left: 0;
+        border-right: 0;
+        border-radius: 0;
+    }
+
+    .daily-report-month-table-wrap table.daily-report-month-table {
+        width: 100%;
+        min-width: 100%;
     }
 
     .daily-report-month-table .daily-report-day-cell {
-        min-height: 96px;
-        padding: 6px;
-        font-size: 13px;
+        min-height: 82px;
+        padding: 4px;
+        font-size: 11px;
     }
 
     .daily-report-month-table .daily-report-count-badge {
+        font-size: 10px;
+        padding: 2px 5px;
+    }
+
+    .daily-report-month-table th {
         font-size: 11px;
-        padding: 3px 6px;
+        padding: 6px 2px;
+    }
+
+    .daily-report-month-table .daily-report-day-cell .small.btn-link {
+        font-size: 10px;
+        line-height: 1.1;
     }
 
     .gw-stats-row {
