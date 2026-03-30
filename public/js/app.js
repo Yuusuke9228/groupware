@@ -152,11 +152,11 @@ const App = {
                 width: '100%',
                 closeOnSelect: false,
                 allowClear: true,
-                placeholder: $(this).data('placeholder') || '選択してください...',
+                placeholder: $(this).data('placeholder') || (window.tJs ? window.tJs('js.common.select_placeholder') : 'Please select...'),
                 language: {
-                    noResults: function () { return '該当なし'; },
-                    searching: function () { return '検索中...'; },
-                    removeAllItems: function () { return 'すべて削除'; }
+                    noResults: function () { return window.tJs ? window.tJs('js.datatable.empty') : 'No results found'; },
+                    searching: function () { return window.tJs ? window.tJs('js.datatable.searching') : 'Searching...'; },
+                    removeAllItems: function () { return window.tJs ? window.tJs('js.datatable.remove_all') : 'Clear all'; }
                 }
             });
         });
@@ -237,13 +237,13 @@ const App = {
                 url = BASE_PATH + url;
             }
 
-            const message = $(this).data('confirm') || '本当に削除しますか？';
+            const message = $(this).data('confirm') || (window.tJs ? window.tJs('js.common.delete_confirm') : 'Are you sure you want to delete this item?');
 
             if (confirm(message)) {
                 App.apiDelete(url)
                     .then(response => {
                         if (response.success) {
-                            App.showNotification(response.message || '削除しました', 'success');
+                            App.showNotification(response.message || (window.tJs ? window.tJs('js.common.deleted') : 'Deleted.'), 'success');
 
                             // リダイレクト指定があればリダイレクト
                             if (response.redirect) {
@@ -259,11 +259,11 @@ const App = {
                                 window.location.reload();
                             }
                         } else {
-                            App.showNotification(response.error || 'エラーが発生しました', 'error');
+                            App.showNotification(response.error || (window.tJs ? window.tJs('js.common.generic_error') : 'An error occurred.'), 'error');
                         }
                     })
                     .catch(error => {
-                        App.showNotification('エラーが発生しました', 'error');
+                        App.showNotification(window.tJs ? window.tJs('js.common.generic_error') : 'An error occurred.', 'error');
                         console.error(error);
                     });
             }
@@ -411,7 +411,7 @@ const App = {
             success: function (response) {
                 if (response.success) {
                     // 成功の場合
-                    App.showNotification(response.message || '保存しました', 'success');
+                    App.showNotification(response.message || (window.tJs ? window.tJs('js.common.saved') : 'Saved.'), 'success');
 
                     // モーダルがある場合は閉じる
                     const modal = form.closest('.modal');
@@ -434,7 +434,7 @@ const App = {
                     }
                 } else {
                     // エラーの場合
-                    App.showNotification(response.error || 'エラーが発生しました', 'error');
+                    App.showNotification(response.error || (window.tJs ? window.tJs('js.common.generic_error') : 'An error occurred.'), 'error');
 
                     // バリデーションエラーがある場合は表示
                     if (response.validation) {
@@ -448,7 +448,7 @@ const App = {
                 }
             },
             error: function (xhr, status, error) {
-                App.showNotification('エラーが発生しました', 'error');
+                App.showNotification(window.tJs ? window.tJs('js.common.generic_error') : 'An error occurred.', 'error');
                 console.error(error);
             },
             complete: function () {

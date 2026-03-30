@@ -113,7 +113,7 @@ const Task = {
             // 日付選択
             flatpickr('.datepicker', {
                 dateFormat: 'Y-m-d',
-                locale: 'ja',
+                locale: (window.getAppLocale ? window.getAppLocale() : 'ja'),
                 disableMobile: true
             });
         }
@@ -123,9 +123,7 @@ const Task = {
     initDataTables: function () {
         if ($.fn.DataTable) {
             $('.datatable').DataTable({
-                language: {
-                    url: '//cdn.datatables.net/plug-ins/1.10.25/i18n/Japanese.json'
-                },
+                language: (window.getDataTablesLanguageOption ? window.getDataTablesLanguageOption() : {}),
                 pageLength: 25,
                 responsive: true
             });

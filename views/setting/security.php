@@ -4,24 +4,26 @@ $runtimeBase = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' ? 'http
 $appUrl = $appUrlSetting !== '' ? rtrim($appUrlSetting, '/') : rtrim($runtimeBase . BASE_PATH, '/');
 $scimBasePath = (string)($settings['scim_base_path'] ?? '/api/scim/v2');
 $scimBaseUrl = $appUrl . $scimBasePath;
+$isJaLocale = get_locale() === 'ja';
 ?>
 <div class="container">
     <div class="row mb-4">
         <div class="col-md-12">
-            <h1 class="h3 mb-2">認証・PWA・SCIM設定</h1>
-            <p class="text-muted">PWA、SSO（OIDC/SAML）、SCIMプロビジョニングの運用設定を行います。</p>
+            <h1 class="h3 mb-2"><?= htmlspecialchars(t('settings.menu.security')) ?></h1>
+            <p class="text-muted"><?= $isJaLocale ? 'PWA、SSO（OIDC/SAML）、SCIMプロビジョニングの運用設定を行います。' : 'Manage operational settings for PWA, SSO (OIDC/SAML), and SCIM provisioning.' ?></p>
         </div>
     </div>
 
     <div class="row">
         <div class="col-md-3">
             <div class="card">
-                <div class="card-header">設定メニュー</div>
+                <div class="card-header"><?= htmlspecialchars(t('settings.menu')) ?></div>
                 <div class="list-group list-group-flush">
-                    <a href="<?= BASE_PATH ?>/settings" class="list-group-item list-group-item-action">基本設定</a>
-                    <a href="<?= BASE_PATH ?>/settings/smtp" class="list-group-item list-group-item-action">メール設定</a>
-                    <a href="<?= BASE_PATH ?>/settings/notification" class="list-group-item list-group-item-action">通知設定</a>
-                    <a href="<?= BASE_PATH ?>/settings/security" class="list-group-item list-group-item-action active">認証・PWA・SCIM</a>
+                    <a href="<?= BASE_PATH ?>/settings" class="list-group-item list-group-item-action"><?= htmlspecialchars(t('settings.menu.basic')) ?></a>
+                    <a href="<?= BASE_PATH ?>/settings/smtp" class="list-group-item list-group-item-action"><?= htmlspecialchars(t('settings.menu.smtp')) ?></a>
+                    <a href="<?= BASE_PATH ?>/settings/notification" class="list-group-item list-group-item-action"><?= htmlspecialchars(t('settings.menu.notification')) ?></a>
+                    <a href="<?= BASE_PATH ?>/settings/security" class="list-group-item list-group-item-action active"><?= htmlspecialchars(t('settings.menu.security')) ?></a>
+                    <a href="#backup-management" class="list-group-item list-group-item-action"><?= htmlspecialchars(t('settings.menu.backup')) ?></a>
                 </div>
             </div>
         </div>
@@ -274,6 +276,51 @@ $scimBaseUrl = $appUrl . $scimBasePath;
                                         </tr>
                                     <?php endforeach; ?>
                                 <?php endif; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mt-4" id="backup-management">
+                <div class="card-header">
+                    <h5 class="card-title mb-0"><?= htmlspecialchars(t('settings.backup.title')) ?></h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted mb-2"><?= htmlspecialchars(t('settings.backup.description')) ?></p>
+                    <div class="small text-muted mb-3">
+                        <strong><?= htmlspecialchars(t('settings.backup.scope')) ?>:</strong>
+                        <?= htmlspecialchars(t('settings.backup.scope_detail')) ?>
+                    </div>
+
+                    <div class="alert alert-success d-none" id="backupSuccessAlert"></div>
+                    <div class="alert alert-danger d-none" id="backupErrorAlert"></div>
+
+                    <div class="d-flex flex-wrap gap-2 mb-3">
+                        <button type="button" class="btn btn-primary" id="runBackupBtn"><?= htmlspecialchars(t('settings.backup.run')) ?></button>
+                    </div>
+
+                    <div class="small text-muted mb-3"><?= htmlspecialchars(t('settings.backup.notice')) ?></div>
+
+                    <h6 class="mb-2"><?= htmlspecialchars(t('settings.backup.history')) ?></h6>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-bordered align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>ID</th>
+                                    <th><?= htmlspecialchars(t('settings.backup.actor')) ?></th>
+                                    <th><?= htmlspecialchars(t('settings.backup.created_at')) ?></th>
+                                    <th><?= htmlspecialchars(t('settings.backup.filename')) ?></th>
+                                    <th><?= htmlspecialchars(t('settings.backup.file_size')) ?></th>
+                                    <th><?= htmlspecialchars(t('settings.backup.status')) ?></th>
+                                    <th><?= htmlspecialchars(t('settings.backup.error')) ?></th>
+                                    <th><?= htmlspecialchars(t('settings.backup.download')) ?></th>
+                                </tr>
+                            </thead>
+                            <tbody id="backupHistoryBody">
+                                <tr>
+                                    <td colspan="8" class="text-center text-muted"><?= htmlspecialchars(t('settings.backup.none')) ?></td>
+                                </tr>
                             </tbody>
                         </table>
                     </div>

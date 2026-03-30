@@ -12,29 +12,33 @@ class HelpController extends Controller
 
     public function index()
     {
-        $this->view('help/index', [
-            'title' => 'ヘルプ'
+        $view = get_locale() === 'en' ? 'help/index_en' : 'help/index';
+        $this->view($view, [
+            'title' => t('help.title')
         ]);
     }
 
     public function terms()
     {
-        $this->view('help/terms', [
-            'title' => '利用規約'
+        $view = get_locale() === 'en' ? 'help/terms_en' : 'help/terms';
+        $this->view($view, [
+            'title' => t('header.terms')
         ]);
     }
 
     public function installManual()
     {
-        $this->view('help/install_manual', [
-            'title' => 'インストールマニュアル'
+        $view = get_locale() === 'en' ? 'help/install_manual_en' : 'help/install_manual';
+        $this->view($view, [
+            'title' => t('help.install_manual')
         ]);
     }
 
     public function adminManual()
     {
-        $this->view('help/admin_manual', [
-            'title' => '管理者マニュアル'
+        $view = get_locale() === 'en' ? 'help/admin_manual_en' : 'help/admin_manual';
+        $this->view($view, [
+            'title' => t('help.admin_manual')
         ]);
     }
 }

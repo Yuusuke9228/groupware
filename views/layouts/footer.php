@@ -11,11 +11,14 @@
 <footer class="gw-footer">
     <span>&copy; 2024-<?php echo date('Y'); ?> Yuusuke9228. All rights reserved.</span>
     <?php if (!empty($appVersion)): ?>
-        <span class="text-muted">Version <?php echo htmlspecialchars($appVersion); ?></span>
+        <span class="text-muted"><?php echo htmlspecialchars(t('footer.version')); ?> <?php echo htmlspecialchars($appVersion); ?></span>
     <?php endif; ?>
     <span class="gw-footer-links">
-        <a href="<?= BASE_PATH ?>/help" target="_blank">ヘルプ</a>
-        <a href="<?= BASE_PATH ?>/terms" target="_blank">利用規約</a>
+        <?php $languageRedirect = urlencode((string)($_SERVER['REQUEST_URI'] ?? (BASE_PATH . '/'))); ?>
+        <a href="<?= BASE_PATH ?>/help" target="_blank"><?php echo htmlspecialchars(t('footer.help')); ?></a>
+        <a href="<?= BASE_PATH ?>/terms" target="_blank"><?php echo htmlspecialchars(t('footer.terms')); ?></a>
+        <a href="<?= BASE_PATH ?>/locale/ja?redirect=<?= $languageRedirect ?>"><?= htmlspecialchars(t('lang.ja')) ?></a>
+        <a href="<?= BASE_PATH ?>/locale/en?redirect=<?= $languageRedirect ?>"><?= htmlspecialchars(t('lang.en')) ?></a>
     </span>
 </footer>
 
@@ -23,26 +26,26 @@
 <nav class="mobile-quick-nav d-lg-none">
     <a href="<?= BASE_PATH ?>/" class="mobile-quick-nav-item <?= (isset($currentPage) && $currentPage === 'home') ? 'active' : '' ?>">
         <i class="fas fa-home"></i>
-        <span>トップ</span>
+        <span><?php echo htmlspecialchars(t('menu.top')); ?></span>
     </a>
     <a href="<?= BASE_PATH ?>/schedule" class="mobile-quick-nav-item <?= (isset($currentPage) && $currentPage === 'schedule') ? 'active' : '' ?>">
         <i class="far fa-calendar-alt"></i>
-        <span>予定</span>
+        <span><?php echo htmlspecialchars(t('menu.schedule')); ?></span>
     </a>
     <a href="<?= BASE_PATH ?>/messages/inbox" class="mobile-quick-nav-item <?= (isset($currentPage) && $currentPage === 'messages') ? 'active' : '' ?>">
         <i class="far fa-envelope"></i>
-        <span>メッセージ</span>
+        <span><?php echo htmlspecialchars(t('menu.messages')); ?></span>
         <?php if (isset($unreadMessageCount) && $unreadMessageCount > 0): ?>
             <span class="nav-badge"><?= $unreadMessageCount ?></span>
         <?php endif; ?>
     </a>
     <a href="<?= BASE_PATH ?>/workflow/approvals" class="mobile-quick-nav-item <?= (isset($currentPage) && $currentPage === 'workflow') ? 'active' : '' ?>">
         <i class="fas fa-check-circle"></i>
-        <span>承認</span>
+        <span><?php echo htmlspecialchars(t('menu.approvals')); ?></span>
     </a>
     <a href="<?= BASE_PATH ?>/task" class="mobile-quick-nav-item <?= (isset($currentPage) && $currentPage === 'task') ? 'active' : '' ?>">
         <i class="fas fa-tasks"></i>
-        <span>タスク</span>
+        <span><?php echo htmlspecialchars(t('menu.task')); ?></span>
     </a>
 </nav>
 

@@ -58,7 +58,7 @@ const Workflow = {
         if (typeof flatpickr !== 'undefined') {
             flatpickr('.date-picker', {
                 dateFormat: 'Y-m-d',
-                locale: 'ja',
+                locale: (window.getAppLocale ? window.getAppLocale() : 'ja'),
                 disableMobile: true
             });
         }
@@ -103,9 +103,7 @@ const Workflow = {
     initTemplateTable: function () {
         $('#templates-table').DataTable({
             responsive: true,
-            language: {
-                url: BASE_PATH + '/js/vendor/dataTables.japanese.json'
-            },
+            language: (window.getDataTablesLanguageOption ? window.getDataTablesLanguageOption() : {}),
             columnDefs: [
                 { orderable: false, targets: -1 } // 最後の列（操作）はソート不可
             ]
@@ -247,9 +245,7 @@ const Workflow = {
 
             $table.DataTable({
                 responsive: true,
-                language: {
-                    url: BASE_PATH + '/js/vendor/dataTables.japanese.json'
-                },
+                language: (window.getDataTablesLanguageOption ? window.getDataTablesLanguageOption() : {}),
                 columnDefs: [
                     { orderable: false, targets: -1 } // 最後の列（操作）はソート不可
                 ]
@@ -458,9 +454,7 @@ const Workflow = {
         // データテーブルの初期化
         $('#delegates-table').DataTable({
             responsive: true,
-            language: {
-                url: BASE_PATH + '/js/vendor/dataTables.japanese.json'
-            },
+            language: (window.getDataTablesLanguageOption ? window.getDataTablesLanguageOption() : {}),
             columnDefs: [
                 { orderable: false, targets: -1 } // 最後の列（操作）はソート不可
             ]
@@ -583,7 +577,7 @@ const Workflow = {
 
             data.recent_requests.forEach(request => {
                 const statusBadge = this.getStatusBadge(request.status);
-                const date = new Date(request.created_at).toLocaleDateString('ja-JP');
+                const date = new Date(request.created_at).toLocaleDateString(window.getAppDataLocale ? window.getAppDataLocale() : 'ja-JP');
 
                 container.append(`
                     <div class="list-group-item">
@@ -634,7 +628,7 @@ const Workflow = {
 
         if (comments && comments.length > 0) {
             comments.forEach(comment => {
-                const date = new Date(comment.created_at).toLocaleString('ja-JP');
+                const date = new Date(comment.created_at).toLocaleString(window.getAppDataLocale ? window.getAppDataLocale() : 'ja-JP');
 
                 container.append(`
                     <div class="card mb-2">

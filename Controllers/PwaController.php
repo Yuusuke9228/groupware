@@ -35,7 +35,7 @@ class PwaController extends Controller
             'display' => 'standalone',
             'background_color' => $bgColor,
             'theme_color' => $themeColor,
-            'lang' => 'ja',
+            'lang' => get_locale(),
             'icons' => [
                 [
                     'src' => BASE_PATH . '/public/icons/pwa-192.png',
@@ -82,7 +82,7 @@ class PwaController extends Controller
     public function offline()
     {
         $this->view('pwa/offline', [
-            'title' => 'オフライン',
+            'title' => get_locale() === 'ja' ? 'オフライン' : 'Offline',
         ]);
     }
 

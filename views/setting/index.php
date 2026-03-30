@@ -1,31 +1,33 @@
 <!-- views/setting/index.php -->
 <div class="container">
+    <?php $isJaLocale = get_locale() === 'ja'; ?>
     <div class="row mb-4">
         <div class="col-md-12">
-            <h1 class="h3 mb-2">システム設定</h1>
-            <p class="text-muted">システムの基本的な設定を行います。</p>
+            <h1 class="h3 mb-2"><?= htmlspecialchars(t('settings.title')) ?></h1>
+            <p class="text-muted"><?= $isJaLocale ? 'システムの基本的な設定を行います。' : 'Configure core system settings.' ?></p>
         </div>
     </div>
 
     <div class="row">
         <div class="col-md-3">
-            <!-- 設定メニュー -->
+            <!-- <?= htmlspecialchars(t("settings.menu")) ?> -->
             <div class="card">
-                <div class="card-header">設定メニュー</div>
+                <div class="card-header"><?= htmlspecialchars(t("settings.menu")) ?></div>
                 <div class="list-group list-group-flush">
-                    <a href="<?= BASE_PATH ?>/settings" class="list-group-item list-group-item-action active">基本設定</a>
-                    <a href="<?= BASE_PATH ?>/settings/smtp" class="list-group-item list-group-item-action">メール設定</a>
-                    <a href="<?= BASE_PATH ?>/settings/notification" class="list-group-item list-group-item-action">通知設定</a>
-                    <a href="<?= BASE_PATH ?>/settings/security" class="list-group-item list-group-item-action">認証・PWA・SCIM</a>
+                    <a href="<?= BASE_PATH ?>/settings" class="list-group-item list-group-item-action active"><?= htmlspecialchars(t("settings.menu.basic")) ?></a>
+                    <a href="<?= BASE_PATH ?>/settings/smtp" class="list-group-item list-group-item-action"><?= htmlspecialchars(t("settings.menu.smtp")) ?></a>
+                    <a href="<?= BASE_PATH ?>/settings/notification" class="list-group-item list-group-item-action"><?= htmlspecialchars(t("settings.menu.notification")) ?></a>
+                    <a href="<?= BASE_PATH ?>/settings/security" class="list-group-item list-group-item-action"><?= htmlspecialchars(t("settings.menu.security")) ?></a>
+                    <a href="<?= BASE_PATH ?>/settings/security#backup-management" class="list-group-item list-group-item-action"><?= htmlspecialchars(t("settings.menu.backup")) ?></a>
                 </div>
             </div>
         </div>
 
         <div class="col-md-9">
-            <!-- 基本設定フォーム -->
+            <!-- <?= htmlspecialchars(t("settings.menu.basic")) ?>フォーム -->
             <div class="card">
                 <div class="card-header">
-                    <h5 class="card-title mb-0">基本設定</h5>
+                    <h5 class="card-title mb-0"><?= htmlspecialchars(t("settings.menu.basic")) ?></h5>
                 </div>
                 <div class="card-body">
                     <form id="settingsForm">

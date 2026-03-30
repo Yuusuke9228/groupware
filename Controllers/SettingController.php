@@ -8,6 +8,7 @@ use Core\Auth;
 use Core\Mailer;
 use Models\ScimToken;
 use Models\Setting;
+use Services\BackupService;
 use Services\DemoDataService;
 use Services\WebPushService;
 
@@ -51,7 +52,7 @@ class SettingController extends Controller
         }
 
         $viewData = [
-            'title' => 'システム設定',
+            'title' => t('settings.title'),
             'settings' => $settingsArray,
             'jsFiles' => ['setting.js']
         ];
@@ -73,7 +74,7 @@ class SettingController extends Controller
         }
 
         $viewData = [
-            'title' => 'メール設定',
+            'title' => t('settings.menu.smtp'),
             'settings' => $settingsArray,
             'jsFiles' => ['setting.js']
         ];
@@ -95,7 +96,7 @@ class SettingController extends Controller
         }
 
         $viewData = [
-            'title' => '通知設定',
+            'title' => t('settings.menu.notification'),
             'settings' => $settingsArray,
             'jsFiles' => ['setting.js']
         ];
@@ -127,7 +128,7 @@ class SettingController extends Controller
         $scimTokens = $scimSchemaReady ? $this->scimTokenModel->listAll() : [];
 
         $viewData = [
-            'title' => '認証・PWA・SCIM設定',
+            'title' => t('settings.menu.security'),
             'settings' => $settingsArray,
             'scimTokens' => $scimTokens,
             'scimSchemaReady' => $scimSchemaReady,
@@ -485,5 +486,99 @@ class SettingController extends Controller
                 'tokens' => $this->scimTokenModel->listAll()
             ]
         ];
+    }
+
+    /**
+     * API: バックアップ実行
+     */
+    public function apiRunBackup($params, $data)
+    {
+        if (!$this->auth->check()) {
+            return ['error' => 'Unauthorized', 'code' => 401];
+        }
+        if (!$this->auth->isAdmin()) {
+            return ['error' => 'Permission denied', 'code' => 403];
+        }
+
+        try {
+            @set_time_limit(0);
+            @ignore_user_abort(true);
+
+            $service = new BackupService();
+            $result = $service->run((int)$this->auth->id());
+
+            return [
+                'success' => true,
+                'message' => 'バックアップを作成しました',
+                'data' => $result
+            ];
+        } catch (\Throwable $e) {
+            error_log('Backup failed: ' . $e->getMessage());
+            return [
+                'error' => 'バックアップ実行に失敗しました: ' . $e->getMessage(),
+                'code' => 500
+            ];
+        }
+    }
+
+    /**
+     * API: バックアップ履歴取得
+     */
+    public function apiBackupHistory($params)
+    {
+        if (!$this->auth->check()) {
+            return ['error' => 'Unauthorized', 'code' => 401];
+        }
+        if (!$this->auth->isAdmin()) {
+            return ['error' => 'Permission denied', 'code' => 403];
+        }
+
+        $limit = (int)($this->getQuery('limit', 50));
+
+        try {
+            $service = new BackupService();
+            $history = $service->getHistory($limit);
+
+            return [
+                'success' => true,
+                'data' => $history
+            ];
+        } catch (\Throwable $e) {
+            return [
+                'error' => 'バックアップ履歴の取得に失敗しました: ' . $e->getMessage(),
+                'code' => 500
+            ];
+        }
+    }
+
+    /**
+     * ダウンロード: バックアップファイル
+     */
+    public function downloadBackup($params)
+    {
+        if (!$this->auth->check()) {
+            $this->redirect(BASE_PATH . '/login');
+        }
+        if (!$this->auth->isAdmin()) {
+            http_response_code(403);
+            echo 'Permission denied';
+            exit;
+        }
+
+        $id = (int)($params['id'] ?? 0);
+        if ($id <= 0) {
+            http_response_code(404);
+            echo 'Backup not found';
+            exit;
+        }
+
+        try {
+            $service = new BackupService();
+            $service->streamDownload($id);
+        } catch (\Throwable $e) {
+            http_response_code(404);
+            echo htmlspecialchars($e->getMessage(), ENT_QUOTES, 'UTF-8');
+            exit;
+        }
     }
 }

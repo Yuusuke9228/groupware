@@ -1,28 +1,30 @@
 <!-- views/setting/smtp.php -->
 <div class="container">
+    <?php $isJaLocale = get_locale() === 'ja'; ?>
     <div class="row mb-4">
         <div class="col-md-12">
-            <h1 class="h3 mb-2">メール設定</h1>
-            <p class="text-muted">システムから送信するメールの設定を行います。</p>
+            <h1 class="h3 mb-2"><?= htmlspecialchars(t("settings.menu.smtp")) ?></h1>
+            <p class="text-muted"><?= $isJaLocale ? 'システムから送信するメールの設定を行います。' : 'Configure outgoing mail settings for system notifications.' ?></p>
         </div>
     </div>
 
     <div class="row">
         <div class="col-md-3">
-            <!-- 設定メニュー -->
+            <!-- <?= htmlspecialchars(t("settings.menu")) ?> -->
             <div class="card">
-                <div class="card-header">設定メニュー</div>
+                <div class="card-header"><?= htmlspecialchars(t("settings.menu")) ?></div>
                 <div class="list-group list-group-flush">
-                    <a href="<?= BASE_PATH ?>/settings" class="list-group-item list-group-item-action">基本設定</a>
-                    <a href="<?= BASE_PATH ?>/settings/smtp" class="list-group-item list-group-item-action active">メール設定</a>
-                    <a href="<?= BASE_PATH ?>/settings/notification" class="list-group-item list-group-item-action">通知設定</a>
-                    <a href="<?= BASE_PATH ?>/settings/security" class="list-group-item list-group-item-action">認証・PWA・SCIM</a>
+                    <a href="<?= BASE_PATH ?>/settings" class="list-group-item list-group-item-action"><?= htmlspecialchars(t("settings.menu.basic")) ?></a>
+                    <a href="<?= BASE_PATH ?>/settings/smtp" class="list-group-item list-group-item-action active"><?= htmlspecialchars(t("settings.menu.smtp")) ?></a>
+                    <a href="<?= BASE_PATH ?>/settings/notification" class="list-group-item list-group-item-action"><?= htmlspecialchars(t("settings.menu.notification")) ?></a>
+                    <a href="<?= BASE_PATH ?>/settings/security" class="list-group-item list-group-item-action"><?= htmlspecialchars(t("settings.menu.security")) ?></a>
+                    <a href="<?= BASE_PATH ?>/settings/security#backup-management" class="list-group-item list-group-item-action"><?= htmlspecialchars(t("settings.menu.backup")) ?></a>
                 </div>
             </div>
         </div>
 
         <div class="col-md-9">
-            <!-- メール設定フォーム -->
+            <!-- <?= htmlspecialchars(t("settings.menu.smtp")) ?>フォーム -->
             <div class="card">
                 <div class="card-header">
                     <h5 class="card-title mb-0">メール送信設定</h5>

@@ -1,31 +1,33 @@
 <!-- views/setting/notification.php -->
 <div class="container">
+    <?php $isJaLocale = get_locale() === 'ja'; ?>
     <div class="row mb-4">
         <div class="col-md-12">
-            <h1 class="h3 mb-2">通知設定</h1>
-            <p class="text-muted">システム通知の設定を行います。</p>
+            <h1 class="h3 mb-2"><?= htmlspecialchars(t("settings.menu.notification")) ?></h1>
+            <p class="text-muted"><?= $isJaLocale ? 'システム通知の設定を行います。' : 'Configure in-app and mail notification behavior.' ?></p>
         </div>
     </div>
 
     <div class="row">
         <div class="col-md-3">
-            <!-- 設定メニュー -->
+            <!-- <?= htmlspecialchars(t("settings.menu")) ?> -->
             <div class="card">
-                <div class="card-header">設定メニュー</div>
+                <div class="card-header"><?= htmlspecialchars(t("settings.menu")) ?></div>
                 <div class="list-group list-group-flush">
-                    <a href="<?= BASE_PATH ?>/settings" class="list-group-item list-group-item-action">基本設定</a>
-                    <a href="<?= BASE_PATH ?>/settings/smtp" class="list-group-item list-group-item-action">メール設定</a>
-                    <a href="<?= BASE_PATH ?>/settings/notification" class="list-group-item list-group-item-action active">通知設定</a>
-                    <a href="<?= BASE_PATH ?>/settings/security" class="list-group-item list-group-item-action">認証・PWA・SCIM</a>
+                    <a href="<?= BASE_PATH ?>/settings" class="list-group-item list-group-item-action"><?= htmlspecialchars(t("settings.menu.basic")) ?></a>
+                    <a href="<?= BASE_PATH ?>/settings/smtp" class="list-group-item list-group-item-action"><?= htmlspecialchars(t("settings.menu.smtp")) ?></a>
+                    <a href="<?= BASE_PATH ?>/settings/notification" class="list-group-item list-group-item-action active"><?= htmlspecialchars(t("settings.menu.notification")) ?></a>
+                    <a href="<?= BASE_PATH ?>/settings/security" class="list-group-item list-group-item-action"><?= htmlspecialchars(t("settings.menu.security")) ?></a>
+                    <a href="<?= BASE_PATH ?>/settings/security#backup-management" class="list-group-item list-group-item-action"><?= htmlspecialchars(t("settings.menu.backup")) ?></a>
                 </div>
             </div>
         </div>
 
         <div class="col-md-9">
-            <!-- 通知設定フォーム -->
+            <!-- <?= htmlspecialchars(t("settings.menu.notification")) ?>フォーム -->
             <div class="card">
                 <div class="card-header">
-                    <h5 class="card-title mb-0">通知設定</h5>
+                    <h5 class="card-title mb-0"><?= htmlspecialchars(t("settings.menu.notification")) ?></h5>
                 </div>
                 <div class="card-body">
                     <form id="notificationSettingsForm">
