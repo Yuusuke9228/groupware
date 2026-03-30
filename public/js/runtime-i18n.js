@@ -9,7 +9,7 @@
     var endpoint = window.RUNTIME_I18N_ENDPOINT || ((window.BASE_PATH || '') + '/api/i18n/translate');
     var cache = Object.create(null);
     var endpointCalls = 0;
-    var endpointCallLimit = 60;
+    var endpointCallLimit = 260;
     var scanning = false;
 
     function hasJapanese(text) {
@@ -95,13 +95,13 @@
                     node.nodeValue = translated;
                 }
                 count++;
-                if (count >= 80) {
+                if (count >= 2200) {
                     break;
                 }
             }
 
             var elems = root.querySelectorAll ? root.querySelectorAll('[placeholder],[title],[aria-label],[alt],[data-original-title],[data-bs-original-title]') : [];
-            for (var i = 0; i < elems.length && i < 120; i++) {
+            for (var i = 0; i < elems.length && i < 2200; i++) {
                 translateAttributes(elems[i]);
             }
         } finally {
@@ -230,4 +230,3 @@
         boot();
     }
 })();
-

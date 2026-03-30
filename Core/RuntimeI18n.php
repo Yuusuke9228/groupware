@@ -8,7 +8,7 @@ class RuntimeI18n
 {
     private const MAP_PATH = __DIR__ . '/../config/runtime_i18n_en.php';
     private const CACHE_PATH = __DIR__ . '/../storage/i18n/runtime_i18n_en_cache.json';
-    private const MAX_API_CALLS_PER_REQUEST = 24;
+    private const MAX_API_CALLS_PER_REQUEST = 220;
 
     /** @var array<string, string>|null */
     private static $map = null;
