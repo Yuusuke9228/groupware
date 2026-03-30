@@ -11,13 +11,15 @@ class RuntimeI18n
     private const MAX_API_CALLS_PER_REQUEST = 24;
 
     /** @var array<string, string>|null */
-    private static ?array $map = null;
+    private static $map = null;
     /** @var array<string, string> */
-    private static array $requestCache = [];
+    private static $requestCache = [];
     /** @var array<string, string> */
-    private static array $dirtyCache = [];
-    private static int $apiCalls = 0;
-    private static bool $shutdownRegistered = false;
+    private static $dirtyCache = [];
+    /** @var int */
+    private static $apiCalls = 0;
+    /** @var bool */
+    private static $shutdownRegistered = false;
 
     public static function enabled(): bool
     {
@@ -247,7 +249,8 @@ class RuntimeI18n
             return self::$requestCache[$text];
         }
 
-        if (mb_strlen($text) > 220) {
+        $textLength = function_exists('mb_strlen') ? mb_strlen($text) : strlen($text);
+        if ($textLength > 220) {
             return $text;
         }
 
@@ -340,4 +343,3 @@ class RuntimeI18n
         @chmod(self::CACHE_PATH, 0600);
     }
 }
-
