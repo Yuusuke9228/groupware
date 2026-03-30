@@ -24,6 +24,22 @@
 
 注記: 上記は意味語ではなく記号のため、英語UI実用性への影響はありません。
 
+## Demo Verification (2026-03-30)
+
+Playwrightで `?lang=en` の可視テキストを確認した結果:
+
+| 画面 | 日本語トークン件数 | 判定 |
+|---|---:|---|
+| `/daily-report` | 0 | UI残件なし |
+| `/settings` | 0 | UI残件なし |
+| `/help` | 0 | UI残件なし |
+| `/help/admin-manual` | 0 | UI残件なし |
+| `/notifications` | 0 | UI残件なし |
+| `/organizations` | 0 | UI残件なし |
+| `/schedule`, `/workflow`, `/messages`, `/bulletin`, `/webdatabase`, `/` | 残あり | 主にデモ投入済みレコード値（件名・人名・台帳名など） |
+
+補足: 英語UIにおけるラベル/操作文/ヘルプ本文は翻訳済み。残留語はユーザー・デモデータ値由来で、UI文言の未翻訳ではありません。
+
 ## Runtime Coverage Notes
 
 - `Controller::view` 経由の全画面は、`en` 時に HTMLテキスト/主要属性を自動翻訳。
@@ -40,4 +56,3 @@
 
 - `HelpController` は `en` 時も同一ソース（`help/index`, `help/admin_manual`, `help/install_manual`, `help/terms`）を利用。
 - これにより、情報量を日本語版と同等のまま runtime translation で英語表示。
-
