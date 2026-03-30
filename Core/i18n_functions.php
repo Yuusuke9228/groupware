@@ -41,3 +41,10 @@ if (!function_exists('current_data_locale')) {
         return I18n::dataLocale();
     }
 }
+
+if (!function_exists('tr_text')) {
+    function tr_text(string $ja, string $en): string
+    {
+        return I18n::getLocale() === 'ja' ? $ja : $en;
+    }
+}

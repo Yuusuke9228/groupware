@@ -8,6 +8,12 @@ document.addEventListener('DOMContentLoaded', function () {
         }
         return key;
     };
+    const tl = (ja, en) => {
+        if (typeof window.tLiteral === 'function') {
+            return window.tLiteral(ja, en);
+        }
+        return ja;
+    };
 
     // 基本設定フォーム
     const settingsForm = document.getElementById('settingsForm');
@@ -296,8 +302,8 @@ document.addEventListener('DOMContentLoaded', function () {
         const years = demoDataYearsEl ? parseInt(demoDataYearsEl.value, 10) || 3 : 3;
         const isRebuild = action === 'rebuild';
         const message = isRebuild
-            ? '全再構築は破壊的処理です。業務データを削除してデモデータに作り直します。実行しますか？'
-            : `本日から${years}年分のデモデータを生成します。実行しますか？`;
+            ? tl('全再構築は破壊的処理です。業務データを削除してデモデータに作り直します。実行しますか？', 'Rebuild is destructive. Business data will be removed and replaced with demo data. Continue?')
+            : tl(`本日から${years}年分のデモデータを生成します。実行しますか？`, `Generate ${years} year(s) of demo data from today. Continue?`);
 
         if (!window.confirm(message)) {
             return;
@@ -311,7 +317,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         if (activeBtn) {
             activeBtn.disabled = true;
-            activeBtn.textContent = '処理中...';
+            activeBtn.textContent = tr('js.settings.processing');
         }
         if (inactiveBtn) {
             inactiveBtn.disabled = true;
@@ -330,18 +336,18 @@ document.addEventListener('DOMContentLoaded', function () {
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    const msg = data.message || 'デモデータ処理が完了しました。';
+                    const msg = data.message || tl('デモデータ処理が完了しました。', 'Demo data processing completed.');
                     successAlert.textContent = msg;
                     successAlert.classList.remove('d-none');
                     errorAlert.classList.add('d-none');
                 } else {
-                    errorAlert.textContent = data.error || 'デモデータ処理に失敗しました。';
+                    errorAlert.textContent = data.error || tl('デモデータ処理に失敗しました。', 'Demo data processing failed.');
                     errorAlert.classList.remove('d-none');
                     successAlert.classList.add('d-none');
                 }
             })
             .catch(() => {
-                errorAlert.textContent = '通信エラーが発生しました。';
+                errorAlert.textContent = tr('js.error.communication');
                 errorAlert.classList.remove('d-none');
                 successAlert.classList.add('d-none');
             })
@@ -453,9 +459,9 @@ document.addEventListener('DOMContentLoaded', function () {
                 .then(r => r.json())
                 .then(data => {
                     if (data.success) {
-                        alert(data.message || 'Push通知を送信しました。');
+                        alert(data.message || tl('Push通知を送信しました。', 'Push notification sent.'));
                     } else {
-                        alert(data.error || 'Push通知の送信に失敗しました。');
+                        alert(data.error || tl('Push通知の送信に失敗しました。', 'Failed to send push notification.'));
                     }
                 })
                 .catch(() => {
@@ -463,7 +469,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 })
                 .finally(() => {
                     btnSendTestPush.disabled = false;
-                    btnSendTestPush.textContent = 'テストPush送信';
+                    btnSendTestPush.textContent = tl('テストPush送信', 'Send test push');
                 });
         });
     }
@@ -481,13 +487,13 @@ document.addEventListener('DOMContentLoaded', function () {
                 .then(r => r.json())
                 .then(data => {
                     if (!data.success) {
-                        alert(data.error || 'SCIMトークン発行に失敗しました。');
+                        alert(data.error || tl('SCIMトークン発行に失敗しました。', 'Failed to issue SCIM token.'));
                         return;
                     }
                     const alertEl = document.getElementById('scimTokenPlainAlert');
                     if (alertEl) {
                         alertEl.classList.remove('d-none');
-                        alertEl.textContent = `発行トークン（この表示のみ）: ${data.data?.token || ''}`;
+                        alertEl.textContent = tl('発行トークン（この表示のみ）: ', 'Issued token (shown only once): ') + (data.data?.token || '');
                     }
                     window.location.reload();
                 })
@@ -508,7 +514,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 .then(r => r.json())
                 .then(data => {
                     if (!data.success) {
-                        alert(data.error || 'SCIMトークン更新に失敗しました。');
+                        alert(data.error || tl('SCIMトークン更新に失敗しました。', 'Failed to update SCIM token.'));
                         this.checked = !this.checked;
                     }
                 })

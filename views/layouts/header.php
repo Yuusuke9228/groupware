@@ -170,6 +170,10 @@ if ($currentUser) {
             return text;
         };
 
+        window.tLiteral = function (jaText, enText) {
+            return APP_LOCALE === 'ja' ? jaText : enText;
+        };
+
         window.getDataTablesLanguageOption = function () {
             if (APP_LOCALE === 'ja') {
                 return { url: BASE_PATH + '/js/vendor/dataTables.japanese.json' };

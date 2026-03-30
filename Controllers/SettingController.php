@@ -185,7 +185,7 @@ class SettingController extends Controller
                 $this->db->commit();
                 return [
                     'success' => true,
-                    'message' => '設定を更新しました',
+                    'message' => tr_text('設定を更新しました', 'Settings updated.'),
                     'data' => [
                         'updated' => $updated
                     ]
@@ -193,7 +193,7 @@ class SettingController extends Controller
             } else {
                 $this->db->rollBack();
                 return [
-                    'error' => '一部の設定の更新に失敗しました',
+                    'error' => tr_text('一部の設定の更新に失敗しました', 'Failed to update some settings.'),
                     'code' => 500,
                     'data' => [
                         'failed' => $failed,
@@ -204,7 +204,7 @@ class SettingController extends Controller
         } catch (\Exception $e) {
             $this->db->rollBack();
             return [
-                'error' => '設定の更新中にエラーが発生しました: ' . $e->getMessage(),
+                'error' => tr_text('設定の更新中にエラーが発生しました: ', 'An error occurred while updating settings: ') . $e->getMessage(),
                 'code' => 500
             ];
         }
@@ -225,28 +225,28 @@ class SettingController extends Controller
             case 'mail_transport':
                 $allowed = ['smtp', 'sendmail', 'mail'];
                 if (!in_array($stringValue, $allowed, true)) {
-                    throw new \InvalidArgumentException('mail_transport は smtp/sendmail/mail のいずれかを指定してください。');
+                    throw new \InvalidArgumentException(tr_text('mail_transport は smtp/sendmail/mail のいずれかを指定してください。', 'mail_transport must be one of smtp/sendmail/mail.'));
                 }
                 return $stringValue;
 
             case 'notification_email':
             case 'mail_reply_to_email':
                 if ($stringValue !== '' && !filter_var($stringValue, FILTER_VALIDATE_EMAIL)) {
-                    throw new \InvalidArgumentException($key . ' の形式が不正です。');
+                    throw new \InvalidArgumentException($key . tr_text(' の形式が不正です。', ' format is invalid.'));
                 }
                 return $stringValue;
 
             case 'smtp_port':
                 $port = (int)$stringValue;
                 if ($port < 1 || $port > 65535) {
-                    throw new \InvalidArgumentException('smtp_port は 1-65535 の範囲で指定してください。');
+                    throw new \InvalidArgumentException(tr_text('smtp_port は 1-65535 の範囲で指定してください。', 'smtp_port must be in the range 1-65535.'));
                 }
                 return (string)$port;
 
             case 'smtp_timeout':
                 $timeout = (int)$stringValue;
                 if ($timeout < 1 || $timeout > 600) {
-                    throw new \InvalidArgumentException('smtp_timeout は 1-600 秒の範囲で指定してください。');
+                    throw new \InvalidArgumentException(tr_text('smtp_timeout は 1-600 秒の範囲で指定してください。', 'smtp_timeout must be in the range 1-600 seconds.'));
                 }
                 return (string)$timeout;
 
@@ -270,46 +270,46 @@ class SettingController extends Controller
             case 'smtp_secure':
                 $secure = strtolower($stringValue);
                 if (!in_array($secure, ['tls', 'ssl', ''], true)) {
-                    throw new \InvalidArgumentException('smtp_secure は tls/ssl/空文字 のいずれかを指定してください。');
+                    throw new \InvalidArgumentException(tr_text('smtp_secure は tls/ssl/空文字 のいずれかを指定してください。', 'smtp_secure must be one of tls/ssl/empty.'));
                 }
                 return $secure;
 
             case 'sso_provider':
                 $provider = strtolower($stringValue);
                 if (!in_array($provider, ['oidc', 'saml'], true)) {
-                    throw new \InvalidArgumentException('sso_provider は oidc/saml のいずれかを指定してください。');
+                    throw new \InvalidArgumentException(tr_text('sso_provider は oidc/saml のいずれかを指定してください。', 'sso_provider must be one of oidc/saml.'));
                 }
                 return $provider;
 
             case 'sso_default_role':
                 $role = strtolower($stringValue);
                 if (!in_array($role, ['admin', 'manager', 'user'], true)) {
-                    throw new \InvalidArgumentException('sso_default_role は admin/manager/user のいずれかを指定してください。');
+                    throw new \InvalidArgumentException(tr_text('sso_default_role は admin/manager/user のいずれかを指定してください。', 'sso_default_role must be one of admin/manager/user.'));
                 }
                 return $role;
 
             case 'sso_default_organization_id':
                 $orgId = (int)$stringValue;
                 if ($orgId < 1) {
-                    throw new \InvalidArgumentException('sso_default_organization_id は 1 以上の整数で指定してください。');
+                    throw new \InvalidArgumentException(tr_text('sso_default_organization_id は 1 以上の整数で指定してください。', 'sso_default_organization_id must be an integer greater than or equal to 1.'));
                 }
                 return (string)$orgId;
 
             case 'pwa_theme_color':
                 if ($stringValue !== '' && !preg_match('/^#[0-9a-fA-F]{6}$/', $stringValue)) {
-                    throw new \InvalidArgumentException($key . ' は #RRGGBB 形式で指定してください。');
+                    throw new \InvalidArgumentException($key . tr_text(' は #RRGGBB 形式で指定してください。', ' must be in #RRGGBB format.'));
                 }
                 return $stringValue !== '' ? $stringValue : '#2b7de9';
 
             case 'pwa_background_color':
                 if ($stringValue !== '' && !preg_match('/^#[0-9a-fA-F]{6}$/', $stringValue)) {
-                    throw new \InvalidArgumentException($key . ' は #RRGGBB 形式で指定してください。');
+                    throw new \InvalidArgumentException($key . tr_text(' は #RRGGBB 形式で指定してください。', ' must be in #RRGGBB format.'));
                 }
                 return $stringValue !== '' ? $stringValue : '#ffffff';
 
             case 'pwa_vapid_subject':
                 if ($stringValue !== '' && strpos($stringValue, 'mailto:') !== 0 && !filter_var($stringValue, FILTER_VALIDATE_URL)) {
-                    throw new \InvalidArgumentException('pwa_vapid_subject は mailto: またはURL形式で指定してください。');
+                    throw new \InvalidArgumentException(tr_text('pwa_vapid_subject は mailto: またはURL形式で指定してください。', 'pwa_vapid_subject must be mailto: or a valid URL.'));
                 }
                 return $stringValue;
 
@@ -322,7 +322,7 @@ class SettingController extends Controller
             case 'saml_idp_slo_url':
             case 'saml_sp_acs_url':
                 if ($stringValue !== '' && !filter_var($stringValue, FILTER_VALIDATE_URL)) {
-                    throw new \InvalidArgumentException($key . ' はURL形式で指定してください。');
+                    throw new \InvalidArgumentException($key . tr_text(' はURL形式で指定してください。', ' must be a valid URL.'));
                 }
                 return $stringValue;
 
@@ -332,7 +332,7 @@ class SettingController extends Controller
 
             case 'scim_base_path':
                 if ($stringValue === '' || $stringValue[0] !== '/') {
-                    throw new \InvalidArgumentException('scim_base_path は / から始まるパスで指定してください。');
+                    throw new \InvalidArgumentException(tr_text('scim_base_path は / から始まるパスで指定してください。', 'scim_base_path must start with /.'));
                 }
                 return rtrim($stringValue, '/');
 
@@ -362,21 +362,21 @@ class SettingController extends Controller
             $mailer = new Mailer($this->model);
             $mailer->send(
                 $testEmail,
-                'メール送信テスト',
-                '<h1>メール送信テスト</h1><p>このメールは通知設定のテスト送信です。</p>',
+                tr_text('メール送信テスト', 'Mail delivery test'),
+                tr_text('<h1>メール送信テスト</h1><p>このメールは通知設定のテスト送信です。</p>', '<h1>Mail delivery test</h1><p>This is a test message sent from notification settings.</p>'),
                 true
             );
 
             return [
                 'success' => true,
-                'message' => 'テストメールを送信しました',
+                'message' => tr_text('テストメールを送信しました', 'Test email sent.'),
                 'data' => [
                     'email' => $testEmail
                 ]
             ];
         } catch (\Exception $e) {
             return [
-                'error' => 'メール送信に失敗しました: ' . $e->getMessage(),
+                'error' => tr_text('メール送信に失敗しました: ', 'Failed to send email: ') . $e->getMessage(),
                 'code' => 500
             ];
         }
@@ -412,12 +412,12 @@ class SettingController extends Controller
             }
         } catch (\Throwable $e) {
             error_log('Demo data generation failed: ' . $e->getMessage());
-            return ['error' => 'デモデータ処理中にエラーが発生しました', 'code' => 500];
+            return ['error' => tr_text('デモデータ処理中にエラーが発生しました', 'An error occurred during demo data processing.'), 'code' => 500];
         }
 
         if (empty($result['success'])) {
             return [
-                'error' => $result['error'] ?? 'デモデータ処理に失敗しました',
+                'error' => $result['error'] ?? tr_text('デモデータ処理に失敗しました', 'Demo data processing failed.'),
                 'code' => 500
             ];
         }
@@ -425,8 +425,8 @@ class SettingController extends Controller
         return [
             'success' => true,
             'message' => $action === 'rebuild'
-                ? 'デモデータを全再構築しました'
-                : '本日から' . $years . '年分のデモデータを更新しました',
+                ? tr_text('デモデータを全再構築しました', 'Demo data has been fully rebuilt.')
+                : tr_text('本日から' . $years . '年分のデモデータを更新しました', 'Demo data has been refreshed for ' . $years . ' year(s) from today.'),
             'data' => $result
         ];
     }
@@ -440,18 +440,18 @@ class SettingController extends Controller
             return ['error' => 'Permission denied', 'code' => 403];
         }
         if (!$this->scimTokenModel->isSchemaReady()) {
-            return ['error' => 'SCIM関連テーブルが未作成です。db/upgrade_20260329_pwa_sso_scim.sql を適用してください。', 'code' => 409];
+            return ['error' => tr_text('SCIM関連テーブルが未作成です。db/upgrade_20260329_pwa_sso_scim.sql を適用してください。', 'SCIM tables are missing. Apply db/upgrade_20260329_pwa_sso_scim.sql.'), 'code' => 409];
         }
 
         $name = trim((string)($data['name'] ?? 'SCIM Token'));
         $token = $this->scimTokenModel->createToken($name, $this->auth->id());
         if (!$token) {
-            return ['error' => 'SCIMトークンの生成に失敗しました', 'code' => 500];
+            return ['error' => tr_text('SCIMトークンの生成に失敗しました', 'Failed to generate SCIM token.'), 'code' => 500];
         }
 
         return [
             'success' => true,
-            'message' => 'SCIMトークンを生成しました。表示される平文トークンはこの画面でのみ確認できます。',
+            'message' => tr_text('SCIMトークンを生成しました。表示される平文トークンはこの画面でのみ確認できます。', 'SCIM token generated. The plain token is shown only on this screen.'),
             'data' => [
                 'id' => $token['id'],
                 'token' => $token['token'],
@@ -469,19 +469,21 @@ class SettingController extends Controller
             return ['error' => 'Permission denied', 'code' => 403];
         }
         if (!$this->scimTokenModel->isSchemaReady()) {
-            return ['error' => 'SCIM関連テーブルが未作成です。db/upgrade_20260329_pwa_sso_scim.sql を適用してください。', 'code' => 409];
+            return ['error' => tr_text('SCIM関連テーブルが未作成です。db/upgrade_20260329_pwa_sso_scim.sql を適用してください。', 'SCIM tables are missing. Apply db/upgrade_20260329_pwa_sso_scim.sql.'), 'code' => 409];
         }
 
         $id = (int)($params['id'] ?? 0);
         $active = isset($data['is_active']) ? ((string)$data['is_active'] === '1' || $data['is_active'] === true) : false;
         if ($id <= 0) {
-            return ['error' => 'トークンIDが不正です', 'code' => 422];
+            return ['error' => tr_text('トークンIDが不正です', 'Invalid token ID.'), 'code' => 422];
         }
 
         $ok = $this->scimTokenModel->toggleActive($id, $active);
         return [
             'success' => (bool)$ok,
-            'message' => $ok ? 'SCIMトークン状態を更新しました' : 'SCIMトークン状態の更新に失敗しました',
+            'message' => $ok
+                ? tr_text('SCIMトークン状態を更新しました', 'SCIM token status updated.')
+                : tr_text('SCIMトークン状態の更新に失敗しました', 'Failed to update SCIM token status.'),
             'data' => [
                 'tokens' => $this->scimTokenModel->listAll()
             ]
@@ -509,13 +511,13 @@ class SettingController extends Controller
 
             return [
                 'success' => true,
-                'message' => 'バックアップを作成しました',
+                'message' => tr_text('バックアップを作成しました', 'Backup created successfully.'),
                 'data' => $result
             ];
         } catch (\Throwable $e) {
             error_log('Backup failed: ' . $e->getMessage());
             return [
-                'error' => 'バックアップ実行に失敗しました: ' . $e->getMessage(),
+                'error' => tr_text('バックアップ実行に失敗しました: ', 'Failed to run backup: ') . $e->getMessage(),
                 'code' => 500
             ];
         }
@@ -545,7 +547,7 @@ class SettingController extends Controller
             ];
         } catch (\Throwable $e) {
             return [
-                'error' => 'バックアップ履歴の取得に失敗しました: ' . $e->getMessage(),
+                'error' => tr_text('バックアップ履歴の取得に失敗しました: ', 'Failed to load backup history: ') . $e->getMessage(),
                 'code' => 500
             ];
         }
