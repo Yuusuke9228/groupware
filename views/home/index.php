@@ -132,9 +132,22 @@ $todayDow = $dayNames[date('w', strtotime($today))];
                         <!-- ユーザー行 -->
                         <div class="home-org-body">
                             <?php foreach ($userWeekSchedules as $memberId => $memberData): ?>
+                                <?php
+                                $memberColorRaw = strtoupper((string)($memberData['user']['calendar_color'] ?? ''));
+                                $hasMemberColor = preg_match('/^#[0-9A-F]{6}$/', $memberColorRaw) === 1;
+                                $memberColorStyle = '';
+                                if ($hasMemberColor) {
+                                    $red = hexdec(substr($memberColorRaw, 1, 2));
+                                    $green = hexdec(substr($memberColorRaw, 3, 2));
+                                    $blue = hexdec(substr($memberColorRaw, 5, 2));
+                                    $memberColorStyle = '--home-user-color: ' . $memberColorRaw . '; '
+                                        . '--home-user-bg: rgba(' . $red . ', ' . $green . ', ' . $blue . ', 0.16); '
+                                        . '--home-user-bg-strong: rgba(' . $red . ', ' . $green . ', ' . $blue . ', 0.24);';
+                                }
+                                ?>
                                 <div class="home-org-row">
                                     <div class="home-org-user-col">
-                                        <div class="home-org-user-name"><?= htmlspecialchars($memberData['user']['display_name']) ?></div>
+                                        <div class="home-org-user-name <?= $hasMemberColor ? 'has-color' : '' ?>" <?= $hasMemberColor ? 'style="' . htmlspecialchars('--home-user-color: ' . $memberColorRaw . ';', ENT_QUOTES, 'UTF-8') . '"' : '' ?>><?= htmlspecialchars($memberData['user']['display_name']) ?></div>
                                     </div>
                                     <?php foreach ($weekDates as $date): ?>
                                         <?php
@@ -157,7 +170,7 @@ $todayDow = $dayNames[date('w', strtotime($today))];
                                                 $pClass = 'priority-' . ($ev['priority'] ?? 'normal');
                                                 $tDisp = $ev['all_day'] ? '終日' : date('H:i', strtotime($ev['start_time'])) . '-' . date('H:i', strtotime($ev['end_time']));
                                                 ?>
-                                                <a href="<?= BASE_PATH ?>/schedule/view/<?= $ev['id'] ?>" class="home-org-item <?= $pClass ?>">
+                                                <a href="<?= BASE_PATH ?>/schedule/view/<?= $ev['id'] ?>" class="home-org-item <?= $pClass ?> <?= $hasMemberColor ? 'home-org-item-user' : '' ?>" <?= $hasMemberColor ? 'style="' . htmlspecialchars($memberColorStyle, ENT_QUOTES, 'UTF-8') . '"' : '' ?>>
                                                     <span class="home-org-time"><?= $tDisp ?></span>
                                                     <span class="home-org-title"><?= htmlspecialchars($ev['title']) ?></span>
                                                 </a>

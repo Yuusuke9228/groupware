@@ -8,9 +8,9 @@ class User {
     private $db;
     private const DEFAULT_CALENDAR_COLOR = '#3b82f6';
     private const CALENDAR_COLOR_PALETTE = [
-        '#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6',
-        '#06b6d4', '#f97316', '#84cc16', '#ec4899', '#14b8a6',
-        '#6366f1', '#22c55e', '#0ea5e9', '#d946ef', '#eab308'
+        '#2563EB', '#DC2626', '#16A34A', '#D97706', '#7C3AED',
+        '#0F766E', '#BE123C', '#1D4ED8', '#15803D', '#C2410C',
+        '#6D28D9', '#0E7490', '#B45309', '#4338CA', '#047857'
     ];
     
     public function __construct() {
