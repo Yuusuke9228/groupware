@@ -6,6 +6,7 @@ $pageTitle = 'スケジュール詳細';
 $currentUser = \Core\Auth::getInstance()->user();
 $isParticipant = $isParticipant ?? false;
 $participationStatus = $participationStatus ?? null;
+$scheduleFacilities = $scheduleFacilities ?? [];
 
 // 日時フォーマット
 $startDateTime = new DateTime($schedule['start_time']);
