@@ -88,4 +88,45 @@ $toolbarTitle = $formattedWeek;
     .priority-low { background-color: #cfe2ff; border-left: 3px solid #0d6efd; }
     .more-schedules { font-size: 0.75rem; text-align: center; padding: 2px; margin-top: 2px; background-color: #eee; border-radius: 3px; cursor: pointer; }
     .more-schedules:hover { background-color: #ddd; }
+    @media (max-width: 768px) {
+        .container-fluid[data-page-type="week"] { padding-left: 0.35rem; padding-right: 0.35rem; }
+        .card-body.schedule-container {
+            max-height: none;
+            overflow-x: auto;
+            overflow-y: visible;
+            -webkit-overflow-scrolling: touch;
+        }
+        .week-schedule { min-width: 760px; }
+        .week-header { top: 0; z-index: 120; }
+        .week-time-column {
+            width: 54px;
+            min-width: 54px;
+            padding: 6px 4px;
+            font-size: 0.68rem;
+            background-color: #fff;
+            z-index: 80;
+            box-shadow: 1px 0 0 #dee2e6;
+        }
+        .week-header .week-time-column { background-color: #cfdfef; z-index: 140; }
+        .week-day,
+        .week-day-content { min-width: 100px; }
+        .week-day { padding: 6px 4px; }
+        .week-day-number { font-size: 1rem; }
+        .week-all-day-row,
+        .week-hour-row { min-height: 54px; }
+        .week-day-content { padding: 1px; overflow: hidden; }
+        .schedule-item,
+        .schedule-timespan {
+            font-size: 0.7rem;
+            padding: 3px 4px;
+            touch-action: manipulation;
+        }
+        .schedule-item .schedule-creator,
+        .schedule-timespan .schedule-creator { display: none; }
+        .schedule-item .schedule-time,
+        .schedule-timespan .schedule-time {
+            font-size: 0.64rem;
+            text-align: left;
+        }
+    }
 </style>

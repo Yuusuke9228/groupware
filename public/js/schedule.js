@@ -183,6 +183,12 @@ const Schedule = {
         return this.getDisplayWindow().startValue;
     },
 
+    isMobileViewport: function () {
+        return typeof window !== 'undefined' &&
+            typeof window.matchMedia === 'function' &&
+            window.matchMedia('(max-width: 768px)').matches;
+    },
+
     clipScheduleToDisplayWindow: function (startTime, endTime) {
         const windowSettings = this.getDisplayWindow();
         const dayStart = moment(startTime).clone().startOf('day').add(windowSettings.startMinutes, 'minutes');
@@ -557,8 +563,18 @@ const Schedule = {
 
         // 日付セルのクリックイベント
         $(document).on('click', '.calendar-day', function (e) {
+            const rawTarget = e.target;
+            const targetElement = rawTarget instanceof Element
+                ? rawTarget
+                : (rawTarget && rawTarget.parentElement ? rawTarget.parentElement : null);
+            const isScheduleTap = targetElement && (
+                targetElement.closest('.schedule-item') ||
+                targetElement.closest('.org-schedule-item') ||
+                targetElement.closest('.more-schedules')
+            );
+
             // スケジュールアイテムのクリックは除外
-            if ($(e.target).closest('.schedule-item, .more-schedules').length === 0) {
+            if (!isScheduleTap) {
                 const date = $(this).data('date');
                     if (date) {
                         if ($('#schedule-modal').length) {
@@ -887,6 +903,7 @@ const Schedule = {
     // 組織月表示の描画
     renderOrganizationMonthSchedules: function (schedules, year, month, daysInMonth, firstDayOfWeek, organizationId) {
         const container = $('#organization-month-schedule-container');
+        const isMobile = this.isMobileViewport();
         const dailySchedules = {};
 
         for (let day = 1; day <= daysInMonth; day++) {
@@ -930,7 +947,7 @@ const Schedule = {
                     html += `<div class="day-cell calendar-day ${todayClass} ${weekendClass}" data-date="${date}">`;
                     html += `<div class="day-number">${dayCount}</div>`;
                     html += '<div class="day-content">';
-                    const maxDisplay = 4;
+                    const maxDisplay = isMobile ? 2 : 4;
                     daySchedules.slice(0, maxDisplay).forEach(schedule => {
                         const priorityClass = this.getPriorityClass(schedule.priority);
                         const owner = schedule.user_name ? `(${schedule.user_name}) ` : '';
@@ -950,7 +967,7 @@ const Schedule = {
 
         container.html(html);
 
-        $('.org-schedule-item').on('click', function (e) {
+        container.off('click', '.org-schedule-item').on('click', '.org-schedule-item', function (e) {
             e.preventDefault();
             e.stopPropagation();
             const scheduleId = $(this).data('id');
@@ -959,8 +976,26 @@ const Schedule = {
             }
         });
 
-        $('.calendar-day').on('click', function (e) {
-            if ($(e.target).closest('.org-schedule-item').length === 0) {
+        container.off('click', '.more-schedules').on('click', '.more-schedules', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            const date = $(this).closest('.calendar-day').data('date');
+            if (date) {
+                window.location.href = BASE_PATH + '/schedule/organization-day?date=' + date + '&organization_id=' + organizationId;
+            }
+        });
+
+        container.off('click', '.calendar-day').on('click', '.calendar-day', function (e) {
+            const rawTarget = e.target;
+            const targetElement = rawTarget instanceof Element
+                ? rawTarget
+                : (rawTarget && rawTarget.parentElement ? rawTarget.parentElement : null);
+            const isScheduleTap = targetElement && (
+                targetElement.closest('.org-schedule-item') ||
+                targetElement.closest('.more-schedules')
+            );
+
+            if (!isScheduleTap) {
                 const date = $(this).data('date');
                 if (date && $('#schedule-modal').length) {
                     Schedule.showCreateModal(date, Schedule.getDefaultCreateTime(), true);
@@ -2731,6 +2766,7 @@ const Schedule = {
     // 月単位スケジュールの表示
     renderMonthSchedules: function (schedules, year, month, daysInMonth, firstDayOfWeek) {
         const container = $('#month-schedule-container');
+        const isMobile = this.isMobileViewport();
 
         // 日付ごとにスケジュールを整理
         const dailySchedules = {};
@@ -2801,7 +2837,7 @@ const Schedule = {
                     html += '<div class="day-content">';
 
                     // 最大3件まで表示
-                    const maxDisplay = 3;
+                    const maxDisplay = isMobile ? 2 : 3;
                     const displaySchedules = daySchedules.slice(0, maxDisplay);
                     const remainingCount = Math.max(0, daySchedules.length - maxDisplay);
 
@@ -2831,8 +2867,21 @@ const Schedule = {
 
         container.html(html);
 
+        container.off('click', '.schedule-item').on('click', '.schedule-item', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            const scheduleId = $(this).data('id');
+            if (scheduleId) {
+                if ($('#schedule-modal').length) {
+                    Schedule.showViewModal(scheduleId);
+                } else {
+                    window.location.href = BASE_PATH + '/schedule/view/' + scheduleId;
+                }
+            }
+        });
+
         // 「他 ○ 件」クリック時のイベント
-        $('.more-schedules').on('click', function (e) {
+        container.off('click', '.more-schedules').on('click', '.more-schedules', function (e) {
             e.preventDefault();
             e.stopPropagation();
             const date = $(this).closest('.calendar-day').data('date');

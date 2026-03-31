@@ -1477,16 +1477,34 @@ body {
     .schedule-toolbar {
         flex-direction: column;
         align-items: stretch;
+        gap: 8px;
     }
+    .schedule-toolbar-left { width: 100%; }
     .schedule-toolbar-center {
-        justify-content: center;
+        width: 100%;
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 6px;
+    }
+    .schedule-toolbar-center .btn-group {
+        width: 100%;
+        display: flex;
+    }
+    .schedule-toolbar-center .btn-group .btn {
+        flex: 1 1 0;
+        min-width: 0;
     }
     .schedule-toolbar-right {
-        text-align: right;
+        width: 100%;
+        text-align: stretch;
+    }
+    .schedule-toolbar-right .btn {
+        width: 100%;
     }
     .schedule-toolbar-title {
         font-size: 14px;
-        text-align: center;
+        text-align: left;
+        white-space: normal;
     }
 }
 

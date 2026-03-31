@@ -91,9 +91,32 @@ $toolbarTitle = $formattedWeek;
     .more-schedules { text-align: center; font-size: 10px; background: var(--primary-light); color: var(--primary); padding: 2px 4px; border-radius: 3px; cursor: pointer; margin-top: 2px; font-weight: 500; }
     .more-schedules:hover { background: var(--primary); color: #fff; }
     @media (max-width: 768px) {
-        .org-timeline-header-cell.user-column, .org-timeline-user-cell { width: 100px; min-width: 100px; max-width: 100px; font-size: 11px; }
-        .org-timeline-header-cell { min-width: 90px; padding: 6px 4px; font-size: 11px; }
-        .org-timeline-day-cell { min-width: 90px; min-height: 50px; }
-        .org-schedule-item { font-size: 10px; padding: 2px 4px; }
+        .container-fluid[data-page-type="organization-week"] { padding-left: 0.35rem; padding-right: 0.35rem; }
+        .card-body.schedule-container {
+            max-height: none;
+            overflow-x: auto;
+            overflow-y: visible;
+            -webkit-overflow-scrolling: touch;
+        }
+        .org-timeline { min-width: 760px; }
+        .org-timeline-header { top: 0; z-index: 120; }
+        .org-timeline-header-cell.user-column,
+        .org-timeline-user-cell {
+            width: 92px;
+            min-width: 92px;
+            max-width: 92px;
+            font-size: 10px;
+            z-index: 130;
+        }
+        .org-timeline-header-cell { min-width: 95px; padding: 6px 4px; font-size: 10px; }
+        .org-timeline-day-cell { min-width: 95px; min-height: 56px; padding: 2px; overflow: hidden; }
+        .org-schedule-item {
+            font-size: 0.66rem;
+            padding: 2px 4px;
+            touch-action: manipulation;
+        }
+        .org-schedule-time { font-size: 0.6rem; }
+        .org-schedule-title { font-size: 0.66rem; }
+        .more-schedules { font-size: 0.64rem; }
     }
 </style>

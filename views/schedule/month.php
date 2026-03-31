@@ -79,4 +79,31 @@ $toolbarTitle = $year . '年' . $monthNames[(int)$month];
     .priority-low { background-color: #cfe2ff; border-left: 3px solid #0d6efd; }
     .more-schedules { text-align: center; font-size: 0.8rem; background-color: #f8f9fa; padding: 2px; border-radius: 3px; cursor: pointer; }
     .more-schedules:hover { background-color: #e9ecef; }
+    @media (max-width: 768px) {
+        .container-fluid[data-page-type="month"] { padding-left: 0.35rem; padding-right: 0.35rem; }
+        .container-fluid[data-page-type="month"] .card { border-radius: 10px; overflow: hidden; }
+        .day-name { font-size: 0.72rem; padding: 5px 2px; }
+        .day-cell { min-height: 96px; padding: 2px; }
+        .day-number {
+            top: 3px;
+            left: 3px;
+            width: 20px;
+            height: 20px;
+            line-height: 20px;
+            border-radius: 999px;
+            font-size: 0.7rem;
+            background: rgba(255, 255, 255, 0.92);
+        }
+        .day-content { padding-top: 25px; padding-left: 3px; padding-right: 3px; }
+        .schedule-item {
+            font-size: 0.68rem;
+            padding: 2px 4px;
+            line-height: 1.25;
+            touch-action: manipulation;
+        }
+        .schedule-item .schedule-creator,
+        .schedule-item .schedule-time { display: none; }
+        .schedule-item .schedule-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .more-schedules { font-size: 0.68rem; padding: 2px 3px; touch-action: manipulation; }
+    }
 </style>
