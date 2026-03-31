@@ -262,7 +262,7 @@ return [
 return [
     'app' => [
         'name'     => 'GroupWare',
-        'version'  => '0.9.0-beta.1',
+        'version'  => 'v0.9.0-beta.5',
         'timezone' => 'Asia/Tokyo',
         'debug'    => false,        // 本番環境では false に設定
         'url'      => 'https://your-domain.com'

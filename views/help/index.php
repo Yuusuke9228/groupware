@@ -171,6 +171,7 @@ $pageTitle = 'ご利用ガイド';
             <a href="#sec-bulletin"><i class="fas fa-bullhorn"></i> 掲示板</a>
             <a href="#sec-workflow"><i class="fas fa-project-diagram"></i> ワークフロー（申請・承認）</a>
             <a href="#sec-task"><i class="fas fa-tasks"></i> タスク管理</a>
+            <a href="#sec-visual-boards"><i class="fas fa-project-diagram"></i> Visual Boards</a>
             <a href="#sec-daily"><i class="fas fa-file-alt"></i> 日報</a>
             <a href="#sec-file"><i class="fas fa-folder-open"></i> ファイル管理</a>
             <a href="#sec-webdb"><i class="fas fa-database"></i> WEBデータベース</a>
@@ -478,7 +479,53 @@ $pageTitle = 'ご利用ガイド';
         </div>
     </div>
 
-    <!-- ===== 8. 日報 ===== -->
+    <!-- ===== 8. Visual Boards ===== -->
+    <div class="help-section" id="sec-visual-boards">
+        <div class="help-card">
+            <div class="help-card-head" onclick="toggleSection(this)">
+                <span class="sec-icon"><i class="fas fa-project-diagram"></i></span>
+                <h2>Visual Boards</h2>
+                <i class="fas fa-chevron-down toggle-icon"></i>
+            </div>
+            <div class="help-card-body">
+                <p>Visual Boards は、ノードと接続線で思考を整理するための機能です。既存のタスクカンバンとは用途とデータが分離されています。</p>
+
+                <h4>新規作成（テンプレート）</h4>
+                <div class="help-step"><span class="help-step-num">1</span><span class="help-step-text">メニューの「Visual Boards」を開き、「新規Visual Board」をクリックします。</span></div>
+                <div class="help-step"><span class="help-step-num">2</span><span class="help-step-text">テンプレート（Mind Map / Flowchart / Brainstorm / Planning）を選択して作成します。</span></div>
+                <div class="help-step"><span class="help-step-num">3</span><span class="help-step-text">必要に応じて「関連タスクプロジェクト」を選択すると、ノードのタスク連携候補を絞り込めます。</span></div>
+
+                <h4>基本操作</h4>
+                <ul>
+                    <li><strong>ノード追加</strong>：「ルート追加」「子ノード」「兄弟ノード」</li>
+                    <li><strong>接続線</strong>：「接続線」を押して、接続元ノード → 接続先ノードの順に選択</li>
+                    <li><strong>自動レイアウト</strong>：ノード配置を自動で整理</li>
+                    <li><strong>全体表示</strong>：キャンバス全体が見える位置・倍率に戻す</li>
+                    <li><strong>保存</strong>：明示保存、または編集後の自動保存</li>
+                </ul>
+
+                <h4>ショートカット</h4>
+                <ul>
+                    <li><span class="help-shortcut">Tab</span>：子ノード追加</li>
+                    <li><span class="help-shortcut">Enter</span>：兄弟ノード追加</li>
+                    <li><span class="help-shortcut">Ctrl</span>+<span class="help-shortcut">Z</span>：Undo</li>
+                    <li><span class="help-shortcut">Ctrl</span>+<span class="help-shortcut">Y</span>：Redo</li>
+                    <li><span class="help-shortcut">Ctrl</span>+<span class="help-shortcut">S</span>：保存</li>
+                </ul>
+
+                <h4>スマートフォン操作</h4>
+                <ul>
+                    <li>1本指ドラッグでキャンバス移動</li>
+                    <li>2本指ピンチでズーム</li>
+                    <li>ノードタップで選択、接続モード時は順番にタップして線を接続</li>
+                </ul>
+
+                <div class="help-tip"><strong><i class="fas fa-lightbulb me-1"></i>ヒント：</strong>テンプレートは初期配置のひな型です。作成後にノード・接続線・色・内容を自由に編集できます。</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== 9. 日報 ===== -->
     <div class="help-section" id="sec-daily">
         <div class="help-card">
             <div class="help-card-head" onclick="toggleSection(this)">

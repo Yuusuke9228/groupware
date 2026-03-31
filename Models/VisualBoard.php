@@ -19,16 +19,18 @@ class VisualBoard
                 name,
                 description,
                 template_key,
+                linked_task_board_id,
                 owner_type,
                 owner_id,
                 is_public,
                 created_by
-            ) VALUES (?, ?, ?, ?, ?, ?, ?)";
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
 
             $this->db->execute($sql, [
                 $data['name'],
                 $data['description'] ?? null,
                 $data['template_key'] ?? 'mind_map',
+                !empty($data['linked_task_board_id']) ? (int)$data['linked_task_board_id'] : null,
                 $data['owner_type'],
                 (int)$data['owner_id'],
                 !empty($data['is_public']) ? 1 : 0,
@@ -100,9 +102,10 @@ class VisualBoard
     public function getBoard($boardId)
     {
         try {
-            $sql = "SELECT b.*, u.display_name AS creator_name
+            $sql = "SELECT b.*, u.display_name AS creator_name, tb.name AS linked_task_board_name
                     FROM visual_boards b
                     JOIN users u ON u.id = b.created_by
+                    LEFT JOIN task_boards tb ON tb.id = b.linked_task_board_id
                     WHERE b.id = ?
                     LIMIT 1";
             return $this->db->fetch($sql, [(int)$boardId]);
@@ -115,9 +118,10 @@ class VisualBoard
     public function getUserBoards($userId)
     {
         try {
-            $sql = "SELECT DISTINCT b.*, u.display_name AS creator_name
+            $sql = "SELECT DISTINCT b.*, u.display_name AS creator_name, tb.name AS linked_task_board_name
                     FROM visual_boards b
                     JOIN users u ON u.id = b.created_by
+                    LEFT JOIN task_boards tb ON tb.id = b.linked_task_board_id
                     LEFT JOIN visual_board_members bm
                         ON bm.board_id = b.id
                         AND bm.user_id = ?
@@ -702,6 +706,12 @@ class VisualBoard
     {
         $safeLimit = max(20, min(500, (int)$limit));
         try {
+            $linkedBoardId = 0;
+            $board = $this->getBoard($boardId);
+            if ($board) {
+                $linkedBoardId = (int)($board['linked_task_board_id'] ?? 0);
+            }
+
             $sql = "SELECT DISTINCT c.id, c.title, c.status, c.due_date, b.name AS board_name
                     FROM task_cards c
                     JOIN task_lists l ON l.id = c.list_id
@@ -712,7 +722,9 @@ class VisualBoard
                     LEFT JOIN task_board_members bm
                         ON bm.board_id = b.id
                         AND bm.user_id = ?
-                    WHERE a.user_id IS NOT NULL
+                    WHERE (
+                            a.user_id IS NOT NULL
+                       OR b.is_public = 1
                        OR c.created_by = ?
                        OR (b.owner_type = 'user' AND b.owner_id = ?)
                        OR bm.user_id IS NOT NULL
@@ -734,7 +746,65 @@ class VisualBoard
                                   AND uo.user_id = ?
                             )
                        )
+                    )";
+
+            $params = [
+                (int)$userId,
+                (int)$userId,
+                (int)$userId,
+                (int)$userId,
+                (int)$userId,
+                (int)$userId
+            ];
+
+            if ($linkedBoardId > 0) {
+                $sql .= " AND b.id = ?";
+                $params[] = $linkedBoardId;
+            }
+
+            $sql .= "
                     ORDER BY c.updated_at DESC, c.id DESC
+                    LIMIT " . $safeLimit;
+
+            return $this->db->fetchAll($sql, $params);
+        } catch (\Exception $e) {
+            error_log('Error getting visual board task options: ' . $e->getMessage());
+            return [];
+        }
+    }
+
+    public function getUserAccessibleTaskBoards($userId, $limit = 200)
+    {
+        $safeLimit = max(20, min(500, (int)$limit));
+        try {
+            $sql = "SELECT DISTINCT b.id, b.name, b.owner_type, b.owner_id, b.updated_at
+                    FROM task_boards b
+                    LEFT JOIN task_board_members bm
+                        ON bm.board_id = b.id
+                        AND bm.user_id = ?
+                    WHERE b.is_public = 1
+                       OR b.created_by = ?
+                       OR (b.owner_type = 'user' AND b.owner_id = ?)
+                       OR bm.user_id IS NOT NULL
+                       OR (
+                            b.owner_type = 'team'
+                            AND EXISTS (
+                                SELECT 1
+                                FROM team_members tm
+                                WHERE tm.team_id = b.owner_id
+                                  AND tm.user_id = ?
+                            )
+                       )
+                       OR (
+                            b.owner_type = 'organization'
+                            AND EXISTS (
+                                SELECT 1
+                                FROM user_organizations uo
+                                WHERE uo.organization_id = b.owner_id
+                                  AND uo.user_id = ?
+                            )
+                       )
+                    ORDER BY b.updated_at DESC, b.id DESC
                     LIMIT " . $safeLimit;
 
             return $this->db->fetchAll($sql, [
@@ -742,12 +812,64 @@ class VisualBoard
                 (int)$userId,
                 (int)$userId,
                 (int)$userId,
+                (int)$userId
+            ]);
+        } catch (\Exception $e) {
+            error_log('Error getting accessible task boards for visual board: ' . $e->getMessage());
+            return [];
+        }
+    }
+
+    public function canUserAccessTaskBoard($taskBoardId, $userId)
+    {
+        $taskBoardId = (int)$taskBoardId;
+        if ($taskBoardId <= 0) {
+            return false;
+        }
+        try {
+            $sql = "SELECT b.id
+                    FROM task_boards b
+                    LEFT JOIN task_board_members bm
+                        ON bm.board_id = b.id
+                        AND bm.user_id = ?
+                    WHERE b.id = ?
+                      AND (
+                            b.is_public = 1
+                         OR b.created_by = ?
+                         OR (b.owner_type = 'user' AND b.owner_id = ?)
+                         OR bm.user_id IS NOT NULL
+                         OR (
+                              b.owner_type = 'team'
+                              AND EXISTS (
+                                  SELECT 1
+                                  FROM team_members tm
+                                  WHERE tm.team_id = b.owner_id
+                                    AND tm.user_id = ?
+                              )
+                         )
+                         OR (
+                              b.owner_type = 'organization'
+                              AND EXISTS (
+                                  SELECT 1
+                                  FROM user_organizations uo
+                                  WHERE uo.organization_id = b.owner_id
+                                    AND uo.user_id = ?
+                              )
+                         )
+                      )
+                    LIMIT 1";
+
+            return (bool)$this->db->fetch($sql, [
+                (int)$userId,
+                $taskBoardId,
+                (int)$userId,
+                (int)$userId,
                 (int)$userId,
                 (int)$userId
             ]);
         } catch (\Exception $e) {
-            error_log('Error getting visual board task options: ' . $e->getMessage());
-            return [];
+            error_log('Error checking visual board task board permission: ' . $e->getMessage());
+            return false;
         }
     }
 
