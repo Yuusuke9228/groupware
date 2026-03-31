@@ -927,34 +927,63 @@ class VisualBoard
     private function getTemplateSeed($templateKey)
     {
         switch ($templateKey) {
+            case 'blank':
+                return [];
             case 'flowchart':
                 return [
-                    ['key' => 'root', 'parent_key' => null, 'node_type' => 'topic', 'title' => 'Process', 'x' => 120, 'y' => 180, 'color' => '#dcecff'],
-                    ['key' => 'step1', 'parent_key' => 'root', 'node_type' => 'action', 'title' => 'Start', 'x' => 420, 'y' => 60, 'color' => '#e8f5e9'],
-                    ['key' => 'step2', 'parent_key' => 'root', 'node_type' => 'action', 'title' => 'Review', 'x' => 420, 'y' => 180, 'color' => '#fff8e1'],
-                    ['key' => 'step3', 'parent_key' => 'root', 'node_type' => 'action', 'title' => 'Finish', 'x' => 420, 'y' => 300, 'color' => '#fbe9e7'],
+                    ['key' => 'start', 'parent_key' => null, 'node_type' => 'action', 'title' => 'Start', 'x' => 300, 'y' => 40, 'color' => '#e8f5e9'],
+                    ['key' => 'collect', 'parent_key' => 'start', 'node_type' => 'action', 'title' => 'Collect Input', 'x' => 300, 'y' => 180, 'color' => '#e3f2fd'],
+                    ['key' => 'decision', 'parent_key' => 'collect', 'node_type' => 'topic', 'title' => 'Decision', 'x' => 300, 'y' => 320, 'color' => '#fff8e1'],
+                    ['key' => 'approve', 'parent_key' => 'decision', 'node_type' => 'action', 'title' => 'Approve', 'x' => 120, 'y' => 470, 'color' => '#d7f7db'],
+                    ['key' => 'rework', 'parent_key' => 'decision', 'node_type' => 'action', 'title' => 'Rework', 'x' => 480, 'y' => 470, 'color' => '#ffe4e1'],
+                    ['key' => 'finish', 'parent_key' => 'approve', 'node_type' => 'action', 'title' => 'Finish', 'x' => 300, 'y' => 620, 'color' => '#fbe9e7'],
                 ];
             case 'brainstorm':
                 return [
-                    ['key' => 'root', 'parent_key' => null, 'node_type' => 'topic', 'title' => 'Brainstorm', 'x' => 120, 'y' => 180, 'color' => '#fff3cd'],
-                    ['key' => 'idea1', 'parent_key' => 'root', 'node_type' => 'idea', 'title' => 'Idea A', 'x' => 420, 'y' => 80, 'color' => '#e3f2fd'],
-                    ['key' => 'idea2', 'parent_key' => 'root', 'node_type' => 'idea', 'title' => 'Idea B', 'x' => 420, 'y' => 180, 'color' => '#f3e5f5'],
-                    ['key' => 'idea3', 'parent_key' => 'root', 'node_type' => 'idea', 'title' => 'Idea C', 'x' => 420, 'y' => 280, 'color' => '#e8f5e9'],
+                    ['key' => 'theme', 'parent_key' => null, 'node_type' => 'topic', 'title' => 'Main Theme', 'x' => 420, 'y' => 240, 'color' => '#fff3cd'],
+                    ['key' => 'clusterA', 'parent_key' => 'theme', 'node_type' => 'topic', 'title' => 'Customer Ideas', 'x' => 120, 'y' => 120, 'color' => '#e3f2fd'],
+                    ['key' => 'clusterB', 'parent_key' => 'theme', 'node_type' => 'topic', 'title' => 'Product Ideas', 'x' => 720, 'y' => 120, 'color' => '#f3e5f5'],
+                    ['key' => 'clusterC', 'parent_key' => 'theme', 'node_type' => 'topic', 'title' => 'Ops Ideas', 'x' => 420, 'y' => 460, 'color' => '#e8f5e9'],
+                    ['key' => 'ideaA1', 'parent_key' => 'clusterA', 'node_type' => 'idea', 'title' => 'Interview', 'x' => -40, 'y' => 40, 'color' => '#d7ecff'],
+                    ['key' => 'ideaA2', 'parent_key' => 'clusterA', 'node_type' => 'idea', 'title' => 'Survey', 'x' => -40, 'y' => 190, 'color' => '#d7ecff'],
+                    ['key' => 'ideaB1', 'parent_key' => 'clusterB', 'node_type' => 'idea', 'title' => 'Prototype', 'x' => 880, 'y' => 40, 'color' => '#f6e8ff'],
+                    ['key' => 'ideaC1', 'parent_key' => 'clusterC', 'node_type' => 'idea', 'title' => 'Automation', 'x' => 420, 'y' => 620, 'color' => '#def7e5'],
                 ];
             case 'planning':
                 return [
-                    ['key' => 'root', 'parent_key' => null, 'node_type' => 'topic', 'title' => 'Planning', 'x' => 120, 'y' => 180, 'color' => '#d6ecff'],
-                    ['key' => 'goal', 'parent_key' => 'root', 'node_type' => 'action', 'title' => 'Goal', 'x' => 420, 'y' => 70, 'color' => '#fff8e1'],
-                    ['key' => 'timeline', 'parent_key' => 'root', 'node_type' => 'action', 'title' => 'Timeline', 'x' => 420, 'y' => 180, 'color' => '#f1f8e9'],
-                    ['key' => 'owner', 'parent_key' => 'root', 'node_type' => 'action', 'title' => 'Owner', 'x' => 420, 'y' => 290, 'color' => '#fce4ec'],
+                    ['key' => 'plan', 'parent_key' => null, 'node_type' => 'topic', 'title' => 'Planning Board', 'x' => 320, 'y' => 220, 'color' => '#d6ecff'],
+                    ['key' => 'goal', 'parent_key' => 'plan', 'node_type' => 'action', 'title' => 'Goal', 'x' => 320, 'y' => 60, 'color' => '#fff8e1'],
+                    ['key' => 'tasks', 'parent_key' => 'plan', 'node_type' => 'action', 'title' => 'Tasks', 'x' => 80, 'y' => 220, 'color' => '#e8f5e9'],
+                    ['key' => 'risks', 'parent_key' => 'plan', 'node_type' => 'action', 'title' => 'Risks', 'x' => 560, 'y' => 220, 'color' => '#ffe8e8'],
+                    ['key' => 'owners', 'parent_key' => 'plan', 'node_type' => 'action', 'title' => 'Owners', 'x' => 80, 'y' => 390, 'color' => '#f3e5f5'],
+                    ['key' => 'due', 'parent_key' => 'plan', 'node_type' => 'action', 'title' => 'Due Dates', 'x' => 560, 'y' => 390, 'color' => '#fffde7'],
+                ];
+            case 'team_planning':
+                return [
+                    ['key' => 'team_plan', 'parent_key' => null, 'node_type' => 'topic', 'title' => 'Team Planning', 'x' => 360, 'y' => 220, 'color' => '#d6ecff'],
+                    ['key' => 'team', 'parent_key' => 'team_plan', 'node_type' => 'topic', 'title' => 'Team', 'x' => 140, 'y' => 80, 'color' => '#e3f2fd'],
+                    ['key' => 'topics', 'parent_key' => 'team_plan', 'node_type' => 'topic', 'title' => 'Topics', 'x' => 560, 'y' => 80, 'color' => '#f3e5f5'],
+                    ['key' => 'actions', 'parent_key' => 'team_plan', 'node_type' => 'topic', 'title' => 'Actions', 'x' => 140, 'y' => 360, 'color' => '#e8f5e9'],
+                    ['key' => 'owners', 'parent_key' => 'team_plan', 'node_type' => 'topic', 'title' => 'Owners', 'x' => 560, 'y' => 360, 'color' => '#fff8e1'],
+                    ['key' => 'action1', 'parent_key' => 'actions', 'node_type' => 'action', 'title' => 'Action #1', 'x' => -40, 'y' => 500, 'color' => '#d9f7df'],
+                    ['key' => 'owner1', 'parent_key' => 'owners', 'node_type' => 'note', 'title' => 'Owner #1', 'x' => 760, 'y' => 500, 'color' => '#fff9c4'],
+                ];
+            case 'personal_thinking':
+                return [
+                    ['key' => 'focus', 'parent_key' => null, 'node_type' => 'topic', 'title' => 'Focus', 'x' => 320, 'y' => 180, 'color' => '#fff4c2'],
+                    ['key' => 'idea', 'parent_key' => 'focus', 'node_type' => 'idea', 'title' => 'Idea', 'x' => 560, 'y' => 90, 'color' => '#e3f2fd'],
+                    ['key' => 'note', 'parent_key' => 'focus', 'node_type' => 'note', 'title' => 'Note', 'x' => 560, 'y' => 220, 'color' => '#f3e5f5'],
+                    ['key' => 'next', 'parent_key' => 'focus', 'node_type' => 'action', 'title' => 'Next Step', 'x' => 560, 'y' => 350, 'color' => '#e8f5e9'],
                 ];
             case 'mind_map':
             default:
                 return [
-                    ['key' => 'root', 'parent_key' => null, 'node_type' => 'topic', 'title' => 'Mind Map', 'x' => 120, 'y' => 180, 'color' => '#fff4c2'],
-                    ['key' => 'branch1', 'parent_key' => 'root', 'node_type' => 'idea', 'title' => 'Branch 1', 'x' => 420, 'y' => 80, 'color' => '#e3f2fd'],
-                    ['key' => 'branch2', 'parent_key' => 'root', 'node_type' => 'idea', 'title' => 'Branch 2', 'x' => 420, 'y' => 180, 'color' => '#f3e5f5'],
-                    ['key' => 'branch3', 'parent_key' => 'root', 'node_type' => 'idea', 'title' => 'Branch 3', 'x' => 420, 'y' => 280, 'color' => '#e8f5e9'],
+                    ['key' => 'center', 'parent_key' => null, 'node_type' => 'topic', 'title' => 'Mind Map', 'x' => 360, 'y' => 220, 'color' => '#fff4c2'],
+                    ['key' => 'up', 'parent_key' => 'center', 'node_type' => 'idea', 'title' => 'Topic A', 'x' => 360, 'y' => 40, 'color' => '#e3f2fd'],
+                    ['key' => 'right', 'parent_key' => 'center', 'node_type' => 'idea', 'title' => 'Topic B', 'x' => 620, 'y' => 220, 'color' => '#f3e5f5'],
+                    ['key' => 'down', 'parent_key' => 'center', 'node_type' => 'idea', 'title' => 'Topic C', 'x' => 360, 'y' => 420, 'color' => '#e8f5e9'],
+                    ['key' => 'left', 'parent_key' => 'center', 'node_type' => 'idea', 'title' => 'Topic D', 'x' => 80, 'y' => 220, 'color' => '#fce4ec'],
+                    ['key' => 'sub1', 'parent_key' => 'right', 'node_type' => 'note', 'title' => 'Detail', 'x' => 840, 'y' => 220, 'color' => '#ede7f6'],
                 ];
         }
     }

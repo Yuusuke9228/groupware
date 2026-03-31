@@ -4,6 +4,7 @@ namespace Core;
 use Models\Team;
 use Models\User;
 use Models\VisualBoard;
+use Models\Organization;
 
 class VisualBoardModule extends Controller
 {
@@ -11,6 +12,7 @@ class VisualBoardModule extends Controller
     private $visualBoardModel;
     private $teamModel;
     private $userModel;
+    private $organizationModel;
     private static $schemaReady = false;
 
     public function __construct()
@@ -20,6 +22,7 @@ class VisualBoardModule extends Controller
         $this->visualBoardModel = new VisualBoard();
         $this->teamModel = new Team();
         $this->userModel = new User();
+        $this->organizationModel = new Organization();
         $this->ensureSchema();
     }
 
@@ -34,7 +37,7 @@ class VisualBoardModule extends Controller
                 id INT AUTO_INCREMENT PRIMARY KEY,
                 name VARCHAR(120) NOT NULL,
                 description TEXT NULL,
-                template_key ENUM('mind_map','flowchart','brainstorm','planning') NOT NULL DEFAULT 'mind_map',
+                template_key ENUM('blank','mind_map','flowchart','brainstorm','planning','team_planning','personal_thinking') NOT NULL DEFAULT 'mind_map',
                 owner_type ENUM('user','team','organization') NOT NULL,
                 owner_id INT NOT NULL,
                 is_public TINYINT(1) NOT NULL DEFAULT 0,
@@ -107,7 +110,21 @@ class VisualBoardModule extends Controller
         }
 
         $this->ensureTaskBoardLinkColumn();
+        $this->ensureTemplateKeyEnum();
         self::$schemaReady = true;
+    }
+
+    private function ensureTemplateKeyEnum()
+    {
+        try {
+            $this->db->execute(
+                "ALTER TABLE visual_boards
+                 MODIFY template_key ENUM('blank','mind_map','flowchart','brainstorm','planning','team_planning','personal_thinking')
+                 NOT NULL DEFAULT 'mind_map'"
+            );
+        } catch (\Exception $e) {
+            error_log('Visual board template enum ensure failed: ' . $e->getMessage());
+        }
     }
 
     private function ensureTaskBoardLinkColumn()
@@ -178,7 +195,7 @@ class VisualBoardModule extends Controller
         $this->requireAuthForPage();
         $userId = (int)$this->auth->id();
         $teams = $this->teamModel->getUserTeams($userId);
-        $organizations = $this->userModel->getUserOrganizations($userId);
+        $organizations = $this->getSelectableOrganizations($userId);
         $taskBoards = $this->visualBoardModel->getUserAccessibleTaskBoards($userId, 300);
 
         $this->renderTemplate('create_board', [
@@ -311,7 +328,7 @@ class VisualBoardModule extends Controller
         $ownerId = (int)($data['owner_id'] ?? 0);
         $templateKey = (string)($data['template_key'] ?? 'mind_map');
         $linkedTaskBoardId = (int)($data['linked_task_board_id'] ?? 0);
-        $validTemplates = ['mind_map', 'flowchart', 'brainstorm', 'planning'];
+        $validTemplates = ['blank', 'mind_map', 'flowchart', 'brainstorm', 'planning', 'team_planning', 'personal_thinking'];
 
         if ($name === '') {
             return ['error' => tr_text('ボード名は必須です', 'Board name is required.'), 'code' => 400];
@@ -330,7 +347,7 @@ class VisualBoardModule extends Controller
             return ['error' => tr_text('このチームで作成する権限がありません', 'No permission for this team.'), 'code' => 403];
         }
         if ($ownerType === 'organization') {
-            $orgIds = array_map('intval', $this->userModel->getUserOrganizationIds($userId));
+            $orgIds = $this->getCreatableOrganizationIds($userId);
             if (!in_array($ownerId, $orgIds, true)) {
                 return ['error' => tr_text('この組織で作成する権限がありません', 'No permission for this organization.'), 'code' => 403];
             }
@@ -557,7 +574,7 @@ class VisualBoardModule extends Controller
         }
 
         $pdf->SetDrawColor(130, 130, 130);
-        foreach ($edges as $edge) {
+        foreach ($this->buildRenderableEdges($nodes, $edges) as $edge) {
             $source = $pointMap[(int)$edge['source_node_id']] ?? null;
             $target = $pointMap[(int)$edge['target_node_id']] ?? null;
             if (!$source || !$target) {
@@ -608,5 +625,93 @@ class VisualBoardModule extends Controller
             false,
             1
         );
+    }
+
+    private function getSelectableOrganizations($userId)
+    {
+        try {
+            $orgIds = $this->getCreatableOrganizationIds($userId);
+            if (empty($orgIds)) {
+                return [];
+            }
+            if ($this->auth->isAdmin()) {
+                return $this->organizationModel->getAll();
+            }
+
+            $placeholders = implode(',', array_fill(0, count($orgIds), '?'));
+            $sql = "SELECT *
+                    FROM organizations
+                    WHERE id IN ({$placeholders})
+                    ORDER BY parent_id, sort_order, name";
+            return $this->db->fetchAll($sql, $orgIds);
+        } catch (\Exception $e) {
+            error_log('Visual board selectable organizations failed: ' . $e->getMessage());
+            return [];
+        }
+    }
+
+    private function getCreatableOrganizationIds($userId)
+    {
+        if ($this->auth->isAdmin()) {
+            $all = $this->organizationModel->getAll();
+            return array_values(array_map('intval', array_column($all, 'id')));
+        }
+
+        $baseIds = array_map('intval', $this->userModel->getUserOrganizationIds($userId));
+        $allIds = $baseIds;
+        foreach ($baseIds as $orgId) {
+            $descendants = $this->organizationModel->getDescendants($orgId);
+            foreach ($descendants as $descendant) {
+                $allIds[] = (int)$descendant['id'];
+            }
+        }
+        $allIds = array_values(array_unique(array_filter($allIds, function ($id) {
+            return (int)$id > 0;
+        })));
+        return array_map('intval', $allIds);
+    }
+
+    private function buildRenderableEdges($nodes, $edges)
+    {
+        $result = [];
+        $seen = [];
+
+        foreach ($edges as $edge) {
+            $sourceId = (int)($edge['source_node_id'] ?? 0);
+            $targetId = (int)($edge['target_node_id'] ?? 0);
+            if ($sourceId <= 0 || $targetId <= 0 || $sourceId === $targetId) {
+                continue;
+            }
+            $key = $sourceId . ':' . $targetId;
+            if (isset($seen[$key])) {
+                continue;
+            }
+            $seen[$key] = true;
+            $result[] = [
+                'source_node_id' => $sourceId,
+                'target_node_id' => $targetId,
+                'line_style' => $edge['line_style'] ?? 'solid'
+            ];
+        }
+
+        foreach ($nodes as $node) {
+            $nodeId = (int)($node['id'] ?? 0);
+            $parentId = (int)($node['parent_id'] ?? 0);
+            if ($nodeId <= 0 || $parentId <= 0 || $nodeId === $parentId) {
+                continue;
+            }
+            $key = $parentId . ':' . $nodeId;
+            if (isset($seen[$key])) {
+                continue;
+            }
+            $seen[$key] = true;
+            $result[] = [
+                'source_node_id' => $parentId,
+                'target_node_id' => $nodeId,
+                'line_style' => 'solid'
+            ];
+        }
+
+        return $result;
     }
 }

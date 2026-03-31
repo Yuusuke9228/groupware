@@ -182,6 +182,12 @@ $canEditBool = !empty($canEdit);
                         </select>
                     </div>
                     <div class="vb-inspector-field">
+                        <label for="vbNodeParent"><?= htmlspecialchars(tr_text('親ノード', 'Parent node')) ?></label>
+                        <select class="form-select form-select-sm" id="vbNodeParent" <?= $canEditBool ? '' : 'disabled' ?>>
+                            <option value=""><?= htmlspecialchars(tr_text('なし（ルート）', 'None (root)')) ?></option>
+                        </select>
+                    </div>
+                    <div class="vb-inspector-field">
                         <label for="vbNodeColor"><?= htmlspecialchars(tr_text('色', 'Color')) ?></label>
                         <input type="color" class="form-control form-control-color" id="vbNodeColor" <?= $canEditBool ? '' : 'disabled' ?>>
                     </div>
@@ -191,6 +197,7 @@ $canEditBool = !empty($canEdit);
                     </div>
                     <div class="d-flex flex-wrap gap-2">
                         <button class="btn btn-sm btn-primary" id="vbApplyNodeBtn" <?= $canEditBool ? '' : 'disabled' ?>><?= htmlspecialchars(tr_text('反映', 'Apply')) ?></button>
+                        <button class="btn btn-sm btn-outline-secondary" id="vbDuplicateNodeBtn" <?= $canEditBool ? '' : 'disabled' ?>><?= htmlspecialchars(tr_text('複製', 'Duplicate')) ?></button>
                         <button class="btn btn-sm btn-outline-danger" id="vbDeleteNodeBtn" <?= $canEditBool ? '' : 'disabled' ?>><?= htmlspecialchars(tr_text('削除', 'Delete')) ?></button>
                         <a class="btn btn-sm btn-outline-secondary" id="vbOpenTaskBtn" target="_blank" style="display:none;" rel="noopener">
                             <?= htmlspecialchars(tr_text('タスクを開く', 'Open task')) ?>
@@ -223,6 +230,7 @@ $canEditBool = !empty($canEdit);
     const contentInput = document.getElementById('vbNodeContent');
     const colorInput = document.getElementById('vbNodeColor');
     const collapsedInput = document.getElementById('vbNodeCollapsed');
+    const parentSelectEl = document.getElementById('vbNodeParent');
 
     const text = {
         loading: <?= json_encode(tr_text('読み込み中...', 'Loading...')) ?>,
@@ -238,7 +246,8 @@ $canEditBool = !empty($canEdit);
         connectOff: <?= json_encode(tr_text('接続モードを終了しました', 'Connect mode disabled')) ?>,
         connectAdded: <?= json_encode(tr_text('接続線を追加しました', 'Connection added')) ?>,
         connectExists: <?= json_encode(tr_text('同じ接続線はすでに存在します', 'This connection already exists')) ?>,
-        fitDone: <?= json_encode(tr_text('全体表示に合わせました', 'Fitted to screen')) ?>
+        fitDone: <?= json_encode(tr_text('全体表示に合わせました', 'Fitted to screen')) ?>,
+        invalidParent: <?= json_encode(tr_text('親ノードの設定が不正です。', 'Invalid parent node selection.')) ?>
     };
     const notLinkedText = <?= json_encode(tr_text('未連携', 'Not linked')) ?>;
 
@@ -416,13 +425,6 @@ $canEditBool = !empty($canEdit);
             color: '#e8f5e9',
             title: text.node
         });
-        state.edges.push({
-            id: Date.now() + Math.floor(Math.random() * 1000),
-            source_node_id: Number(parent.id),
-            target_node_id: Number(node.id),
-            line_style: 'solid',
-            label: null
-        });
         selectNode(node.id);
         renderAll();
         scheduleSave();
@@ -440,15 +442,6 @@ $canEditBool = !empty($canEdit);
             color: '#f3e5f5',
             title: text.node
         });
-        if (selected.parent_id) {
-            state.edges.push({
-                id: Date.now() + Math.floor(Math.random() * 1000),
-                source_node_id: Number(selected.parent_id),
-                target_node_id: Number(node.id),
-                line_style: 'solid',
-                label: null
-            });
-        }
         selectNode(node.id);
         renderAll();
         scheduleSave();
@@ -593,7 +586,7 @@ $canEditBool = !empty($canEdit);
         const nodeMap = new Map();
         state.nodes.forEach((node) => nodeMap.set(Number(node.id), node));
 
-        state.edges.forEach((edge) => {
+        collectRenderableEdges().forEach((edge) => {
             const source = nodeMap.get(Number(edge.source_node_id));
             const target = nodeMap.get(Number(edge.target_node_id));
             if (!source || !target) return;
@@ -617,6 +610,73 @@ $canEditBool = !empty($canEdit);
             }
             edgeLayerEl.appendChild(line);
         });
+    }
+
+    function collectRenderableEdges() {
+        const merged = [];
+        const seen = new Set();
+
+        state.edges.forEach((edge) => {
+            const sourceId = Number(edge.source_node_id || 0);
+            const targetId = Number(edge.target_node_id || 0);
+            if (!sourceId || !targetId || sourceId === targetId) return;
+            const key = `${sourceId}:${targetId}`;
+            if (seen.has(key)) return;
+            seen.add(key);
+            merged.push({
+                source_node_id: sourceId,
+                target_node_id: targetId,
+                line_style: edge.line_style || 'solid'
+            });
+        });
+
+        state.nodes.forEach((node) => {
+            const nodeId = Number(node.id || 0);
+            const parentId = Number(node.parent_id || 0);
+            if (!nodeId || !parentId || nodeId === parentId) return;
+            const key = `${parentId}:${nodeId}`;
+            if (seen.has(key)) return;
+            seen.add(key);
+            merged.push({
+                source_node_id: parentId,
+                target_node_id: nodeId,
+                line_style: 'solid'
+            });
+        });
+
+        return merged;
+    }
+
+    function isDescendantNode(nodeId, possibleAncestorId) {
+        let cursor = findNode(nodeId);
+        let guard = 0;
+        while (cursor && cursor.parent_id && guard < 2000) {
+            const parentId = Number(cursor.parent_id);
+            if (parentId === Number(possibleAncestorId)) {
+                return true;
+            }
+            cursor = findNode(parentId);
+            guard += 1;
+        }
+        return false;
+    }
+
+    function fillParentOptions(selectedNode) {
+        if (!parentSelectEl || !selectedNode) return;
+        const selectedId = Number(selectedNode.id);
+        const currentParentId = selectedNode.parent_id ? Number(selectedNode.parent_id) : 0;
+        const options = [`<option value="">${escapeHtml(<?= json_encode(tr_text('なし（ルート）', 'None (root)')) ?>)}</option>`];
+
+        state.nodes.forEach((candidate) => {
+            const candidateId = Number(candidate.id);
+            if (candidateId === selectedId) return;
+            if (isDescendantNode(candidateId, selectedId)) return;
+            const label = `${candidate.title || text.node} (#${candidateId})`;
+            options.push(`<option value="${candidateId}">${escapeHtml(label)}</option>`);
+        });
+
+        parentSelectEl.innerHTML = options.join('');
+        parentSelectEl.value = currentParentId ? String(currentParentId) : '';
     }
 
     function renderNodes() {
@@ -740,6 +800,7 @@ $canEditBool = !empty($canEdit);
         colorInput.value = node.color || '#fff4c2';
         collapsedInput.checked = Number(node.is_collapsed) === 1;
         taskSelectEl.value = node.linked_task_id ? String(node.linked_task_id) : '';
+        fillParentOptions(node);
 
         if (node.linked_task_id) {
             openTaskBtnEl.href = `${BASE_PATH}/task/card/${node.linked_task_id}`;
@@ -941,6 +1002,7 @@ $canEditBool = !empty($canEdit);
         const pointers = new Map();
         let panAnchor = null;
         let pinchAnchor = null;
+        const blankTap = new Map();
 
         function toStagePoint(clientX, clientY) {
             const rect = stageEl.getBoundingClientRect();
@@ -983,8 +1045,13 @@ $canEditBool = !empty($canEdit);
             if (ev.pointerType === 'mouse' && ev.button !== 0) return;
             if (ev.target.closest('.vb-node')) return;
             stageEl.setPointerCapture(ev.pointerId);
+            blankTap.set(ev.pointerId, {
+                x: ev.clientX,
+                y: ev.clientY,
+                moved: false,
+                startedWithSinglePointer: pointers.size === 0
+            });
             pointers.set(ev.pointerId, { id: ev.pointerId, x: ev.clientX, y: ev.clientY });
-            selectNode(null);
 
             if (pointers.size === 1) {
                 beginPan(ev.pointerId);
@@ -998,6 +1065,10 @@ $canEditBool = !empty($canEdit);
         stageEl.addEventListener('pointermove', (ev) => {
             if (!pointers.has(ev.pointerId)) return;
             pointers.set(ev.pointerId, { id: ev.pointerId, x: ev.clientX, y: ev.clientY });
+            const tap = blankTap.get(ev.pointerId);
+            if (tap && (Math.abs(ev.clientX - tap.x) > 4 || Math.abs(ev.clientY - tap.y) > 4)) {
+                tap.moved = true;
+            }
 
             if (pinchAnchor && pointers.size >= 2) {
                 const entries = Array.from(pointers.values());
@@ -1022,7 +1093,9 @@ $canEditBool = !empty($canEdit);
         });
 
         function endPointer(ev) {
+            const tap = blankTap.get(ev.pointerId);
             pointers.delete(ev.pointerId);
+            blankTap.delete(ev.pointerId);
 
             if (pointers.size >= 2) {
                 beginPinch();
@@ -1036,6 +1109,9 @@ $canEditBool = !empty($canEdit);
                 beginPan(rest.id);
             } else {
                 panAnchor = null;
+                if (tap && tap.startedWithSinglePointer && !tap.moved) {
+                    selectNode(null);
+                }
             }
         }
 
@@ -1064,14 +1140,35 @@ $canEditBool = !empty($canEdit);
     function applyInspector() {
         const node = findNode(state.selectedNodeId);
         if (!node || !canEdit) return;
+
+        const nextParentId = parentSelectEl && parentSelectEl.value ? Number(parentSelectEl.value) : null;
+        if (nextParentId && (nextParentId === Number(node.id) || isDescendantNode(nextParentId, Number(node.id)))) {
+            window.alert(text.invalidParent);
+            fillParentOptions(node);
+            return;
+        }
+
+        const oldParentId = node.parent_id ? Number(node.parent_id) : null;
         pushHistory();
         node.title = (titleInput.value || '').trim() || text.node;
         node.content = contentInput.value || '';
         node.color = colorInput.value || '#fff4c2';
         node.is_collapsed = collapsedInput.checked ? 1 : 0;
+        node.parent_id = nextParentId || null;
         node.linked_task_id = taskSelectEl.value ? Number(taskSelectEl.value) : null;
         const linkedTask = state.tasks.find((task) => Number(task.id) === Number(node.linked_task_id));
         node.linked_task_title = linkedTask ? linkedTask.title : null;
+
+        if (oldParentId && Number(oldParentId) !== Number(node.parent_id || 0)) {
+            state.edges = state.edges.filter((edge) => {
+                return !(
+                    Number(edge.source_node_id) === Number(oldParentId) &&
+                    Number(edge.target_node_id) === Number(node.id) &&
+                    !edge.label
+                );
+            });
+        }
+
         renderAll();
         scheduleSave();
     }
@@ -1083,6 +1180,30 @@ $canEditBool = !empty($canEdit);
         if (!window.confirm(text.deleteConfirm)) return;
         pushHistory();
         removeNode(node.id);
+        renderAll();
+        scheduleSave();
+    }
+
+    function duplicateSelectedNode() {
+        if (!canEdit) return;
+        const source = findNode(state.selectedNodeId);
+        if (!source) return;
+        pushHistory();
+        const clone = createNode({
+            parent_id: source.parent_id ? Number(source.parent_id) : null,
+            linked_task_id: source.linked_task_id ? Number(source.linked_task_id) : null,
+            linked_task_title: source.linked_task_title || null,
+            node_type: source.node_type || 'note',
+            title: (source.title || text.node) + ' Copy',
+            content: source.content || '',
+            x: Number(source.x) + 40,
+            y: Number(source.y) + 40,
+            width: Number(source.width || 220),
+            height: Number(source.height || 96),
+            color: source.color || '#fff4c2',
+            is_collapsed: Number(source.is_collapsed) === 1 ? 1 : 0
+        });
+        selectNode(clone.id);
         renderAll();
         scheduleSave();
     }
@@ -1110,7 +1231,7 @@ $canEditBool = !empty($canEdit);
 
         ctx.strokeStyle = '#5d759d';
         ctx.lineWidth = 2;
-        state.edges.forEach((edge) => {
+        collectRenderableEdges().forEach((edge) => {
             const s = nodeMap.get(Number(edge.source_node_id));
             const t = nodeMap.get(Number(edge.target_node_id));
             if (!s || !t) return;
@@ -1205,6 +1326,7 @@ $canEditBool = !empty($canEdit);
         document.getElementById('vbExportPngBtn').addEventListener('click', exportPng);
         document.getElementById('vbFitBtn').addEventListener('click', fitToScreen);
         document.getElementById('vbApplyNodeBtn').addEventListener('click', applyInspector);
+        document.getElementById('vbDuplicateNodeBtn').addEventListener('click', duplicateSelectedNode);
         document.getElementById('vbDeleteNodeBtn').addEventListener('click', deleteSelectedNode);
 
         document.addEventListener('keydown', (ev) => {

@@ -77,6 +77,10 @@ $userId = (int)$this->auth->id();
                                 <span class="vb-helper"><?= htmlspecialchars(tr_text('作成後に自由編集できます', 'You can fully edit after creation')) ?></span>
                             </div>
                             <div class="vb-template-grid" id="vbTemplateGrid">
+                                <button type="button" class="vb-template-item" data-template="blank">
+                                    <strong>Blank</strong>
+                                    <div class="small text-muted mt-1"><?= htmlspecialchars(tr_text('空のキャンバスから開始', 'Start from an empty canvas')) ?></div>
+                                </button>
                                 <button type="button" class="vb-template-item active" data-template="mind_map">
                                     <strong>Mind Map</strong>
                                     <div class="small text-muted mt-1"><?= htmlspecialchars(tr_text('中心トピック + 枝分かれ', 'Central topic + branches')) ?></div>
@@ -92,6 +96,14 @@ $userId = (int)$this->auth->id();
                                 <button type="button" class="vb-template-item" data-template="planning">
                                     <strong>Planning</strong>
                                     <div class="small text-muted mt-1"><?= htmlspecialchars(tr_text('計画要素の整理', 'Planning structure')) ?></div>
+                                </button>
+                                <button type="button" class="vb-template-item" data-template="team_planning">
+                                    <strong>Team Planning</strong>
+                                    <div class="small text-muted mt-1"><?= htmlspecialchars(tr_text('チーム計画向けの構造', 'Structure for team planning')) ?></div>
+                                </button>
+                                <button type="button" class="vb-template-item" data-template="personal_thinking">
+                                    <strong>Personal Thinking</strong>
+                                    <div class="small text-muted mt-1"><?= htmlspecialchars(tr_text('個人の思考整理向け', 'For personal idea structuring')) ?></div>
                                 </button>
                             </div>
                         </div>
@@ -204,7 +216,7 @@ $userId = (int)$this->auth->id();
                     description: descriptionInput.value || '',
                     owner_type: type,
                     owner_id: ownerId,
-                    linked_task_board_id: Number(taskBoardSelect?.value || 0) || null,
+                    linked_task_board_id: Number(taskBoardSelect && taskBoardSelect.value ? taskBoardSelect.value : 0) || null,
                     template_key: templateKey,
                     is_public: publicCheck.checked
                 })

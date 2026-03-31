@@ -27,7 +27,7 @@
 - インストールマニュアル: `/help/install-manual`
 
 ### Release Channel / リリースチャネル
-- Current public beta: `v0.9.0-beta.1`
+- Current public beta: `v0.9.0-beta.6`
 
 ### Links
 - Live Demo: https://groupware.yuus-program.com/
@@ -99,6 +99,8 @@
 - 無限キャンバス（パン / ズーム）
 - Enter: 兄弟ノード追加、Tab: 子ノード追加
 - 接続線、折りたたみ、Undo / Redo、自動レイアウト
+- テンプレート: Blank / Mind Map / Flowchart / Brainstorm / Planning / Team Planning / Personal Thinking
+- 親ノード付け替え、ノード複製
 - 個人 / チーム / 組織での共有
 - タスク連携（ノードからタスク参照）
 - JSON / PDF / PNG 出力
@@ -262,7 +264,7 @@ return [
 return [
     'app' => [
         'name'     => 'GroupWare',
-        'version'  => 'v0.9.0-beta.5',
+        'version'  => 'v0.9.0-beta.6',
         'timezone' => 'Asia/Tokyo',
         'debug'    => false,        // 本番環境では false に設定
         'url'      => 'https://your-domain.com'
@@ -447,6 +449,8 @@ groupware/
 ├── uploads/            # ファイル管理用アップロードディレクトリ
 └── views/              # ビューテンプレート
 ```
+
+- ルート直下ファイルの監査結果: `docs/root-file-audit.md`
 
 ---
 
