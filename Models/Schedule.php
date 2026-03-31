@@ -23,7 +23,7 @@ class Schedule
         error_log("getByDateRange: startDate=$startDate, endDate=$endDate, userId=$userId");
 
         // シンプルなクエリに変更
-        $sql = "SELECT s.*, u.display_name as creator_name 
+        $sql = "SELECT s.*, u.display_name as creator_name, u.calendar_color as creator_color
             FROM schedules s 
             LEFT JOIN users u ON s.creator_id = u.id 
             WHERE s.start_time <= ? AND s.end_time >= ?";
@@ -56,7 +56,8 @@ class Schedule
         $params = [$id];
 
         $sql = "SELECT s.*, 
-                    u.display_name as creator_name 
+                    u.display_name as creator_name,
+                    u.calendar_color as creator_color
                 FROM schedules s 
                 LEFT JOIN users u ON s.creator_id = u.id ";
 

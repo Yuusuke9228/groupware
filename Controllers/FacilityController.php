@@ -166,4 +166,5 @@ class FacilityController extends Controller
         }
         $this->redirect(BASE_PATH . '/facility/manage');
     }
+
 }

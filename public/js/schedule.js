@@ -183,6 +183,12 @@ const Schedule = {
         return this.getDisplayWindow().startValue;
     },
 
+    isMobileViewport: function () {
+        return typeof window !== 'undefined' &&
+            typeof window.matchMedia === 'function' &&
+            window.matchMedia('(max-width: 768px)').matches;
+    },
+
     clipScheduleToDisplayWindow: function (startTime, endTime) {
         const windowSettings = this.getDisplayWindow();
         const dayStart = moment(startTime).clone().startOf('day').add(windowSettings.startMinutes, 'minutes');
@@ -557,8 +563,18 @@ const Schedule = {
 
         // 日付セルのクリックイベント
         $(document).on('click', '.calendar-day', function (e) {
+            const rawTarget = e.target;
+            const targetElement = rawTarget instanceof Element
+                ? rawTarget
+                : (rawTarget && rawTarget.parentElement ? rawTarget.parentElement : null);
+            const isScheduleTap = targetElement && (
+                targetElement.closest('.schedule-item') ||
+                targetElement.closest('.org-schedule-item') ||
+                targetElement.closest('.more-schedules')
+            );
+
             // スケジュールアイテムのクリックは除外
-            if ($(e.target).closest('.schedule-item, .more-schedules').length === 0) {
+            if (!isScheduleTap) {
                 const date = $(this).data('date');
                     if (date) {
                         if ($('#schedule-modal').length) {
@@ -887,6 +903,7 @@ const Schedule = {
     // 組織月表示の描画
     renderOrganizationMonthSchedules: function (schedules, year, month, daysInMonth, firstDayOfWeek, organizationId) {
         const container = $('#organization-month-schedule-container');
+        const isMobile = this.isMobileViewport();
         const dailySchedules = {};
 
         for (let day = 1; day <= daysInMonth; day++) {
@@ -930,11 +947,12 @@ const Schedule = {
                     html += `<div class="day-cell calendar-day ${todayClass} ${weekendClass}" data-date="${date}">`;
                     html += `<div class="day-number">${dayCount}</div>`;
                     html += '<div class="day-content">';
-                    const maxDisplay = 4;
+                    const maxDisplay = isMobile ? 2 : 4;
                     daySchedules.slice(0, maxDisplay).forEach(schedule => {
                         const priorityClass = this.getPriorityClass(schedule.priority);
                         const owner = schedule.user_name ? `(${schedule.user_name}) ` : '';
-                        html += `<div class="org-schedule-item ${priorityClass}" data-id="${schedule.id}" title="${schedule.title}">${owner}${schedule.title}</div>`;
+                        const colorMeta = this.getScheduleColorMeta(schedule);
+                        html += `<div class="org-schedule-item ${priorityClass} ${colorMeta.className}" data-id="${schedule.id}" title="${schedule.title}" style="${colorMeta.styleVars}">${owner}${schedule.title}</div>`;
                     });
                     if (daySchedules.length > maxDisplay) {
                         html += `<div class="more-schedules">他 ${daySchedules.length - maxDisplay} 件</div>`;
@@ -950,7 +968,7 @@ const Schedule = {
 
         container.html(html);
 
-        $('.org-schedule-item').on('click', function (e) {
+        container.off('click', '.org-schedule-item').on('click', '.org-schedule-item', function (e) {
             e.preventDefault();
             e.stopPropagation();
             const scheduleId = $(this).data('id');
@@ -959,8 +977,26 @@ const Schedule = {
             }
         });
 
-        $('.calendar-day').on('click', function (e) {
-            if ($(e.target).closest('.org-schedule-item').length === 0) {
+        container.off('click', '.more-schedules').on('click', '.more-schedules', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            const date = $(this).closest('.calendar-day').data('date');
+            if (date) {
+                window.location.href = BASE_PATH + '/schedule/organization-day?date=' + date + '&organization_id=' + organizationId;
+            }
+        });
+
+        container.off('click', '.calendar-day').on('click', '.calendar-day', function (e) {
+            const rawTarget = e.target;
+            const targetElement = rawTarget instanceof Element
+                ? rawTarget
+                : (rawTarget && rawTarget.parentElement ? rawTarget.parentElement : null);
+            const isScheduleTap = targetElement && (
+                targetElement.closest('.org-schedule-item') ||
+                targetElement.closest('.more-schedules')
+            );
+
+            if (!isScheduleTap) {
                 const date = $(this).data('date');
                 if (date && $('#schedule-modal').length) {
                     Schedule.showCreateModal(date, Schedule.getDefaultCreateTime(), true);
@@ -1144,6 +1180,7 @@ const Schedule = {
     renderOrganizationScheduleItem: function (schedule) {
         const priorityClass = this.getPriorityClass(schedule.priority);
         const allDayClass = schedule.all_day == 1 ? 'all-day' : '';
+        const colorMeta = this.getScheduleColorMeta(schedule);
 
         let timeDisplay = '';
         if (schedule.all_day == 1) {
@@ -1155,7 +1192,7 @@ const Schedule = {
         }
 
         return `
-        <div class="org-schedule-item ${priorityClass} ${allDayClass}" data-id="${schedule.id}">
+        <div class="org-schedule-item ${priorityClass} ${allDayClass} ${colorMeta.className}" data-id="${schedule.id}" style="${colorMeta.styleVars}">
             <div class="org-schedule-time">${timeDisplay}</div>
             <div class="org-schedule-title">${schedule.title}</div>
         </div>
@@ -1237,6 +1274,7 @@ const Schedule = {
             $(this).find('form').get(0)?.reset();
             $(this).find('.is-invalid').removeClass('is-invalid');
             $(this).find('.invalid-feedback').text('');
+            Schedule.setFacilitySelection([]);
         });
 
         // フォーム送信イベントハンドラ
@@ -1283,7 +1321,10 @@ const Schedule = {
                                 const errorMsg = response.validation[field];
                                 const input = $('#' + field);
                                 input.addClass('is-invalid');
-                                input.next('.invalid-feedback').text(errorMsg);
+                                const feedback = input.next('.invalid-feedback').length
+                                    ? input.next('.invalid-feedback')
+                                    : input.closest('.mb-3, .col-md-3, .col-md-4').find('.invalid-feedback').first();
+                                feedback.text(errorMsg);
                             }
                         }
                     }
@@ -1403,6 +1444,7 @@ const Schedule = {
         if ($('#organizations').data('select2')) {
             $('#organizations').val(null).trigger('change');
         }
+        this.setFacilitySelection([]);
 
         // 公開範囲による表示/非表示
         if ($('#visibility').val() === 'specific') {
@@ -1591,6 +1633,13 @@ const Schedule = {
 
             // 参加者選択の初期化
             this.initParticipantSelect();
+
+            const selectedFacilityIds = Array.isArray(schedule.facility_ids)
+                ? schedule.facility_ids
+                : (Array.isArray(schedule.facilities)
+                    ? schedule.facilities.map(facility => facility.id)
+                    : []);
+            this.setFacilitySelection(selectedFacilityIds);
 
             // 参加者データをセット
             if (schedule.participants && schedule.participants.length > 0) {
@@ -1898,13 +1947,17 @@ const Schedule = {
                         if (response.success) {
                             // FullCalendar形式にデータを変換
                             const events = response.data.map(schedule => {
+                                const calendarColor = this.getScheduleCalendarColor(schedule);
+                                const eventColor = calendarColor || this.getPriorityColor(schedule.priority);
                                 return {
                                     id: schedule.id,
                                     title: schedule.title,
                                     start: schedule.start_time,
                                     end: schedule.end_time,
                                     allDay: schedule.all_day == 1,
-                                    backgroundColor: this.getPriorityColor(schedule.priority),
+                                    backgroundColor: eventColor,
+                                    borderColor: eventColor,
+                                    textColor: this.getContrastingTextColor(eventColor),
                                     url: BASE_PATH + '/schedule/view/' + schedule.id
                                 };
                             });
@@ -2011,6 +2064,18 @@ const Schedule = {
                 }
             });
 
+            if ($('#facility_ids').length > 0) {
+                if ($('#facility_ids').data('select2')) {
+                    $('#facility_ids').select2('destroy');
+                }
+
+                $('#facility_ids').select2({
+                    placeholder: '予約する施設を選択してください',
+                    allowClear: true,
+                    width: '100%'
+                });
+            }
+
             console.log("Select2 components initialized");
         } catch (e) {
             console.error("Error initializing Select2:", e);
@@ -2020,6 +2085,17 @@ const Schedule = {
     // 組織共有セレクトの初期化
     initOrganizationSelect: function () {
         // 既に initParticipantSelect で初期化されているので何もしない
+    },
+
+    setFacilitySelection: function (facilityIds) {
+        const ids = Array.isArray(facilityIds) ? facilityIds.map(id => String(id)) : [];
+        const facilityField = $('#facility_ids');
+        if (!facilityField.length) {
+            return;
+        }
+
+        facilityField.val(ids);
+        facilityField.trigger('change');
     },
 
     // 日単位スケジュールの読み込み
@@ -2258,10 +2334,11 @@ const Schedule = {
         const timeDisplay = startTime + ' - ' + endTime;
         const priorityClass = this.getPriorityClass(schedule.priority);
         const creatorName = schedule.creator_name || '不明';
+        const colorMeta = this.getScheduleColorMeta(schedule);
 
         return `
-    <div class="schedule-item schedule-timespan ${priorityClass}" 
-         style="position: absolute; top: ${topPosition % 60}px; height: ${height}px; width: calc(${width}% - 10px); left: ${left}%; z-index: 10;" 
+    <div class="schedule-item schedule-timespan ${priorityClass} ${colorMeta.className}" 
+         style="position: absolute; top: ${topPosition % 60}px; height: ${height}px; width: calc(${width}% - 10px); left: ${left}%; z-index: 10; ${colorMeta.styleVars}" 
          data-id="${schedule.id}">
         <div class="schedule-creator">${creatorName}</div>
         <div class="schedule-time">${timeDisplay}</div>
@@ -2581,14 +2658,15 @@ const Schedule = {
         const timeDisplay = startTime + ' - ' + endTime;
         const priorityClass = this.getPriorityClass(schedule.priority);
         const creatorName = schedule.creator_name || '不明';
+        const colorMeta = this.getScheduleColorMeta(schedule);
 
         // カラム数に基づいて幅を計算
         const width = totalColumns > 1 ? (100 / totalColumns) : 100;
         const leftPosition = columnIndex * width;
 
         return `
-    <div class="schedule-item schedule-timespan ${priorityClass}"
-         style="height: ${height}px; width: ${width}%; left: ${leftPosition}%; right: auto;" 
+    <div class="schedule-item schedule-timespan ${priorityClass} ${colorMeta.className}"
+         style="height: ${height}px; width: ${width}%; left: ${leftPosition}%; right: auto; ${colorMeta.styleVars}" 
          data-id="${schedule.id}">
         <div class="schedule-creator">${creatorName}</div>
         <div class="schedule-time">${timeDisplay}</div>
@@ -2696,6 +2774,7 @@ const Schedule = {
     // 月単位スケジュールの表示
     renderMonthSchedules: function (schedules, year, month, daysInMonth, firstDayOfWeek) {
         const container = $('#month-schedule-container');
+        const isMobile = this.isMobileViewport();
 
         // 日付ごとにスケジュールを整理
         const dailySchedules = {};
@@ -2766,7 +2845,7 @@ const Schedule = {
                     html += '<div class="day-content">';
 
                     // 最大3件まで表示
-                    const maxDisplay = 3;
+                    const maxDisplay = isMobile ? 2 : 3;
                     const displaySchedules = daySchedules.slice(0, maxDisplay);
                     const remainingCount = Math.max(0, daySchedules.length - maxDisplay);
 
@@ -2796,8 +2875,21 @@ const Schedule = {
 
         container.html(html);
 
+        container.off('click', '.schedule-item').on('click', '.schedule-item', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            const scheduleId = $(this).data('id');
+            if (scheduleId) {
+                if ($('#schedule-modal').length) {
+                    Schedule.showViewModal(scheduleId);
+                } else {
+                    window.location.href = BASE_PATH + '/schedule/view/' + scheduleId;
+                }
+            }
+        });
+
         // 「他 ○ 件」クリック時のイベント
-        $('.more-schedules').on('click', function (e) {
+        container.off('click', '.more-schedules').on('click', '.more-schedules', function (e) {
             e.preventDefault();
             e.stopPropagation();
             const date = $(this).closest('.calendar-day').data('date');
@@ -2812,9 +2904,10 @@ const Schedule = {
         const timeDisplay = schedule.all_day == 1 ? '終日' : startTime + ' - ' + endTime;
         const priorityClass = this.getPriorityClass(schedule.priority);
         const creatorName = schedule.creator_name || '不明';
+        const colorMeta = this.getScheduleColorMeta(schedule);
 
         return `
-        <div class="list-group-item list-group-item-action ${priorityClass} schedule-item" data-id="${schedule.id}">
+        <div class="list-group-item list-group-item-action ${priorityClass} schedule-item ${colorMeta.className}" data-id="${schedule.id}" style="${colorMeta.styleVars}">
             <div class="d-flex w-100 justify-content-between">
                 <h5 class="mb-1">${schedule.title}</h5>
                 <small>${timeDisplay}</small>
@@ -2832,9 +2925,10 @@ const Schedule = {
         const timeDisplay = startTime + ' - ' + endTime;
         const priorityClass = this.getPriorityClass(schedule.priority);
         const creatorName = schedule.creator_name || '不明';
+        const colorMeta = this.getScheduleColorMeta(schedule);
 
         return `
-        <div class="schedule-item ${priorityClass}" data-id="${schedule.id}">
+        <div class="schedule-item ${priorityClass} ${colorMeta.className}" data-id="${schedule.id}" style="${colorMeta.styleVars}">
             <div class="schedule-creator">${creatorName}</div>
             <div class="schedule-time">${timeDisplay}</div>
             <div class="schedule-title">${schedule.title}</div>
@@ -2850,9 +2944,10 @@ const Schedule = {
         const timeDisplay = isAllDay ? '終日' : startTime + ' - ' + endTime;
         const priorityClass = this.getPriorityClass(schedule.priority);
         const creatorName = schedule.creator_name || '不明';
+        const colorMeta = this.getScheduleColorMeta(schedule);
 
         return `
-        <div class="schedule-item ${priorityClass}" data-id="${schedule.id}">
+        <div class="schedule-item ${priorityClass} ${colorMeta.className}" data-id="${schedule.id}" style="${colorMeta.styleVars}">
             <div class="schedule-creator">${creatorName}</div>
             <div class="schedule-time">${timeDisplay}</div>
             <div class="schedule-title">${schedule.title}</div>
@@ -2868,9 +2963,10 @@ const Schedule = {
         const endTime = moment(schedule.end_time).format('HH:mm');
         const timeDisplay = schedule.all_day == 1 ? '終日' : startTime + ' - ' + endTime;
         const creatorName = schedule.creator_name || '不明';
+        const colorMeta = this.getScheduleColorMeta(schedule);
 
         return `
-        <div class="schedule-item ${priorityClass} ${allDayClass}" data-id="${schedule.id}">
+        <div class="schedule-item ${priorityClass} ${allDayClass} ${colorMeta.className}" data-id="${schedule.id}" style="${colorMeta.styleVars}">
             <span class="schedule-creator">${creatorName}</span>
             <span class="schedule-time">${timeDisplay}</span>
             <span class="schedule-title">${schedule.title}</span>
@@ -2999,6 +3095,70 @@ const Schedule = {
             default:
                 return '<span class="badge bg-secondary">未回答</span>';
         }
+    },
+
+    getScheduleCalendarColor: function (schedule) {
+        const userColor = this.normalizeCalendarColor(schedule && schedule.user_color ? schedule.user_color : null);
+        if (userColor) {
+            return userColor;
+        }
+        return this.normalizeCalendarColor(schedule && schedule.creator_color ? schedule.creator_color : null);
+    },
+
+    normalizeCalendarColor: function (color) {
+        if (typeof color !== 'string') {
+            return null;
+        }
+
+        const normalized = color.trim().toUpperCase();
+        if (!/^#[0-9A-F]{6}$/.test(normalized)) {
+            return null;
+        }
+
+        return normalized;
+    },
+
+    hexToRgba: function (hexColor, alpha) {
+        const color = this.normalizeCalendarColor(hexColor);
+        if (!color) {
+            return '';
+        }
+
+        const r = parseInt(color.slice(1, 3), 16);
+        const g = parseInt(color.slice(3, 5), 16);
+        const b = parseInt(color.slice(5, 7), 16);
+        return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    },
+
+    getContrastingTextColor: function (hexColor) {
+        const color = this.normalizeCalendarColor(hexColor);
+        if (!color) {
+            return '#1f2937';
+        }
+
+        const r = parseInt(color.slice(1, 3), 16);
+        const g = parseInt(color.slice(3, 5), 16);
+        const b = parseInt(color.slice(5, 7), 16);
+        const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+        return luminance > 0.62 ? '#111827' : '#ffffff';
+    },
+
+    getScheduleColorMeta: function (schedule) {
+        const color = this.getScheduleCalendarColor(schedule);
+        if (!color) {
+            return {
+                className: '',
+                styleVars: ''
+            };
+        }
+
+        const background = this.hexToRgba(color, 0.16);
+        const backgroundStrong = this.hexToRgba(color, 0.24);
+
+        return {
+            className: 'schedule-item-user',
+            styleVars: `--schedule-user-color: ${color}; --schedule-user-bg: ${background}; --schedule-user-bg-strong: ${backgroundStrong};`
+        };
     },
 
     // 優先度に応じたカラークラスを取得

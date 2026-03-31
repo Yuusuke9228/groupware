@@ -61,22 +61,55 @@ $toolbarTitle = $year . '年' . $monthNames[(int)$month];
 <style>
     .month-calendar { display: flex; flex-direction: column; width: 100%; }
     .week-row { display: flex; width: 100%; }
-    .header-row { background-color: #f8f9fa; font-weight: bold; }
-    .day-cell { flex: 1; min-height: 120px; border: 1px solid #dee2e6; position: relative; overflow: hidden; }
+    .header-row { background: linear-gradient(180deg, #f8fbff 0%, #edf4ff 100%); font-weight: 700; position: sticky; top: 0; z-index: 6; }
+    .day-cell { flex: 1; min-height: 120px; border: 1px solid #dce5f3; position: relative; overflow: hidden; background: #fff; }
     .day-name { text-align: center; padding: 8px; min-height: auto; }
-    .day-number { position: absolute; top: 5px; left: 5px; width: 24px; height: 24px; text-align: center; font-weight: bold; }
+    .day-number { position: absolute; top: 5px; left: 5px; width: 24px; height: 24px; text-align: center; font-weight: 700; border-radius: 999px; line-height: 24px; background: rgba(255, 255, 255, 0.95); box-shadow: 0 1px 2px rgba(15, 23, 42, 0.12); }
     .day-content { padding-top: 30px; padding-left: 5px; padding-right: 5px; height: calc(100% - 30px); overflow: hidden; }
     .empty-cell { background-color: #f8f9fa; }
-    .today { background-color: #fff3cd; }
+    .today { background-color: #fff8dc; }
     .weekend { background-color: #f8f8f8; }
     .calendar-day { cursor: pointer; }
-    .calendar-day:hover { background-color: #f0f0f0; }
+    .calendar-day:hover { background-color: #f4f8ff; }
     .schedule-item { margin-bottom: 3px; padding: 2px 4px; border-radius: 3px; font-size: 0.8rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .schedule-item a { color: inherit; text-decoration: none; display: block; }
     .schedule-item.all-day { border-left: 3px solid #007bff; }
     .priority-high { background-color: #f8d7da; border-left: 3px solid #dc3545; }
     .priority-normal { background-color: #d1e7dd; border-left: 3px solid #198754; }
     .priority-low { background-color: #cfe2ff; border-left: 3px solid #0d6efd; }
-    .more-schedules { text-align: center; font-size: 0.8rem; background-color: #f8f9fa; padding: 2px; border-radius: 3px; cursor: pointer; }
-    .more-schedules:hover { background-color: #e9ecef; }
+    .more-schedules { text-align: center; font-size: 0.8rem; background-color: #f1f6ff; padding: 2px; border-radius: 999px; cursor: pointer; border: 1px solid #dbe7fb; color: #27569f; }
+    .more-schedules:hover { background-color: #e5efff; }
+    .container-fluid[data-page-type="month"] .card { border-radius: 12px; overflow: hidden; box-shadow: 0 2px 10px rgba(15, 23, 42, 0.06); }
+    @media (max-width: 768px) {
+        .container-fluid[data-page-type="month"] { padding-left: 0.35rem; padding-right: 0.35rem; }
+        .container-fluid[data-page-type="month"] .card {
+            border-radius: 0;
+            margin-left: calc(50% - 50vw);
+            margin-right: calc(50% - 50vw);
+            width: 100vw;
+        }
+        .day-name { font-size: 0.72rem; padding: 5px 2px; }
+        .day-cell { min-height: 96px; padding: 2px; }
+        .day-number {
+            top: 3px;
+            left: 3px;
+            width: 20px;
+            height: 20px;
+            line-height: 20px;
+            border-radius: 999px;
+            font-size: 0.7rem;
+            background: rgba(255, 255, 255, 0.92);
+        }
+        .day-content { padding-top: 25px; padding-left: 3px; padding-right: 3px; }
+        .schedule-item {
+            font-size: 0.68rem;
+            padding: 2px 4px;
+            line-height: 1.25;
+            touch-action: manipulation;
+        }
+        .schedule-item .schedule-creator,
+        .schedule-item .schedule-time { display: none; }
+        .schedule-item .schedule-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .more-schedules { font-size: 0.68rem; padding: 2px 3px; touch-action: manipulation; }
+    }
 </style>

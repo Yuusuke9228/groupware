@@ -206,6 +206,16 @@ class SsoController extends Controller
             $this->redirect(BASE_PATH . '/');
             return;
         }
+
+        if (!$this->authService->isAdminIpAllowed()) {
+            $_SESSION['login_error'] = tr_text(
+                '管理者ログインは許可されたネットワークからのみ利用できます。',
+                'Administrator login is allowed only from approved networks.'
+            );
+            $this->redirect(BASE_PATH . '/login');
+            return;
+        }
+
         \Core\RuntimeI18n::renderPhp(__DIR__ . '/../views/auth/login.php', [
             'localAdminOnly' => true,
         ]);
@@ -217,11 +227,20 @@ class SsoController extends Controller
         $password = trim((string)($_POST['password'] ?? ''));
         $remember = isset($_POST['remember']);
 
+        if (!$this->authService->isAdminIpAllowed()) {
+            $_SESSION['login_error'] = tr_text(
+                '管理者ログインは許可されたネットワークからのみ利用できます。',
+                'Administrator login is allowed only from approved networks.'
+            );
+            $this->redirect(BASE_PATH . '/login');
+            return;
+        }
+
         if (!$this->authService->login($username, $password, $remember) || !$this->authService->isAdmin()) {
             if ($this->authService->check() && !$this->authService->isAdmin()) {
                 $this->authService->logout();
             }
-            $_SESSION['login_error'] = '非常用ログインは管理者アカウントのみ利用できます。';
+            $_SESSION['login_error'] = $this->authService->getLastError() ?: '非常用ログインは管理者アカウントのみ利用できます。';
             $this->redirect(BASE_PATH . '/login/local-admin');
             return;
         }

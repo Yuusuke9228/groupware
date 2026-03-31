@@ -271,6 +271,11 @@ class UserController extends Controller
             return ['error' => 'All required fields must be provided', 'code' => 400];
         }
 
+        $passwordErrors = $this->auth->validatePasswordPolicy((string)$data['password']);
+        if (!empty($passwordErrors)) {
+            return ['error' => $passwordErrors[0], 'code' => 422];
+        }
+
         // ユーザー名とメールアドレスの重複チェック
         if ($this->model->getByUsername($data['username'])) {
             return ['error' => 'Username already exists', 'code' => 400];
@@ -332,6 +337,13 @@ class UserController extends Controller
 
             // ユーザー名も変更不可
             unset($data['username']);
+        }
+
+        if (!empty($data['password'])) {
+            $passwordErrors = $this->auth->validatePasswordPolicy((string)$data['password']);
+            if (!empty($passwordErrors)) {
+                return ['error' => $passwordErrors[0], 'code' => 422];
+            }
         }
 
         // ユーザー名とメールアドレスの重複チェック
@@ -451,6 +463,11 @@ class UserController extends Controller
         // バリデーション
         if (empty($data['new_password'])) {
             return ['error' => 'New password is required', 'code' => 400];
+        }
+
+        $passwordErrors = $this->auth->validatePasswordPolicy((string)$data['new_password']);
+        if (!empty($passwordErrors)) {
+            return ['error' => $passwordErrors[0], 'code' => 422];
         }
 
         // 自分自身のパスワード変更時は現在のパスワードが必要

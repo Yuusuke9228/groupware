@@ -97,6 +97,79 @@ $isJaLocale = get_locale() === 'ja';
 
             <div class="card mt-4">
                 <div class="card-header">
+                    <h5 class="card-title mb-0"><?= htmlspecialchars(tr_text('認証セキュリティ設定', 'Authentication security settings')) ?></h5>
+                </div>
+                <div class="card-body">
+                    <form id="authSecuritySettingsForm">
+                        <div class="alert alert-success d-none" id="authSecuritySuccessAlert"><?= htmlspecialchars(tr_text('設定を保存しました。', 'Settings saved.')) ?></div>
+                        <div class="alert alert-danger d-none" id="authSecurityErrorAlert"></div>
+
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <label class="form-label" for="security_password_min_length"><?= htmlspecialchars(tr_text('パスワード最小文字数', 'Minimum password length')) ?></label>
+                                <input type="number" min="8" max="128" class="form-control" id="security_password_min_length" name="security_password_min_length" value="<?= htmlspecialchars((string)($settings['security_password_min_length'] ?? '8')) ?>">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label" for="security_session_timeout_minutes"><?= htmlspecialchars(tr_text('セッションタイムアウト(分)', 'Session timeout (minutes)')) ?></label>
+                                <input type="number" min="1" max="1440" class="form-control" id="security_session_timeout_minutes" name="security_session_timeout_minutes" value="<?= htmlspecialchars((string)($settings['security_session_timeout_minutes'] ?? '120')) ?>">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label" for="security_login_max_attempts"><?= htmlspecialchars(tr_text('ログイン試行上限回数', 'Maximum login attempts')) ?></label>
+                                <input type="number" min="1" max="20" class="form-control" id="security_login_max_attempts" name="security_login_max_attempts" value="<?= htmlspecialchars((string)($settings['security_login_max_attempts'] ?? '5')) ?>">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label" for="security_login_lock_minutes"><?= htmlspecialchars(tr_text('ロック時間(分)', 'Lock duration (minutes)')) ?></label>
+                                <input type="number" min="1" max="1440" class="form-control" id="security_login_lock_minutes" name="security_login_lock_minutes" value="<?= htmlspecialchars((string)($settings['security_login_lock_minutes'] ?? '15')) ?>">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label" for="security_login_window_minutes"><?= htmlspecialchars(tr_text('試行回数集計時間(分)', 'Attempt window (minutes)')) ?></label>
+                                <input type="number" min="1" max="1440" class="form-control" id="security_login_window_minutes" name="security_login_window_minutes" value="<?= htmlspecialchars((string)($settings['security_login_window_minutes'] ?? '15')) ?>">
+                            </div>
+                        </div>
+
+                        <hr>
+
+                        <div class="mb-2 fw-semibold"><?= htmlspecialchars(tr_text('パスワード要件', 'Password requirements')) ?></div>
+                        <div class="row g-2">
+                            <div class="col-md-3 form-check form-switch ms-1">
+                                <input class="form-check-input" type="checkbox" id="security_password_require_uppercase" name="security_password_require_uppercase" <?= ($settings['security_password_require_uppercase'] ?? '1') === '1' ? 'checked' : '' ?>>
+                                <label class="form-check-label" for="security_password_require_uppercase"><?= htmlspecialchars(tr_text('英大文字を必須', 'Require uppercase')) ?></label>
+                            </div>
+                            <div class="col-md-3 form-check form-switch ms-1">
+                                <input class="form-check-input" type="checkbox" id="security_password_require_lowercase" name="security_password_require_lowercase" <?= ($settings['security_password_require_lowercase'] ?? '1') === '1' ? 'checked' : '' ?>>
+                                <label class="form-check-label" for="security_password_require_lowercase"><?= htmlspecialchars(tr_text('英小文字を必須', 'Require lowercase')) ?></label>
+                            </div>
+                            <div class="col-md-3 form-check form-switch ms-1">
+                                <input class="form-check-input" type="checkbox" id="security_password_require_number" name="security_password_require_number" <?= ($settings['security_password_require_number'] ?? '1') === '1' ? 'checked' : '' ?>>
+                                <label class="form-check-label" for="security_password_require_number"><?= htmlspecialchars(tr_text('数字を必須', 'Require number')) ?></label>
+                            </div>
+                            <div class="col-md-3 form-check form-switch ms-1">
+                                <input class="form-check-input" type="checkbox" id="security_password_require_symbol" name="security_password_require_symbol" <?= ($settings['security_password_require_symbol'] ?? '0') === '1' ? 'checked' : '' ?>>
+                                <label class="form-check-label" for="security_password_require_symbol"><?= htmlspecialchars(tr_text('記号を必須', 'Require symbol')) ?></label>
+                            </div>
+                        </div>
+
+                        <hr>
+
+                        <div class="mb-3 form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="security_admin_ip_restriction_enabled" name="security_admin_ip_restriction_enabled" <?= ($settings['security_admin_ip_restriction_enabled'] ?? '0') === '1' ? 'checked' : '' ?>>
+                            <label class="form-check-label" for="security_admin_ip_restriction_enabled"><?= htmlspecialchars(tr_text('管理者設定画面へのIP制限を有効化', 'Enable IP restriction for admin settings')) ?></label>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label" for="security_admin_ip_allowlist"><?= htmlspecialchars(tr_text('許可IP/CIDRリスト', 'Allowed IP/CIDR list')) ?></label>
+                            <textarea class="form-control" rows="4" id="security_admin_ip_allowlist" name="security_admin_ip_allowlist" placeholder="192.168.1.10&#10;10.0.0.0/24"><?= htmlspecialchars((string)($settings['security_admin_ip_allowlist'] ?? '')) ?></textarea>
+                            <div class="form-text"><?= htmlspecialchars(tr_text('1行に1件、またはカンマ区切りで入力します。IPv4/IPv6とIPv4 CIDR(例: 10.0.0.0/24)に対応。', 'One entry per line or comma-separated. Supports IPv4/IPv6 and IPv4 CIDR (e.g. 10.0.0.0/24).')) ?></div>
+                        </div>
+
+                        <div class="mt-3 d-grid">
+                            <button type="submit" class="btn btn-primary"><?= htmlspecialchars(tr_text('認証セキュリティ設定を保存', 'Save authentication security settings')) ?></button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="card mt-4">
+                <div class="card-header">
                     <h5 class="card-title mb-0"><?= htmlspecialchars(tr_text('SSO設定（OIDC / SAML）', 'SSO settings (OIDC / SAML)')) ?></h5>
                 </div>
                 <div class="card-body">

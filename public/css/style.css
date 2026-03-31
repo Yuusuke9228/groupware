@@ -1215,6 +1215,7 @@ body {
     min-height: 120px;
     border: 1px solid var(--border-light);
     padding: 4px;
+    background: #fff;
 }
 
 .month-calendar .schedule-item {
@@ -1359,6 +1360,44 @@ body {
     z-index: 20;
 }
 
+/* User color based schedule rendering */
+.schedule-item.schedule-item-user,
+.schedule-timespan.schedule-item-user,
+.org-schedule-item.schedule-item-user,
+.list-group-item.schedule-item.schedule-item-user {
+    background: var(--schedule-user-bg, #e8f0fe) !important;
+    border-left: 3px solid var(--schedule-user-color, #3b82f6) !important;
+    color: #1f2937;
+}
+
+.schedule-item.schedule-item-user:hover,
+.schedule-timespan.schedule-item-user:hover,
+.org-schedule-item.schedule-item-user:hover,
+.list-group-item.schedule-item.schedule-item-user:hover {
+    background: var(--schedule-user-bg-strong, #dbeafe) !important;
+}
+
+.schedule-item.schedule-item-user .schedule-creator,
+.schedule-item.schedule-item-user .schedule-time,
+.schedule-item.schedule-item-user .schedule-title,
+.schedule-timespan.schedule-item-user .schedule-creator,
+.schedule-timespan.schedule-item-user .schedule-time,
+.schedule-timespan.schedule-item-user .schedule-title,
+.org-schedule-item.schedule-item-user .org-schedule-time,
+.org-schedule-item.schedule-item-user .org-schedule-title {
+    color: #1f2937;
+}
+
+.more-schedules {
+    border: 1px solid #d5e3f8;
+    background: #f1f6ff;
+    color: #2b5ca8;
+}
+
+.more-schedules:hover {
+    background: #e3eeff;
+}
+
 /* ========================================
    Toastr Customization
    ======================================== */
@@ -1477,16 +1516,34 @@ body {
     .schedule-toolbar {
         flex-direction: column;
         align-items: stretch;
+        gap: 8px;
     }
+    .schedule-toolbar-left { width: 100%; }
     .schedule-toolbar-center {
-        justify-content: center;
+        width: 100%;
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 6px;
+    }
+    .schedule-toolbar-center .btn-group {
+        width: 100%;
+        display: flex;
+    }
+    .schedule-toolbar-center .btn-group .btn {
+        flex: 1 1 0;
+        min-width: 0;
     }
     .schedule-toolbar-right {
-        text-align: right;
+        width: 100%;
+        text-align: initial;
+    }
+    .schedule-toolbar-right .btn {
+        width: 100%;
     }
     .schedule-toolbar-title {
         font-size: 14px;
-        text-align: center;
+        text-align: left;
+        white-space: normal;
     }
 }
 
