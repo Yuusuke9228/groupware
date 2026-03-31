@@ -163,14 +163,36 @@ class HomeController extends Controller
                 $userWeekSchedules[$memberId]['daily'][$wd] = [];
             }
         }
+        $weekScheduleIds = array_values(array_unique(array_map(static function ($schedule) {
+            return (int)($schedule['id'] ?? 0);
+        }, $weekSchedules)));
+        $participantMap = $this->getScheduleParticipantMap($weekScheduleIds);
+
         foreach ($weekSchedules as $schedule) {
-            $creatorId = (int)$schedule['creator_id'];
-            if (!isset($userWeekSchedules[$creatorId])) continue;
+            $scheduleId = (int)($schedule['id'] ?? 0);
             $startDate = date('Y-m-d', strtotime($schedule['start_time']));
             $endDate = date('Y-m-d', strtotime($schedule['end_time']));
-            foreach ($weekDates as $wd) {
-                if ($wd >= $startDate && $wd <= $endDate) {
-                    $userWeekSchedules[$creatorId]['daily'][$wd][] = $schedule;
+
+            $assignedUserIds = [];
+            $creatorId = (int)$schedule['creator_id'];
+            if (isset($userWeekSchedules[$creatorId])) {
+                $assignedUserIds[$creatorId] = true;
+            }
+            foreach (($participantMap[$scheduleId] ?? []) as $participantId) {
+                if (isset($userWeekSchedules[$participantId])) {
+                    $assignedUserIds[$participantId] = true;
+                }
+            }
+
+            if (empty($assignedUserIds)) {
+                continue;
+            }
+
+            foreach (array_keys($assignedUserIds) as $assignedUserId) {
+                foreach ($weekDates as $wd) {
+                    if ($wd >= $startDate && $wd <= $endDate) {
+                        $userWeekSchedules[$assignedUserId]['daily'][$wd][] = $schedule;
+                    }
                 }
             }
         }
@@ -308,6 +330,13 @@ class HomeController extends Controller
             return [];
         }
 
+        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)$startDate)) {
+            $startDate .= ' 00:00:00';
+        }
+        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)$endDate)) {
+            $endDate .= ' 23:59:59';
+        }
+
         $placeholders = implode(',', array_fill(0, count($organizationIds), '?'));
         $sql = "SELECT DISTINCT s.*, u.display_name as creator_name
                 FROM schedules s
@@ -337,6 +366,36 @@ class HomeController extends Controller
         );
 
         return $this->db->fetchAll($sql, $params);
+    }
+
+    private function getScheduleParticipantMap(array $scheduleIds)
+    {
+        $scheduleIds = array_values(array_unique(array_filter(array_map('intval', $scheduleIds))));
+        if (empty($scheduleIds)) {
+            return [];
+        }
+
+        $placeholders = implode(',', array_fill(0, count($scheduleIds), '?'));
+        $sql = "SELECT schedule_id, user_id
+                FROM schedule_participants
+                WHERE schedule_id IN ({$placeholders})";
+        $rows = $this->db->fetchAll($sql, $scheduleIds);
+
+        $map = [];
+        foreach ($rows as $row) {
+            $sid = (int)$row['schedule_id'];
+            $uid = (int)$row['user_id'];
+            if (!isset($map[$sid])) {
+                $map[$sid] = [];
+            }
+            $map[$sid][$uid] = $uid;
+        }
+
+        foreach ($map as $sid => $userIds) {
+            $map[$sid] = array_values($userIds);
+        }
+
+        return $map;
     }
 
 }
