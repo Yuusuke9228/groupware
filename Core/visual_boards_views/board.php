@@ -19,8 +19,8 @@ $canEditBool = !empty($canEdit);
 .vb-canvas-panel .vb-board-wrap { flex: 1 1 auto; height: 100%; min-height: 520px; }
 .vb-board-stage { width: 100%; height: 100%; position: relative; touch-action: none; user-select: none; }
 .vb-world { position: absolute; top: 0; left: 0; transform-origin: 0 0; width: 100%; height: 100%; }
-.vb-edge-layer { position: absolute; inset: 0; overflow: visible; pointer-events: none; }
-.vb-node-layer { position: absolute; inset: 0; }
+.vb-edge-layer { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; z-index: 1; }
+.vb-node-layer { position: absolute; inset: 0; z-index: 2; }
 .vb-node { position: absolute; border: 1px solid #c9d6ea; border-radius: 10px; box-shadow: 0 8px 16px rgba(25, 40, 60, .08); background: #fff4c2; min-width: 120px; min-height: 56px; }
 .vb-node.selected { border-color: #2569d8; box-shadow: 0 0 0 2px rgba(37, 105, 216, .22), 0 8px 16px rgba(25, 40, 60, .08); }
 .vb-node-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 8px; cursor: move; border-bottom: 1px solid rgba(0,0,0,.08); font-size: 12px; font-weight: 600; }
@@ -154,7 +154,7 @@ $canEditBool = !empty($canEdit);
                 <div class="vb-board-wrap">
                     <div class="vb-board-stage" id="vbStage">
                         <div class="vb-world" id="vbWorld">
-                            <svg class="vb-edge-layer" id="vbEdgeLayer" width="5000" height="5000" viewBox="-2500 -2500 5000 5000"></svg>
+                            <svg class="vb-edge-layer" id="vbEdgeLayer" aria-hidden="true"></svg>
                             <div class="vb-node-layer" id="vbNodeLayer"></div>
                         </div>
                     </div>
@@ -605,6 +605,7 @@ $canEditBool = !empty($canEdit);
             line.setAttribute('stroke', '#5d759d');
             line.setAttribute('stroke-width', '2');
             line.setAttribute('stroke-linecap', 'round');
+            line.setAttribute('vector-effect', 'non-scaling-stroke');
             if ((edge.line_style || 'solid') === 'dashed') {
                 line.setAttribute('stroke-dasharray', '6 4');
             }
