@@ -492,12 +492,14 @@ $pageTitle = 'ご利用ガイド';
 
                 <h4>新規作成（テンプレート）</h4>
                 <div class="help-step"><span class="help-step-num">1</span><span class="help-step-text">メニューの「Visual Boards」を開き、「新規Visual Board」をクリックします。</span></div>
-                <div class="help-step"><span class="help-step-num">2</span><span class="help-step-text">テンプレート（Mind Map / Flowchart / Brainstorm / Planning）を選択して作成します。</span></div>
+                <div class="help-step"><span class="help-step-num">2</span><span class="help-step-text">テンプレート（Blank / Mind Map / Flowchart / Brainstorm / Planning / Team Planning / Personal Thinking）を選択して作成します。</span></div>
                 <div class="help-step"><span class="help-step-num">3</span><span class="help-step-text">必要に応じて「関連タスクプロジェクト」を選択すると、ノードのタスク連携候補を絞り込めます。</span></div>
 
                 <h4>基本操作</h4>
                 <ul>
                     <li><strong>ノード追加</strong>：「ルート追加」「子ノード」「兄弟ノード」</li>
+                    <li><strong>親ノード変更</strong>：ノード詳細の「親ノード」で付け替え（循環参照は不可）</li>
+                    <li><strong>ノード複製</strong>：ノード詳細の「複製」ボタンで内容を引き継いで複製</li>
                     <li><strong>接続線</strong>：「接続線」を押して、接続元ノード → 接続先ノードの順に選択</li>
                     <li><strong>自動レイアウト</strong>：ノード配置を自動で整理</li>
                     <li><strong>全体表示</strong>：キャンバス全体が見える位置・倍率に戻す</li>

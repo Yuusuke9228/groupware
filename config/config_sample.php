@@ -3,7 +3,7 @@
 return [
     'app' => [
         'name' => 'GroupWare Sample',
-        'version' => 'v0.9.0-beta.5',
+        'version' => 'v0.9.0-beta.6',
         'timezone' => 'Asia/Tokyo',
         'debug' => true,
         'url' => 'http://localhost/groupware'

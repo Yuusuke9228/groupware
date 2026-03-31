@@ -12,7 +12,7 @@
 
 - 新機能 `Visual Boards` を追加（既存カンバン機能とは分離）
   - ノードベースの思考整理キャンバス（パン / ズーム / 親子ノード / 接続線）
-  - テンプレート（Mind Map / Flowchart / Brainstorm / Planning）
+  - テンプレート（Blank / Mind Map / Flowchart / Brainstorm / Planning / Team Planning / Personal Thinking）
   - Undo / Redo、折りたたみ、自動レイアウト
   - 個人 / チーム / 組織共有、タスク連携
   - JSON / PDF / PNG 出力
@@ -26,6 +26,17 @@
 
 - `Core/Router.php` に `Visual Boards` 用の拡張ルート登録を追加
 - README の Demo Accounts 重複記載を解消
+- `Visual Boards` ノード詳細に「親ノード変更」「ノード複製」を追加
+- 組織選択の候補取得を見直し、作成可能な組織一覧を拡張
+- ルート直下ファイル監査ドキュメントを追加（`docs/root-file-audit.md`）
+- アプリバージョンを `v0.9.0-beta.6` に更新
+
+### Fixed / 修正
+
+- ノード間接続線の描画を補強（親子関係から描画対象を補完）
+- ノード詳細編集時に選択が外れやすい挙動を調整（空白タップ判定を厳密化）
+- テンプレートごとの差異が分かる初期構造に修正（同一初期構造を解消）
+- PDF/PNG 出力時の接続線描画を通常表示と整合
 
 ### i18n / 多言語
 
