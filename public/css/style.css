@@ -1496,7 +1496,7 @@ body {
     }
     .schedule-toolbar-right {
         width: 100%;
-        text-align: stretch;
+        text-align: initial;
     }
     .schedule-toolbar-right .btn {
         width: 100%;
