@@ -2588,6 +2588,7 @@ const Schedule = {
                     html += this.renderWeekScheduleTimespan(
                         span.schedule,
                         span.height,
+                        span.topPosition % 60,
                         columnIndex,
                         totalColumns
                     );
@@ -2652,13 +2653,14 @@ const Schedule = {
     },
 
     // 週表示用時間スパンスケジュールのレンダリング
-    renderWeekScheduleTimespan: function (schedule, height, columnIndex, totalColumns) {
+    renderWeekScheduleTimespan: function (schedule, height, topOffset, columnIndex, totalColumns) {
         const startTime = moment(schedule.start_time).format('HH:mm');
         const endTime = moment(schedule.end_time).format('HH:mm');
         const timeDisplay = startTime + ' - ' + endTime;
         const priorityClass = this.getPriorityClass(schedule.priority);
         const creatorName = schedule.creator_name || '不明';
         const colorMeta = this.getScheduleColorMeta(schedule);
+        const offset = Number.isFinite(topOffset) ? Math.max(0, Math.min(59, topOffset)) : 0;
 
         // カラム数に基づいて幅を計算
         const width = totalColumns > 1 ? (100 / totalColumns) : 100;
@@ -2666,7 +2668,7 @@ const Schedule = {
 
         return `
     <div class="schedule-item schedule-timespan ${priorityClass} ${colorMeta.className}"
-         style="height: ${height}px; width: ${width}%; left: ${leftPosition}%; right: auto; ${colorMeta.styleVars}" 
+         style="top: ${offset}px; height: ${height}px; width: ${width}%; left: ${leftPosition}%; right: auto; ${colorMeta.styleVars}" 
          data-id="${schedule.id}">
         <div class="schedule-creator">${creatorName}</div>
         <div class="schedule-time">${timeDisplay}</div>

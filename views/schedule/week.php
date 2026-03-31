@@ -76,7 +76,7 @@ $toolbarTitle = $formattedWeek;
     .week-day-name { font-weight: bold; }
     .week-day-number { font-size: 1.2rem; font-weight: bold; }
     .week-all-day-row, .week-hour-row { display: flex; min-height: 60px; border-bottom: 1px solid #dee2e6; position: relative; }
-    .week-day-content { flex: 1; min-width: 120px; padding: 2px; border-right: 1px solid #dee2e6; min-height: 60px; position: relative; overflow: hidden; z-index: 1; }
+    .week-day-content { flex: 1; min-width: 120px; padding: 2px; border-right: 1px solid #dee2e6; min-height: 60px; position: relative; overflow: visible; z-index: 1; }
     .week-day-content.today { background-color: #fff8dc; }
     .week-day-content.weekend { background-color: #f8f9fa; }
     .schedule-item, .schedule-timespan { margin-bottom: 2px; padding: 4px; border-radius: 3px; font-size: 0.8rem; cursor: pointer; overflow: hidden; box-shadow: 0 1px 2px rgba(0,0,0,0.1); position: relative; z-index: 5; display: flex; flex-direction: column; justify-content: space-between; }
@@ -121,7 +121,7 @@ $toolbarTitle = $formattedWeek;
         .week-day-number { font-size: 1rem; }
         .week-all-day-row,
         .week-hour-row { min-height: 54px; }
-        .week-day-content { padding: 1px; overflow: hidden; z-index: 1; }
+        .week-day-content { padding: 1px; overflow: visible; z-index: 1; }
         .schedule-item,
         .schedule-timespan {
             font-size: 0.7rem;

@@ -159,7 +159,12 @@ class User {
             $data['display_name'] = $data['last_name'] . ' ' . $data['first_name'];
         }
 
-        $calendarColor = $this->normalizeCalendarColor($data['calendar_color'] ?? null);
+        $calendarColorCustomized = isset($data['calendar_color_customized'])
+            ? (string)$data['calendar_color_customized'] === '1'
+            : !empty($data['calendar_color']);
+        $calendarColor = $calendarColorCustomized
+            ? $this->normalizeCalendarColor($data['calendar_color'] ?? null)
+            : null;
         if ($calendarColor === null) {
             $calendarColor = $this->pickAutoCalendarColor();
         }

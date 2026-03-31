@@ -60,6 +60,7 @@ if (!isset($isEdit)) $isEdit = false;
         <input type="color" class="form-control form-control-color" id="calendar_color" name="calendar_color"
             value="<?php echo isset($user['calendar_color']) && preg_match('/^#[0-9A-Fa-f]{6}$/', (string)$user['calendar_color']) ? htmlspecialchars($user['calendar_color']) : '#3b82f6'; ?>"
             title="スケジュール表示色">
+        <input type="hidden" id="calendar_color_customized" name="calendar_color_customized" value="<?php echo $isEdit ? '1' : '0'; ?>">
         <small class="form-text text-muted">週・月表示の予定カード色に使用されます。</small>
     </div>
     <div class="col-md-6">

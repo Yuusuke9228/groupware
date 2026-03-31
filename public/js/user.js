@@ -60,8 +60,16 @@ const User = {
         this.initOrganizationSelect();
 
         // スケジュール色プレビュー
+        const colorCustomized = $('#calendar_color_customized');
+        if ($('#id').length === 0 && colorCustomized.length) {
+            colorCustomized.val('0');
+        }
+
         this.updateCalendarColorPreview();
         $('#calendar_color').on('input change', function () {
+            if (colorCustomized.length) {
+                colorCustomized.val('1');
+            }
             User.updateCalendarColorPreview();
         });
 
