@@ -25,6 +25,7 @@ CREATE TABLE IF NOT EXISTS users (
     first_name VARCHAR(50) NOT NULL,
     last_name VARCHAR(50) NOT NULL,
     display_name VARCHAR(100) NOT NULL,
+    calendar_color VARCHAR(7) NOT NULL DEFAULT '#3b82f6' COMMENT 'スケジュール表示色',
     organization_id INT,
     position VARCHAR(100),
     phone VARCHAR(20),

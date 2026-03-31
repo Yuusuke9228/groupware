@@ -54,6 +54,21 @@ if (!isset($isEdit)) $isEdit = false;
     <small class="form-text text-muted">氏名から自動生成されます。必要に応じて変更できます。</small>
 </div>
 
+<div class="row mb-3 align-items-end">
+    <div class="col-md-6">
+        <label for="calendar_color" class="form-label">スケジュール色</label>
+        <input type="color" class="form-control form-control-color" id="calendar_color" name="calendar_color"
+            value="<?php echo isset($user['calendar_color']) && preg_match('/^#[0-9A-Fa-f]{6}$/', (string)$user['calendar_color']) ? htmlspecialchars($user['calendar_color']) : '#3b82f6'; ?>"
+            title="スケジュール表示色">
+        <small class="form-text text-muted">週・月表示の予定カード色に使用されます。</small>
+    </div>
+    <div class="col-md-6">
+        <div class="border rounded p-2" id="calendar-color-preview" style="background-color: #e9f2ff; border-left: 4px solid #3b82f6;">
+            予定カードのプレビュー
+        </div>
+    </div>
+</div>
+
 <?php if (!$isEdit): ?>
     <div class="row mb-3">
         <div class="col-md-6">

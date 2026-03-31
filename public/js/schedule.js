@@ -951,7 +951,8 @@ const Schedule = {
                     daySchedules.slice(0, maxDisplay).forEach(schedule => {
                         const priorityClass = this.getPriorityClass(schedule.priority);
                         const owner = schedule.user_name ? `(${schedule.user_name}) ` : '';
-                        html += `<div class="org-schedule-item ${priorityClass}" data-id="${schedule.id}" title="${schedule.title}">${owner}${schedule.title}</div>`;
+                        const colorMeta = this.getScheduleColorMeta(schedule);
+                        html += `<div class="org-schedule-item ${priorityClass} ${colorMeta.className}" data-id="${schedule.id}" title="${schedule.title}" style="${colorMeta.styleVars}">${owner}${schedule.title}</div>`;
                     });
                     if (daySchedules.length > maxDisplay) {
                         html += `<div class="more-schedules">他 ${daySchedules.length - maxDisplay} 件</div>`;
@@ -1179,6 +1180,7 @@ const Schedule = {
     renderOrganizationScheduleItem: function (schedule) {
         const priorityClass = this.getPriorityClass(schedule.priority);
         const allDayClass = schedule.all_day == 1 ? 'all-day' : '';
+        const colorMeta = this.getScheduleColorMeta(schedule);
 
         let timeDisplay = '';
         if (schedule.all_day == 1) {
@@ -1190,7 +1192,7 @@ const Schedule = {
         }
 
         return `
-        <div class="org-schedule-item ${priorityClass} ${allDayClass}" data-id="${schedule.id}">
+        <div class="org-schedule-item ${priorityClass} ${allDayClass} ${colorMeta.className}" data-id="${schedule.id}" style="${colorMeta.styleVars}">
             <div class="org-schedule-time">${timeDisplay}</div>
             <div class="org-schedule-title">${schedule.title}</div>
         </div>
@@ -1945,13 +1947,17 @@ const Schedule = {
                         if (response.success) {
                             // FullCalendar形式にデータを変換
                             const events = response.data.map(schedule => {
+                                const calendarColor = this.getScheduleCalendarColor(schedule);
+                                const eventColor = calendarColor || this.getPriorityColor(schedule.priority);
                                 return {
                                     id: schedule.id,
                                     title: schedule.title,
                                     start: schedule.start_time,
                                     end: schedule.end_time,
                                     allDay: schedule.all_day == 1,
-                                    backgroundColor: this.getPriorityColor(schedule.priority),
+                                    backgroundColor: eventColor,
+                                    borderColor: eventColor,
+                                    textColor: this.getContrastingTextColor(eventColor),
                                     url: BASE_PATH + '/schedule/view/' + schedule.id
                                 };
                             });
@@ -2328,10 +2334,11 @@ const Schedule = {
         const timeDisplay = startTime + ' - ' + endTime;
         const priorityClass = this.getPriorityClass(schedule.priority);
         const creatorName = schedule.creator_name || '不明';
+        const colorMeta = this.getScheduleColorMeta(schedule);
 
         return `
-    <div class="schedule-item schedule-timespan ${priorityClass}" 
-         style="position: absolute; top: ${topPosition % 60}px; height: ${height}px; width: calc(${width}% - 10px); left: ${left}%; z-index: 10;" 
+    <div class="schedule-item schedule-timespan ${priorityClass} ${colorMeta.className}" 
+         style="position: absolute; top: ${topPosition % 60}px; height: ${height}px; width: calc(${width}% - 10px); left: ${left}%; z-index: 10; ${colorMeta.styleVars}" 
          data-id="${schedule.id}">
         <div class="schedule-creator">${creatorName}</div>
         <div class="schedule-time">${timeDisplay}</div>
@@ -2651,14 +2658,15 @@ const Schedule = {
         const timeDisplay = startTime + ' - ' + endTime;
         const priorityClass = this.getPriorityClass(schedule.priority);
         const creatorName = schedule.creator_name || '不明';
+        const colorMeta = this.getScheduleColorMeta(schedule);
 
         // カラム数に基づいて幅を計算
         const width = totalColumns > 1 ? (100 / totalColumns) : 100;
         const leftPosition = columnIndex * width;
 
         return `
-    <div class="schedule-item schedule-timespan ${priorityClass}"
-         style="height: ${height}px; width: ${width}%; left: ${leftPosition}%; right: auto;" 
+    <div class="schedule-item schedule-timespan ${priorityClass} ${colorMeta.className}"
+         style="height: ${height}px; width: ${width}%; left: ${leftPosition}%; right: auto; ${colorMeta.styleVars}" 
          data-id="${schedule.id}">
         <div class="schedule-creator">${creatorName}</div>
         <div class="schedule-time">${timeDisplay}</div>
@@ -2896,9 +2904,10 @@ const Schedule = {
         const timeDisplay = schedule.all_day == 1 ? '終日' : startTime + ' - ' + endTime;
         const priorityClass = this.getPriorityClass(schedule.priority);
         const creatorName = schedule.creator_name || '不明';
+        const colorMeta = this.getScheduleColorMeta(schedule);
 
         return `
-        <div class="list-group-item list-group-item-action ${priorityClass} schedule-item" data-id="${schedule.id}">
+        <div class="list-group-item list-group-item-action ${priorityClass} schedule-item ${colorMeta.className}" data-id="${schedule.id}" style="${colorMeta.styleVars}">
             <div class="d-flex w-100 justify-content-between">
                 <h5 class="mb-1">${schedule.title}</h5>
                 <small>${timeDisplay}</small>
@@ -2916,9 +2925,10 @@ const Schedule = {
         const timeDisplay = startTime + ' - ' + endTime;
         const priorityClass = this.getPriorityClass(schedule.priority);
         const creatorName = schedule.creator_name || '不明';
+        const colorMeta = this.getScheduleColorMeta(schedule);
 
         return `
-        <div class="schedule-item ${priorityClass}" data-id="${schedule.id}">
+        <div class="schedule-item ${priorityClass} ${colorMeta.className}" data-id="${schedule.id}" style="${colorMeta.styleVars}">
             <div class="schedule-creator">${creatorName}</div>
             <div class="schedule-time">${timeDisplay}</div>
             <div class="schedule-title">${schedule.title}</div>
@@ -2934,9 +2944,10 @@ const Schedule = {
         const timeDisplay = isAllDay ? '終日' : startTime + ' - ' + endTime;
         const priorityClass = this.getPriorityClass(schedule.priority);
         const creatorName = schedule.creator_name || '不明';
+        const colorMeta = this.getScheduleColorMeta(schedule);
 
         return `
-        <div class="schedule-item ${priorityClass}" data-id="${schedule.id}">
+        <div class="schedule-item ${priorityClass} ${colorMeta.className}" data-id="${schedule.id}" style="${colorMeta.styleVars}">
             <div class="schedule-creator">${creatorName}</div>
             <div class="schedule-time">${timeDisplay}</div>
             <div class="schedule-title">${schedule.title}</div>
@@ -2952,9 +2963,10 @@ const Schedule = {
         const endTime = moment(schedule.end_time).format('HH:mm');
         const timeDisplay = schedule.all_day == 1 ? '終日' : startTime + ' - ' + endTime;
         const creatorName = schedule.creator_name || '不明';
+        const colorMeta = this.getScheduleColorMeta(schedule);
 
         return `
-        <div class="schedule-item ${priorityClass} ${allDayClass}" data-id="${schedule.id}">
+        <div class="schedule-item ${priorityClass} ${allDayClass} ${colorMeta.className}" data-id="${schedule.id}" style="${colorMeta.styleVars}">
             <span class="schedule-creator">${creatorName}</span>
             <span class="schedule-time">${timeDisplay}</span>
             <span class="schedule-title">${schedule.title}</span>
@@ -3083,6 +3095,70 @@ const Schedule = {
             default:
                 return '<span class="badge bg-secondary">未回答</span>';
         }
+    },
+
+    getScheduleCalendarColor: function (schedule) {
+        const userColor = this.normalizeCalendarColor(schedule && schedule.user_color ? schedule.user_color : null);
+        if (userColor) {
+            return userColor;
+        }
+        return this.normalizeCalendarColor(schedule && schedule.creator_color ? schedule.creator_color : null);
+    },
+
+    normalizeCalendarColor: function (color) {
+        if (typeof color !== 'string') {
+            return null;
+        }
+
+        const normalized = color.trim().toUpperCase();
+        if (!/^#[0-9A-F]{6}$/.test(normalized)) {
+            return null;
+        }
+
+        return normalized;
+    },
+
+    hexToRgba: function (hexColor, alpha) {
+        const color = this.normalizeCalendarColor(hexColor);
+        if (!color) {
+            return '';
+        }
+
+        const r = parseInt(color.slice(1, 3), 16);
+        const g = parseInt(color.slice(3, 5), 16);
+        const b = parseInt(color.slice(5, 7), 16);
+        return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    },
+
+    getContrastingTextColor: function (hexColor) {
+        const color = this.normalizeCalendarColor(hexColor);
+        if (!color) {
+            return '#1f2937';
+        }
+
+        const r = parseInt(color.slice(1, 3), 16);
+        const g = parseInt(color.slice(3, 5), 16);
+        const b = parseInt(color.slice(5, 7), 16);
+        const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+        return luminance > 0.62 ? '#111827' : '#ffffff';
+    },
+
+    getScheduleColorMeta: function (schedule) {
+        const color = this.getScheduleCalendarColor(schedule);
+        if (!color) {
+            return {
+                className: '',
+                styleVars: ''
+            };
+        }
+
+        const background = this.hexToRgba(color, 0.16);
+        const backgroundStrong = this.hexToRgba(color, 0.24);
+
+        return {
+            className: 'schedule-item-user',
+            styleVars: `--schedule-user-color: ${color}; --schedule-user-bg: ${background}; --schedule-user-bg-strong: ${backgroundStrong};`
+        };
     },
 
     // 優先度に応じたカラークラスを取得

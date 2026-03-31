@@ -2308,7 +2308,7 @@ class ScheduleController extends Controller
         $placeholders = implode(',', array_fill(0, count($organizationIds), '?'));
         $viewerUserId = (int)$this->auth->id();
 
-        $sql = "SELECT DISTINCT s.*, uc.display_name as creator_name
+        $sql = "SELECT DISTINCT s.*, uc.display_name as creator_name, uc.calendar_color as creator_color
                 FROM schedules s
                 LEFT JOIN users uc ON s.creator_id = uc.id
                 LEFT JOIN user_organizations uo_creator ON uo_creator.user_id = s.creator_id
@@ -2403,12 +2403,14 @@ class ScheduleController extends Controller
                 $row = $schedule;
                 $row['user_id'] = $displayUserId;
                 $row['user_name'] = $userMap[$displayUserId]['display_name'];
+                $row['user_color'] = $userMap[$displayUserId]['calendar_color'] ?? ($row['creator_color'] ?? null);
                 $dedupMap[$scheduleId] = $row;
             } else {
                 foreach ($assignedUserIds as $assignedUserId) {
                     $row = $schedule;
                     $row['user_id'] = $assignedUserId;
                     $row['user_name'] = $userMap[$assignedUserId]['display_name'];
+                    $row['user_color'] = $userMap[$assignedUserId]['calendar_color'] ?? ($row['creator_color'] ?? null);
                     $schedules[] = $row;
                 }
             }

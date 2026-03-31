@@ -6,9 +6,66 @@ use Core\Database;
 
 class User {
     private $db;
+    private const DEFAULT_CALENDAR_COLOR = '#3b82f6';
+    private const CALENDAR_COLOR_PALETTE = [
+        '#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6',
+        '#06b6d4', '#f97316', '#84cc16', '#ec4899', '#14b8a6',
+        '#6366f1', '#22c55e', '#0ea5e9', '#d946ef', '#eab308'
+    ];
     
     public function __construct() {
         $this->db = Database::getInstance();
+    }
+
+    private function normalizeCalendarColor($color)
+    {
+        if (!is_string($color)) {
+            return null;
+        }
+
+        $color = trim($color);
+        if ($color === '') {
+            return null;
+        }
+
+        if (!preg_match('/^#[0-9A-Fa-f]{6}$/', $color)) {
+            return null;
+        }
+
+        return strtoupper($color);
+    }
+
+    private function getUsedCalendarColors()
+    {
+        $rows = $this->db->fetchAll(
+            "SELECT calendar_color
+             FROM users
+             WHERE calendar_color REGEXP '^#[0-9A-Fa-f]{6}$'"
+        );
+
+        $colors = [];
+        foreach ($rows as $row) {
+            if (!empty($row['calendar_color'])) {
+                $colors[strtoupper($row['calendar_color'])] = true;
+            }
+        }
+
+        return array_keys($colors);
+    }
+
+    private function pickAutoCalendarColor()
+    {
+        $used = array_fill_keys($this->getUsedCalendarColors(), true);
+
+        foreach (self::CALENDAR_COLOR_PALETTE as $candidate) {
+            $normalized = strtoupper($candidate);
+            if (!isset($used[$normalized])) {
+                return $normalized;
+            }
+        }
+
+        $count = (int)($this->db->fetch("SELECT COUNT(*) AS c FROM users")['c'] ?? 0);
+        return strtoupper(self::CALENDAR_COLOR_PALETTE[$count % count(self::CALENDAR_COLOR_PALETTE)]);
     }
     
     // 全ユーザーを取得
@@ -101,6 +158,11 @@ class User {
         if (empty($data['display_name'])) {
             $data['display_name'] = $data['last_name'] . ' ' . $data['first_name'];
         }
+
+        $calendarColor = $this->normalizeCalendarColor($data['calendar_color'] ?? null);
+        if ($calendarColor === null) {
+            $calendarColor = $this->pickAutoCalendarColor();
+        }
         
         // トランザクション開始
         $this->db->beginTransaction();
@@ -114,6 +176,7 @@ class User {
                         first_name, 
                         last_name, 
                         display_name, 
+                        calendar_color,
                         organization_id, 
                         position, 
                         phone, 
@@ -129,6 +192,7 @@ class User {
                 $data['first_name'],
                 $data['last_name'],
                 $data['display_name'],
+                $calendarColor,
                 $data['organization_id'] ?? null,
                 $data['position'] ?? null,
                 $data['phone'] ?? null,
@@ -179,11 +243,16 @@ class User {
         // 更新フィールドと値の準備
         $fields = [];
         $values = [];
+
+        if (array_key_exists('calendar_color', $data)) {
+            $normalizedColor = $this->normalizeCalendarColor($data['calendar_color']);
+            $data['calendar_color'] = $normalizedColor ?: ($user['calendar_color'] ?? self::DEFAULT_CALENDAR_COLOR);
+        }
         
         // 更新可能なフィールド
         $updateableFields = [
             'username', 'email', 'first_name', 'last_name', 'display_name',
-            'organization_id', 'position', 'phone', 'mobile_phone', 'status', 'role'
+            'calendar_color', 'organization_id', 'position', 'phone', 'mobile_phone', 'status', 'role'
         ];
         
         foreach ($updateableFields as $field) {
@@ -543,7 +612,7 @@ class User {
     // アクティブなユーザー一覧を取得するメソッド
     public function getActiveUsers()
     {
-        $sql = "SELECT id, username, display_name, email 
+        $sql = "SELECT id, username, display_name, email, calendar_color
             FROM users 
             WHERE status = 'active' 
             ORDER BY display_name";

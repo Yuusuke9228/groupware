@@ -64,19 +64,20 @@ $toolbarTitle = $formattedWeek;
 </div>
 
 <style>
+    .card { border-radius: 12px; overflow: hidden; box-shadow: 0 2px 10px rgba(15, 23, 42, 0.06); }
     .card-body.schedule-container { padding: 0; overflow-x: auto; overflow-y: auto; max-height: calc(100vh - 200px); position: relative; -webkit-overflow-scrolling: touch; }
     .week-schedule { width: max-content; min-width: 100%; position: relative; overflow: visible; }
-    .week-header { display: flex; background-color: #cfdfef; border-bottom: 1px solid #dee2e6; position: sticky; top: 0; z-index: 30; }
-    .week-time-column { flex: 0 0 60px; width: 60px; min-width: 60px; padding: 8px; text-align: right; font-weight: bold; color: #6c757d; border-right: 1px solid #dee2e6; position: sticky; left: 0; background-color: #f8f9fa; z-index: 40; box-shadow: 2px 0 0 rgba(222, 226, 230, 0.9); }
-    .week-header .week-time-column { z-index: 60; background-color: #cfdfef; }
+    .week-header { display: flex; background: linear-gradient(180deg, #f8fbff 0%, #edf4ff 100%); border-bottom: 1px solid #dee2e6; position: sticky; top: 0; z-index: 30; }
+    .week-time-column { flex: 0 0 60px; width: 60px; min-width: 60px; padding: 8px; text-align: right; font-weight: 700; color: #546277; border-right: 1px solid #dee2e6; position: sticky; left: 0; background-color: #f9fbff; z-index: 40; box-shadow: 2px 0 0 rgba(222, 226, 230, 0.9); }
+    .week-header .week-time-column { z-index: 60; background: linear-gradient(180deg, #f8fbff 0%, #edf4ff 100%); }
     .week-day { flex: 1; min-width: 120px; padding: 8px; text-align: center; border-right: 1px solid #dee2e6; }
-    .week-day.today { background-color: #fff3cd; }
+    .week-day.today { background-color: #fff8dc; }
     .week-day.weekend { background-color: #f8f9fa; }
     .week-day-name { font-weight: bold; }
     .week-day-number { font-size: 1.2rem; font-weight: bold; }
     .week-all-day-row, .week-hour-row { display: flex; min-height: 60px; border-bottom: 1px solid #dee2e6; position: relative; }
     .week-day-content { flex: 1; min-width: 120px; padding: 2px; border-right: 1px solid #dee2e6; min-height: 60px; position: relative; overflow: hidden; z-index: 1; }
-    .week-day-content.today { background-color: #fff3cd; }
+    .week-day-content.today { background-color: #fff8dc; }
     .week-day-content.weekend { background-color: #f8f9fa; }
     .schedule-item, .schedule-timespan { margin-bottom: 2px; padding: 4px; border-radius: 3px; font-size: 0.8rem; cursor: pointer; overflow: hidden; box-shadow: 0 1px 2px rgba(0,0,0,0.1); position: relative; z-index: 5; display: flex; flex-direction: column; justify-content: space-between; }
     .schedule-timespan { position: absolute; left: 2px; right: 2px; z-index: 5; }
@@ -86,28 +87,34 @@ $toolbarTitle = $formattedWeek;
     .priority-high { background-color: #f8d7da; border-left: 3px solid #dc3545; }
     .priority-normal { background-color: #d1e7dd; border-left: 3px solid #198754; }
     .priority-low { background-color: #cfe2ff; border-left: 3px solid #0d6efd; }
-    .more-schedules { font-size: 0.75rem; text-align: center; padding: 2px; margin-top: 2px; background-color: #eee; border-radius: 3px; cursor: pointer; }
-    .more-schedules:hover { background-color: #ddd; }
+    .more-schedules { font-size: 0.72rem; text-align: center; padding: 2px 5px; margin-top: 2px; background-color: #f1f6ff; border-radius: 999px; cursor: pointer; border: 1px solid #dbe7fb; color: #27569f; }
+    .more-schedules:hover { background-color: #e5efff; }
     @media (max-width: 768px) {
         .container-fluid[data-page-type="week"] { padding-left: 0.35rem; padding-right: 0.35rem; }
+        .container-fluid[data-page-type="week"] .card {
+            border-radius: 0;
+            margin-left: calc(50% - 50vw);
+            margin-right: calc(50% - 50vw);
+            width: 100vw;
+        }
         .card-body.schedule-container {
             max-height: none;
             overflow-x: auto;
             overflow-y: auto;
             -webkit-overflow-scrolling: touch;
         }
-        .week-schedule { min-width: 760px; width: max-content; }
+        .week-schedule { min-width: 720px; width: max-content; }
         .week-header { top: 0; z-index: 70; }
         .week-time-column {
             width: 54px;
             min-width: 54px;
             padding: 6px 4px;
             font-size: 0.68rem;
-            background-color: #fff;
+            background-color: #f9fbff;
             z-index: 80;
             box-shadow: 1px 0 0 #dee2e6;
         }
-        .week-header .week-time-column { background-color: #cfdfef; z-index: 100; }
+        .week-header .week-time-column { background: linear-gradient(180deg, #f8fbff 0%, #edf4ff 100%); z-index: 100; }
         .week-day,
         .week-day-content { min-width: 100px; }
         .week-day { padding: 6px 4px; }

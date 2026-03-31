@@ -59,6 +59,12 @@ const User = {
         // 組織選択の初期化
         this.initOrganizationSelect();
 
+        // スケジュール色プレビュー
+        this.updateCalendarColorPreview();
+        $('#calendar_color').on('input change', function () {
+            User.updateCalendarColorPreview();
+        });
+
         // ディスプレイ名の自動生成
         $('#last_name, #first_name').on('input', function () {
             if ($('#display_name').data('auto-generated') !== false) {
@@ -137,6 +143,27 @@ const User = {
                 }
             }
         }
+    },
+
+    updateCalendarColorPreview: function () {
+        const color = ($('#calendar_color').val() || '#3b82f6').trim();
+        if (!/^#[0-9A-Fa-f]{6}$/.test(color)) {
+            return;
+        }
+
+        const normalized = color.toUpperCase();
+        const preview = $('#calendar-color-preview');
+        if (preview.length === 0) {
+            return;
+        }
+
+        const r = parseInt(normalized.slice(1, 3), 16);
+        const g = parseInt(normalized.slice(3, 5), 16);
+        const b = parseInt(normalized.slice(5, 7), 16);
+        preview.css({
+            'background-color': `rgba(${r}, ${g}, ${b}, 0.16)`,
+            'border-left': `4px solid ${normalized}`
+        });
     },
 
     // 組織選択の初期化
