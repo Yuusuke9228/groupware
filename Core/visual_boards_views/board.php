@@ -297,6 +297,12 @@ $canEditBool = !empty($canEdit);
         return 'n' + String(node.id);
     }
 
+    function findNodeByClientId(clientId) {
+        const key = String(clientId || '');
+        if (!key) return null;
+        return state.nodes.find((node) => toClientId(node) === key) || null;
+    }
+
     function deepCloneBoardState() {
         return JSON.parse(JSON.stringify({
             nodes: state.nodes,
@@ -924,6 +930,9 @@ $canEditBool = !empty($canEdit);
         if (!canEdit) return;
         if (!boardId) return;
 
+        const selectedNodeBeforeSave = findNode(state.selectedNodeId);
+        const selectedClientIdBeforeSave = selectedNodeBeforeSave ? toClientId(selectedNodeBeforeSave) : null;
+
         const payload = {
             nodes: state.nodes.map((node, index) => {
                 const parentNode = node.parent_id ? findNode(node.parent_id) : null;
@@ -977,6 +986,7 @@ $canEditBool = !empty($canEdit);
             }
 
             if (json.data && Array.isArray(json.data.nodes)) {
+                const payloadClientIds = payload.nodes.map((node) => String(node.client_id || ''));
                 state.nodes = json.data.nodes.map((node) => ({
                     ...node,
                     id: Number(node.id),
@@ -987,8 +997,17 @@ $canEditBool = !empty($canEdit);
                     width: Number(node.width || 220),
                     height: Number(node.height || 96),
                     is_collapsed: Number(node.is_collapsed) === 1 ? 1 : 0,
-                    client_id: 'n' + String(node.id)
+                    client_id: payloadClientIds.length > 0
+                        ? (payloadClientIds.shift() || ('n' + String(node.id)))
+                        : ('n' + String(node.id))
                 }));
+
+                if (selectedClientIdBeforeSave) {
+                    const matchedNode = findNodeByClientId(selectedClientIdBeforeSave);
+                    if (matchedNode) {
+                        state.selectedNodeId = Number(matchedNode.id);
+                    }
+                }
             }
             if (json.data && Array.isArray(json.data.edges)) {
                 state.edges = json.data.edges.map((edge) => ({
@@ -1032,7 +1051,7 @@ $canEditBool = !empty($canEdit);
                 width: Number(node.width || 220),
                 height: Number(node.height || 96),
                 is_collapsed: Number(node.is_collapsed) === 1 ? 1 : 0,
-                client_id: 'n' + String(node.id)
+                client_id: String(node.client_id || ('n' + String(node.id)))
             }));
             state.edges = (json.data.edges || []).map((edge) => ({
                 ...edge,
@@ -1180,7 +1199,11 @@ $canEditBool = !empty($canEdit);
             }
         });
 
-        function endPointer(ev) {
+        function endPointer(ev, allowTapClear) {
+            const shouldClearOnTap = (allowTapClear !== false);
+            if (!pointers.has(ev.pointerId)) {
+                return;
+            }
             const tap = blankTap.get(ev.pointerId);
             pointers.delete(ev.pointerId);
             blankTap.delete(ev.pointerId);
@@ -1197,17 +1220,17 @@ $canEditBool = !empty($canEdit);
                 beginPan(rest.id);
             } else {
                 panAnchor = null;
-                if (tap && tap.startedWithSinglePointer && !tap.moved) {
+                if (shouldClearOnTap && tap && tap.startedWithSinglePointer && !tap.moved) {
                     selectNode(null);
                 }
             }
         }
 
-        stageEl.addEventListener('pointerup', endPointer, { passive: true });
-        stageEl.addEventListener('pointercancel', endPointer, { passive: true });
+        stageEl.addEventListener('pointerup', (ev) => endPointer(ev, true), { passive: true });
+        stageEl.addEventListener('pointercancel', (ev) => endPointer(ev, false), { passive: true });
         stageEl.addEventListener('pointerleave', (ev) => {
             if (ev.pointerType !== 'mouse') return;
-            endPointer(ev);
+            endPointer(ev, false);
         }, { passive: true });
 
         stageEl.addEventListener('wheel', (ev) => {
