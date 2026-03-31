@@ -209,9 +209,10 @@ class SettingController extends Controller
                 ];
             } else {
                 $this->db->rollBack();
+                $statusCode = !empty($validationErrors) ? 422 : 500;
                 return [
                     'error' => tr_text('一部の設定の更新に失敗しました', 'Failed to update some settings.'),
-                    'code' => 500,
+                    'code' => $statusCode,
                     'data' => [
                         'failed' => $failed,
                         'errors' => $validationErrors
