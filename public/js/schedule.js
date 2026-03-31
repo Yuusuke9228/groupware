@@ -1237,6 +1237,7 @@ const Schedule = {
             $(this).find('form').get(0)?.reset();
             $(this).find('.is-invalid').removeClass('is-invalid');
             $(this).find('.invalid-feedback').text('');
+            Schedule.setFacilitySelection([]);
         });
 
         // フォーム送信イベントハンドラ
@@ -1283,7 +1284,10 @@ const Schedule = {
                                 const errorMsg = response.validation[field];
                                 const input = $('#' + field);
                                 input.addClass('is-invalid');
-                                input.next('.invalid-feedback').text(errorMsg);
+                                const feedback = input.next('.invalid-feedback').length
+                                    ? input.next('.invalid-feedback')
+                                    : input.closest('.mb-3, .col-md-3, .col-md-4').find('.invalid-feedback').first();
+                                feedback.text(errorMsg);
                             }
                         }
                     }
@@ -1403,6 +1407,7 @@ const Schedule = {
         if ($('#organizations').data('select2')) {
             $('#organizations').val(null).trigger('change');
         }
+        this.setFacilitySelection([]);
 
         // 公開範囲による表示/非表示
         if ($('#visibility').val() === 'specific') {
@@ -1591,6 +1596,13 @@ const Schedule = {
 
             // 参加者選択の初期化
             this.initParticipantSelect();
+
+            const selectedFacilityIds = Array.isArray(schedule.facility_ids)
+                ? schedule.facility_ids
+                : (Array.isArray(schedule.facilities)
+                    ? schedule.facilities.map(facility => facility.id)
+                    : []);
+            this.setFacilitySelection(selectedFacilityIds);
 
             // 参加者データをセット
             if (schedule.participants && schedule.participants.length > 0) {
@@ -2011,6 +2023,18 @@ const Schedule = {
                 }
             });
 
+            if ($('#facility_ids').length > 0) {
+                if ($('#facility_ids').data('select2')) {
+                    $('#facility_ids').select2('destroy');
+                }
+
+                $('#facility_ids').select2({
+                    placeholder: '予約する施設を選択してください',
+                    allowClear: true,
+                    width: '100%'
+                });
+            }
+
             console.log("Select2 components initialized");
         } catch (e) {
             console.error("Error initializing Select2:", e);
@@ -2020,6 +2044,17 @@ const Schedule = {
     // 組織共有セレクトの初期化
     initOrganizationSelect: function () {
         // 既に initParticipantSelect で初期化されているので何もしない
+    },
+
+    setFacilitySelection: function (facilityIds) {
+        const ids = Array.isArray(facilityIds) ? facilityIds.map(id => String(id)) : [];
+        const facilityField = $('#facility_ids');
+        if (!facilityField.length) {
+            return;
+        }
+
+        facilityField.val(ids);
+        facilityField.trigger('change');
     },
 
     // 日単位スケジュールの読み込み
