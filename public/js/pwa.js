@@ -4,6 +4,12 @@
     swRegistration: null,
     config: null,
     initialized: false,
+    installBannerTimer: null,
+    storageKeys: {
+      dismissedUntil: 'ts_pwa_install_dismissed_until',
+      mutedUntil: 'ts_pwa_install_muted_until',
+      installedAt: 'ts_pwa_installed_at'
+    },
 
     init: async function () {
       if (this.initialized) {
@@ -59,12 +65,80 @@
       window.addEventListener('beforeinstallprompt', (event) => {
         event.preventDefault();
         this.deferredInstallPrompt = event;
-        this.showInstallBanner();
+        this.maybeShowInstallBanner();
+      });
+
+      window.addEventListener('appinstalled', () => {
+        this.deferredInstallPrompt = null;
+        this.setStoredTs(this.storageKeys.installedAt, Date.now());
+        this.dismissInstallBanner('installed');
       });
     },
 
+    maybeShowInstallBanner: function () {
+      if (!this.canShowInstallBanner()) {
+        return;
+      }
+
+      window.setTimeout(() => this.showInstallBanner(), 1200);
+    },
+
+    canShowInstallBanner: function () {
+      if (!this.deferredInstallPrompt || this.isStandaloneMode()) {
+        return false;
+      }
+      const now = Date.now();
+      const installedAt = this.getStoredTs(this.storageKeys.installedAt);
+      const dismissedUntil = this.getStoredTs(this.storageKeys.dismissedUntil);
+      const mutedUntil = this.getStoredTs(this.storageKeys.mutedUntil);
+      return !(installedAt > 0 || dismissedUntil > now || mutedUntil > now);
+    },
+
+    getStoredTs: function (key) {
+      try {
+        return Number(localStorage.getItem(key) || 0);
+      } catch (error) {
+        return 0;
+      }
+    },
+
+    setStoredTs: function (key, ts) {
+      try {
+        localStorage.setItem(key, String(ts));
+      } catch (error) {
+        // ignore
+      }
+    },
+
+    isStandaloneMode: function () {
+      return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+    },
+
+    dismissInstallBanner: function (reason) {
+      const banner = document.getElementById('pwaInstallBanner');
+      if (banner) {
+        banner.remove();
+      }
+
+      if (this.installBannerTimer) {
+        window.clearTimeout(this.installBannerTimer);
+        this.installBannerTimer = null;
+      }
+
+      const now = Date.now();
+      if (reason === 'installed') {
+        this.setStoredTs(this.storageKeys.dismissedUntil, now + (365 * 24 * 60 * 60 * 1000));
+        return;
+      }
+      if (reason === 'closed') {
+        this.setStoredTs(this.storageKeys.dismissedUntil, now + (30 * 24 * 60 * 60 * 1000));
+        return;
+      }
+      this.setStoredTs(this.storageKeys.mutedUntil, now + (3 * 24 * 60 * 60 * 1000));
+    },
+
     showInstallBanner: function () {
-      if (document.getElementById('pwaInstallBanner')) {
+      if (!this.canShowInstallBanner() || document.getElementById('pwaInstallBanner')) {
         return;
       }
 
@@ -74,14 +148,15 @@
       banner.style.right = '12px';
       banner.style.bottom = '72px';
       banner.style.zIndex = '1100';
-      banner.style.background = '#1f2937';
+      banner.style.background = '#111827';
       banner.style.color = '#fff';
       banner.style.padding = '10px 12px';
-      banner.style.borderRadius = '10px';
-      banner.style.boxShadow = '0 8px 20px rgba(0,0,0,.25)';
+      banner.style.borderRadius = '12px';
+      banner.style.boxShadow = '0 10px 24px rgba(0,0,0,.28)';
       banner.style.fontSize = '13px';
+      banner.style.maxWidth = '260px';
       banner.innerHTML = `
-        <div style="margin-bottom:8px;">ホーム画面に追加できます</div>
+        <div style="margin-bottom:8px;line-height:1.35;">このアプリをインストールできます</div>
         <div style="display:flex;gap:8px;">
           <button id="pwaInstallNow" class="btn btn-sm btn-light">インストール</button>
           <button id="pwaInstallClose" class="btn btn-sm btn-outline-light">閉じる</button>
@@ -94,11 +169,17 @@
           return;
         }
         this.deferredInstallPrompt.prompt();
-        await this.deferredInstallPrompt.userChoice;
+        const choice = await this.deferredInstallPrompt.userChoice;
         this.deferredInstallPrompt = null;
-        banner.remove();
+        if (choice && choice.outcome === 'accepted') {
+          this.dismissInstallBanner('installed');
+          return;
+        }
+        this.dismissInstallBanner('muted');
       });
-      document.getElementById('pwaInstallClose')?.addEventListener('click', () => banner.remove());
+      document.getElementById('pwaInstallClose')?.addEventListener('click', () => this.dismissInstallBanner('closed'));
+
+      this.installBannerTimer = window.setTimeout(() => this.dismissInstallBanner('timeout'), 12000);
     },
 
     bindSecurityPageButtons: function () {
