@@ -19,10 +19,13 @@ $canEditBool = !empty($canEdit);
 .vb-canvas-panel .vb-board-wrap { flex: 1 1 auto; height: 100%; min-height: 520px; }
 .vb-board-stage { width: 100%; height: 100%; position: relative; touch-action: none; user-select: none; }
 .vb-world { position: absolute; top: 0; left: 0; transform-origin: 0 0; width: 100%; height: 100%; }
-.vb-edge-layer { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; z-index: 1; }
+.vb-edge-layer { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: auto; z-index: 1; }
 .vb-node-layer { position: absolute; inset: 0; z-index: 2; }
 .vb-node { position: absolute; border: 1px solid #c9d6ea; border-radius: 10px; box-shadow: 0 8px 16px rgba(25, 40, 60, .08); background: #fff4c2; min-width: 120px; min-height: 56px; }
 .vb-node.selected { border-color: #2569d8; box-shadow: 0 0 0 2px rgba(37, 105, 216, .22), 0 8px 16px rgba(25, 40, 60, .08); }
+.vb-node.connect-source { border-color: #d79b16; box-shadow: 0 0 0 2px rgba(215, 155, 22, .28), 0 8px 16px rgba(25, 40, 60, .08); }
+.vb-edge-path { fill: none; stroke: #5d759d; stroke-width: 2; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+.vb-edge-hit { fill: none; stroke: transparent; stroke-width: 18; stroke-linecap: round; vector-effect: non-scaling-stroke; cursor: pointer; pointer-events: stroke; }
 .vb-node-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 8px; cursor: move; border-bottom: 1px solid rgba(0,0,0,.08); font-size: 12px; font-weight: 600; }
 .vb-node-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; }
 .vb-node-actions { display: inline-flex; align-items: center; gap: 6px; }
@@ -243,9 +246,14 @@ $canEditBool = !empty($canEdit);
         boardReadonly: <?= json_encode(tr_text('このボードは閲覧専用です。', 'This board is read-only.')) ?>,
         connectOn: <?= json_encode(tr_text('接続モード: 接続元ノードを選択してください', 'Connect mode: select source node')) ?>,
         connectSelectTarget: <?= json_encode(tr_text('接続先ノードを選択してください', 'Select target node')) ?>,
+        connectSourceFixed: <?= json_encode(tr_text('接続元を固定しました。接続先ノードを選択してください', 'Source fixed. Select a target node.')) ?>,
         connectOff: <?= json_encode(tr_text('接続モードを終了しました', 'Connect mode disabled')) ?>,
         connectAdded: <?= json_encode(tr_text('接続線を追加しました', 'Connection added')) ?>,
+        connectAddedContinue: <?= json_encode(tr_text('接続線を追加しました。続けて接続先を選択できます', 'Connection added. You can keep selecting targets.')) ?>,
         connectExists: <?= json_encode(tr_text('同じ接続線はすでに存在します', 'This connection already exists')) ?>,
+        connectRemoved: <?= json_encode(tr_text('接続線を解除しました', 'Connection removed')) ?>,
+        connectRemovedContinue: <?= json_encode(tr_text('接続線を解除しました。続けて接続先を選択できます', 'Connection removed. You can keep selecting targets.')) ?>,
+        connectNotRemovable: <?= json_encode(tr_text('この接続線は解除できませんでした', 'This connection could not be removed')) ?>,
         fitDone: <?= json_encode(tr_text('全体表示に合わせました', 'Fitted to screen')) ?>,
         invalidParent: <?= json_encode(tr_text('親ノードの設定が不正です。', 'Invalid parent node selection.')) ?>
     };
@@ -485,8 +493,30 @@ $canEditBool = !empty($canEdit);
         setConnectMode(next, false);
         if (next && state.selectedNodeId) {
             state.connectSourceId = Number(state.selectedNodeId);
-            setStatus(text.connectSelectTarget, false);
+            setStatus(text.connectSourceFixed, false);
         }
+    }
+
+    function removeConnectionByPair(sourceId, targetId) {
+        let changed = false;
+        const source = Number(sourceId);
+        const target = Number(targetId);
+
+        const beforeManual = state.edges.length;
+        state.edges = state.edges.filter((edge) => {
+            return !(Number(edge.source_node_id) === source && Number(edge.target_node_id) === target);
+        });
+        if (state.edges.length !== beforeManual) {
+            changed = true;
+        }
+
+        const targetNode = findNode(target);
+        if (targetNode && Number(targetNode.parent_id || 0) === source) {
+            targetNode.parent_id = null;
+            changed = true;
+        }
+
+        return changed;
     }
 
     function handleConnectNode(nodeId) {
@@ -495,7 +525,7 @@ $canEditBool = !empty($canEdit);
         if (!state.connectSourceId) {
             state.connectSourceId = Number(nodeId);
             selectNode(nodeId);
-            setStatus(text.connectSelectTarget, false);
+            setStatus(text.connectSourceFixed, false);
             return;
         }
 
@@ -503,12 +533,20 @@ $canEditBool = !empty($canEdit);
         const targetId = Number(nodeId);
         if (sourceId === targetId) return;
 
-        const exists = state.edges.some((edge) =>
+        const exists = collectRenderableEdges().some((edge) =>
             Number(edge.source_node_id) === sourceId && Number(edge.target_node_id) === targetId
         );
         if (exists) {
-            setStatus(text.connectExists, false);
-            setConnectMode(false, true);
+            pushHistory();
+            const removed = removeConnectionByPair(sourceId, targetId);
+            if (removed) {
+                setStatus(text.connectRemovedContinue, false);
+                renderAll();
+                scheduleSave();
+            } else {
+                setStatus(text.connectNotRemovable, true);
+            }
+            state.connectSourceId = sourceId;
             return;
         }
 
@@ -520,9 +558,9 @@ $canEditBool = !empty($canEdit);
             line_style: 'solid',
             label: null
         });
-        setConnectMode(false, true);
-        setStatus(text.connectAdded, false);
-        renderEdges();
+        state.connectSourceId = sourceId;
+        setStatus(text.connectAddedContinue, false);
+        renderAll();
         scheduleSave();
     }
 
@@ -580,6 +618,38 @@ $canEditBool = !empty($canEdit);
         return { minX, minY, maxX, maxY };
     }
 
+    function computeEdgeCurve(source, target) {
+        const sw = Number(source.width || 220);
+        const sh = Number(source.height || 96);
+        const tw = Number(target.width || 220);
+        const th = Number(target.height || 96);
+
+        const sourceCenterX = Number(source.x) + (sw / 2);
+        const targetCenterX = Number(target.x) + (tw / 2);
+        const leftToRight = targetCenterX >= sourceCenterX;
+
+        const sx = Number(source.x) + (leftToRight ? sw : 0);
+        const sy = Number(source.y) + (sh / 2);
+        const tx = Number(target.x) + (leftToRight ? 0 : tw);
+        const ty = Number(target.y) + (th / 2);
+
+        const direction = leftToRight ? 1 : -1;
+        const horizontalGap = Math.abs(tx - sx);
+        const controlOffset = clamp((horizontalGap * 0.45), 64, 280);
+        const verticalBias = clamp((ty - sy) * 0.2, -70, 70);
+
+        const c1x = sx + (controlOffset * direction);
+        const c1y = sy + verticalBias;
+        const c2x = tx - (controlOffset * direction);
+        const c2y = ty - verticalBias;
+
+        return { sx, sy, tx, ty, c1x, c1y, c2x, c2y };
+    }
+
+    function edgeCurvePath(curve) {
+        return `M ${curve.sx} ${curve.sy} C ${curve.c1x} ${curve.c1y}, ${curve.c2x} ${curve.c2y}, ${curve.tx} ${curve.ty}`;
+    }
+
     function renderEdges() {
         edgeLayerEl.innerHTML = '';
         const visible = getVisibleNodeSet();
@@ -592,24 +662,39 @@ $canEditBool = !empty($canEdit);
             if (!source || !target) return;
             if (!visible.has(Number(source.id)) || !visible.has(Number(target.id))) return;
 
-            const sx = Number(source.x) + (Number(source.width || 220) / 2);
-            const sy = Number(source.y) + (Number(source.height || 96) / 2);
-            const tx = Number(target.x) + (Number(target.width || 220) / 2);
-            const ty = Number(target.y) + (Number(target.height || 96) / 2);
+            const curve = computeEdgeCurve(source, target);
+            const pathData = edgeCurvePath(curve);
 
-            const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-            line.setAttribute('x1', String(sx));
-            line.setAttribute('y1', String(sy));
-            line.setAttribute('x2', String(tx));
-            line.setAttribute('y2', String(ty));
-            line.setAttribute('stroke', '#5d759d');
-            line.setAttribute('stroke-width', '2');
-            line.setAttribute('stroke-linecap', 'round');
-            line.setAttribute('vector-effect', 'non-scaling-stroke');
+            const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            path.setAttribute('d', pathData);
+            path.setAttribute('class', 'vb-edge-path');
             if ((edge.line_style || 'solid') === 'dashed') {
-                line.setAttribute('stroke-dasharray', '6 4');
+                path.setAttribute('stroke-dasharray', '6 4');
             }
-            edgeLayerEl.appendChild(line);
+            edgeLayerEl.appendChild(path);
+
+            if (!canEdit) return;
+
+            const hitPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            hitPath.setAttribute('d', pathData);
+            hitPath.setAttribute('class', 'vb-edge-hit');
+            hitPath.addEventListener('pointerdown', (ev) => {
+                ev.stopPropagation();
+            });
+            hitPath.addEventListener('click', (ev) => {
+                ev.preventDefault();
+                ev.stopPropagation();
+                pushHistory();
+                const removed = removeConnectionByPair(edge.source_node_id, edge.target_node_id);
+                if (!removed) {
+                    setStatus(text.connectNotRemovable, true);
+                    return;
+                }
+                setStatus(text.connectRemoved, false);
+                renderAll();
+                scheduleSave();
+            });
+            edgeLayerEl.appendChild(hitPath);
         });
     }
 
@@ -689,7 +774,9 @@ $canEditBool = !empty($canEdit);
             if (!visible.has(Number(node.id))) return;
 
             const nodeEl = document.createElement('article');
-            nodeEl.className = 'vb-node' + (Number(state.selectedNodeId) === Number(node.id) ? ' selected' : '');
+            nodeEl.className = 'vb-node'
+                + (Number(state.selectedNodeId) === Number(node.id) ? ' selected' : '')
+                + (state.connectMode && Number(state.connectSourceId) === Number(node.id) ? ' connect-source' : '');
             nodeEl.style.left = `${Number(node.x)}px`;
             nodeEl.style.top = `${Number(node.y)}px`;
             nodeEl.style.width = `${Math.max(120, Number(node.width || 220))}px`;
@@ -1044,7 +1131,7 @@ $canEditBool = !empty($canEdit);
 
         stageEl.addEventListener('pointerdown', (ev) => {
             if (ev.pointerType === 'mouse' && ev.button !== 0) return;
-            if (ev.target.closest('.vb-node')) return;
+            if (ev.target.closest('.vb-node') || ev.target.closest('.vb-edge-hit')) return;
             stageEl.setPointerCapture(ev.pointerId);
             blankTap.set(ev.pointerId, {
                 x: ev.clientX,
@@ -1236,9 +1323,17 @@ $canEditBool = !empty($canEdit);
             const s = nodeMap.get(Number(edge.source_node_id));
             const t = nodeMap.get(Number(edge.target_node_id));
             if (!s || !t) return;
+            const curve = computeEdgeCurve(s, t);
             ctx.beginPath();
-            ctx.moveTo(Number(s.x) + Number(s.width || 220) / 2 + shiftX, Number(s.y) + Number(s.height || 96) / 2 + shiftY);
-            ctx.lineTo(Number(t.x) + Number(t.width || 220) / 2 + shiftX, Number(t.y) + Number(t.height || 96) / 2 + shiftY);
+            ctx.moveTo(curve.sx + shiftX, curve.sy + shiftY);
+            ctx.bezierCurveTo(
+                curve.c1x + shiftX,
+                curve.c1y + shiftY,
+                curve.c2x + shiftX,
+                curve.c2y + shiftY,
+                curve.tx + shiftX,
+                curve.ty + shiftY
+            );
             ctx.stroke();
         });
 
