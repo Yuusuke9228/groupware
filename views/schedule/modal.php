@@ -177,11 +177,6 @@
                         <div class="col-md-9" id="view-location"></div>
                     </div>
 
-                    <div class="row mb-3 facility-section" style="display: none;">
-                        <div class="col-md-3 fw-bold">予約施設</div>
-                        <div class="col-md-9" id="view-facilities"></div>
-                    </div>
-
                     <div class="row mb-3">
                         <div class="col-md-3 fw-bold">作成者</div>
                         <div class="col-md-9" id="view-creator"></div>
