@@ -1939,22 +1939,66 @@ class ScheduleController extends Controller
         );
 
         $rawSchedules = $this->db->fetchAll($sql, $params);
+        $scheduleIds = array_values(array_unique(array_map(static function ($schedule) {
+            return (int)($schedule['id'] ?? 0);
+        }, $rawSchedules)));
+
+        $participantMap = [];
+        if (!empty($scheduleIds)) {
+            $participantPlaceholders = implode(',', array_fill(0, count($scheduleIds), '?'));
+            $participantSql = "SELECT schedule_id, user_id
+                               FROM schedule_participants
+                               WHERE schedule_id IN ({$participantPlaceholders})";
+            $participantRows = $this->db->fetchAll($participantSql, $scheduleIds);
+            foreach ($participantRows as $row) {
+                $sid = (int)$row['schedule_id'];
+                $uid = (int)$row['user_id'];
+                if (!isset($participantMap[$sid])) {
+                    $participantMap[$sid] = [];
+                }
+                $participantMap[$sid][$uid] = $uid;
+            }
+            foreach ($participantMap as $sid => $userIds) {
+                $participantMap[$sid] = array_values($userIds);
+            }
+        }
+
         $schedules = [];
         $dedupMap = [];
 
         foreach ($rawSchedules as $schedule) {
+            $scheduleId = (int)$schedule['id'];
             $creatorId = (int)$schedule['creator_id'];
+
+            $assignedUserIds = [];
             if (isset($userMap[$creatorId])) {
-                $schedule['user_id'] = $creatorId;
-                $schedule['user_name'] = $userMap[$creatorId]['display_name'];
-            } else {
+                $assignedUserIds[$creatorId] = $creatorId;
+            }
+            foreach (($participantMap[$scheduleId] ?? []) as $participantId) {
+                if (isset($userMap[$participantId])) {
+                    $assignedUserIds[$participantId] = $participantId;
+                }
+            }
+
+            if (empty($assignedUserIds)) {
                 continue;
             }
 
+            $assignedUserIds = array_values($assignedUserIds);
+
             if ($deduplicateByScheduleId) {
-                $dedupMap[(int)$schedule['id']] = $schedule;
+                $displayUserId = in_array($creatorId, $assignedUserIds, true) ? $creatorId : $assignedUserIds[0];
+                $row = $schedule;
+                $row['user_id'] = $displayUserId;
+                $row['user_name'] = $userMap[$displayUserId]['display_name'];
+                $dedupMap[$scheduleId] = $row;
             } else {
-                $schedules[] = $schedule;
+                foreach ($assignedUserIds as $assignedUserId) {
+                    $row = $schedule;
+                    $row['user_id'] = $assignedUserId;
+                    $row['user_name'] = $userMap[$assignedUserId]['display_name'];
+                    $schedules[] = $row;
+                }
             }
         }
 
