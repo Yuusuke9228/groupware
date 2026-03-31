@@ -209,7 +209,7 @@ $router->post('/login', function () use ($auth) {
         $redirect = $_GET['redirect'] ?? '/';
         header('Location: ' . BASE_PATH . $redirect);
     } else {
-        $_SESSION['login_error'] = t('auth.error.invalid_credentials');
+        $_SESSION['login_error'] = $auth->getLastError() ?: t('auth.error.invalid_credentials');
         header('Location: ' . BASE_PATH . '/login');
     }
 });

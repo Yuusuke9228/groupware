@@ -36,6 +36,8 @@ class SettingController extends Controller
         if (!$this->auth->isAdmin()) {
             $this->redirect(BASE_PATH . '/');
         }
+
+        $this->enforceAdminNetworkRestriction();
     }
 
     /**
@@ -114,6 +116,20 @@ class SettingController extends Controller
         foreach ($settings as $setting) {
             $settingsArray[$setting['setting_key']] = $setting['setting_value'];
         }
+
+        $settingsArray = array_merge([
+            'security_password_min_length' => '8',
+            'security_password_require_uppercase' => '1',
+            'security_password_require_lowercase' => '1',
+            'security_password_require_number' => '1',
+            'security_password_require_symbol' => '0',
+            'security_session_timeout_minutes' => '120',
+            'security_login_max_attempts' => '5',
+            'security_login_lock_minutes' => '15',
+            'security_login_window_minutes' => '15',
+            'security_admin_ip_restriction_enabled' => '0',
+            'security_admin_ip_allowlist' => '',
+        ], $settingsArray);
 
         // Pushが有効な場合は公開鍵を生成/表示できるようにする
         if (($settingsArray['pwa_notifications_enabled'] ?? '0') === '1') {
@@ -251,6 +267,35 @@ class SettingController extends Controller
                 }
                 return (string)$timeout;
 
+            case 'security_password_min_length':
+                $minLength = (int)$stringValue;
+                if ($minLength < 8 || $minLength > 128) {
+                    throw new \InvalidArgumentException(tr_text('パスワード最小文字数は 8-128 の範囲で指定してください。', 'Password minimum length must be between 8 and 128.'));
+                }
+                return (string)$minLength;
+
+            case 'security_session_timeout_minutes':
+                $timeoutMinutes = (int)$stringValue;
+                if ($timeoutMinutes < 1 || $timeoutMinutes > 1440) {
+                    throw new \InvalidArgumentException(tr_text('セッションタイムアウトは 1-1440 分の範囲で指定してください。', 'Session timeout must be between 1 and 1440 minutes.'));
+                }
+                return (string)$timeoutMinutes;
+
+            case 'security_login_max_attempts':
+                $maxAttempts = (int)$stringValue;
+                if ($maxAttempts < 1 || $maxAttempts > 20) {
+                    throw new \InvalidArgumentException(tr_text('ログイン試行回数上限は 1-20 の範囲で指定してください。', 'Login max attempts must be between 1 and 20.'));
+                }
+                return (string)$maxAttempts;
+
+            case 'security_login_lock_minutes':
+            case 'security_login_window_minutes':
+                $minutes = (int)$stringValue;
+                if ($minutes < 1 || $minutes > 1440) {
+                    throw new \InvalidArgumentException(tr_text('ロック/監視時間は 1-1440 分の範囲で指定してください。', 'Lock/window minutes must be between 1 and 1440.'));
+                }
+                return (string)$minutes;
+
             case 'smtp_auth':
             case 'smtp_allow_self_signed':
             case 'notification_enabled':
@@ -266,6 +311,11 @@ class SettingController extends Controller
             case 'oidc_enabled':
             case 'saml_enabled':
             case 'scim_enabled':
+            case 'security_password_require_uppercase':
+            case 'security_password_require_lowercase':
+            case 'security_password_require_number':
+            case 'security_password_require_symbol':
+            case 'security_admin_ip_restriction_enabled':
                 return ($stringValue === '1' || strtolower($stringValue) === 'true') ? '1' : '0';
 
             case 'smtp_secure':
@@ -336,6 +386,9 @@ class SettingController extends Controller
                     throw new \InvalidArgumentException(tr_text('scim_base_path は / から始まるパスで指定してください。', 'scim_base_path must start with /.'));
                 }
                 return rtrim($stringValue, '/');
+
+            case 'security_admin_ip_allowlist':
+                return $this->normalizeIpAllowlist($stringValue);
 
             default:
                 return $stringValue;
@@ -586,5 +639,86 @@ class SettingController extends Controller
             echo htmlspecialchars($e->getMessage(), ENT_QUOTES, 'UTF-8');
             exit;
         }
+    }
+
+    private function enforceAdminNetworkRestriction()
+    {
+        if ($this->auth->isAdminIpAllowed()) {
+            return;
+        }
+
+        $message = tr_text(
+            'この画面は許可されたネットワークからのみ利用できます。',
+            'This page is available only from approved networks.'
+        );
+
+        $accept = strtolower((string)($_SERVER['HTTP_ACCEPT'] ?? ''));
+        $requestUri = (string)($_SERVER['REQUEST_URI'] ?? '');
+        $isApi = strpos($requestUri, '/api/') !== false || strpos($accept, 'application/json') !== false;
+
+        if ($isApi) {
+            http_response_code(403);
+            header('Content-Type: application/json; charset=utf-8');
+            echo json_encode(['error' => $message], JSON_UNESCAPED_UNICODE);
+            exit;
+        }
+
+        $_SESSION['error'] = $message;
+        $this->redirect(BASE_PATH . '/');
+    }
+
+    private function normalizeIpAllowlist($rawValue)
+    {
+        $entries = preg_split('/[\r\n,;]+/', (string)$rawValue) ?: [];
+        $normalized = [];
+
+        foreach ($entries as $entry) {
+            $entry = trim($entry);
+            if ($entry === '') {
+                continue;
+            }
+
+            if ($entry === '*') {
+                $normalized[] = $entry;
+                continue;
+            }
+
+            if (strpos($entry, '/') !== false) {
+                if (!$this->isValidIpv4Cidr($entry)) {
+                    throw new \InvalidArgumentException(tr_text(
+                        'IP許可リストに不正なCIDR表記があります: ' . $entry,
+                        'Invalid CIDR entry in IP allowlist: ' . $entry
+                    ));
+                }
+                $normalized[] = $entry;
+                continue;
+            }
+
+            if (!filter_var($entry, FILTER_VALIDATE_IP)) {
+                throw new \InvalidArgumentException(tr_text(
+                    'IP許可リストに不正なIPアドレスがあります: ' . $entry,
+                    'Invalid IP address in allowlist: ' . $entry
+                ));
+            }
+            $normalized[] = $entry;
+        }
+
+        return implode("\n", array_values(array_unique($normalized)));
+    }
+
+    private function isValidIpv4Cidr($entry)
+    {
+        if (strpos($entry, '/') === false) {
+            return false;
+        }
+        list($ip, $prefix) = explode('/', $entry, 2);
+        if (!filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
+            return false;
+        }
+        if (!is_numeric($prefix)) {
+            return false;
+        }
+        $prefix = (int)$prefix;
+        return $prefix >= 0 && $prefix <= 32;
     }
 }

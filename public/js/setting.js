@@ -434,6 +434,18 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    const authSecuritySettingsForm = document.getElementById('authSecuritySettingsForm');
+    if (authSecuritySettingsForm) {
+        authSecuritySettingsForm.addEventListener('submit', function (e) {
+            e.preventDefault();
+            saveSettingsForm(
+                authSecuritySettingsForm,
+                document.getElementById('authSecuritySuccessAlert'),
+                document.getElementById('authSecurityErrorAlert')
+            );
+        });
+    }
+
     const scimSettingsForm = document.getElementById('scimSettingsForm');
     if (scimSettingsForm) {
         scimSettingsForm.addEventListener('submit', function (e) {
