@@ -64,11 +64,11 @@ $toolbarTitle = $formattedWeek;
 </div>
 
 <style>
-    .card-body.schedule-container { padding: 0; overflow: auto; max-height: calc(100vh - 220px); position: relative; }
-    .org-timeline { width: 100%; min-width: 900px; position: relative; }
-    .org-timeline-header { display: flex; background: linear-gradient(to bottom, #e8f0fe, #dce6f5); border-bottom: 2px solid var(--border-color); position: sticky; top: 0; z-index: 100; }
+    .card-body.schedule-container { padding: 0; overflow-x: auto; overflow-y: auto; max-height: calc(100vh - 220px); position: relative; -webkit-overflow-scrolling: touch; }
+    .org-timeline { width: max-content; min-width: 100%; position: relative; }
+    .org-timeline-header { display: flex; background: linear-gradient(to bottom, #e8f0fe, #dce6f5); border-bottom: 2px solid var(--border-color); position: sticky; top: 0; z-index: 30; }
     .org-timeline-header-cell { flex: 1; min-width: 120px; text-align: center; padding: 10px 8px; border-right: 1px solid rgba(0,0,0,0.08); font-weight: 600; font-size: 13px; }
-    .org-timeline-header-cell.user-column { width: 140px; min-width: 140px; max-width: 140px; position: sticky; left: 0; z-index: 150; background: linear-gradient(to bottom, #e8f0fe, #dce6f5); font-size: 12px; }
+    .org-timeline-header-cell.user-column { width: 140px; min-width: 140px; max-width: 140px; position: sticky; left: 0; z-index: 60; background: linear-gradient(to bottom, #e8f0fe, #dce6f5); font-size: 12px; box-shadow: 2px 0 0 rgba(222, 226, 230, 0.9); }
     .org-timeline-header-cell.today { background: var(--primary) !important; color: #fff; }
     .org-timeline-header-cell.weekend { background: #f5f5f5; }
     .org-timeline-day { font-size: 11px; opacity: 0.8; }
@@ -76,9 +76,9 @@ $toolbarTitle = $formattedWeek;
     .org-timeline-body { position: relative; }
     .org-timeline-row { display: flex; border-bottom: 1px solid var(--border-light); transition: background 0.15s; }
     .org-timeline-row:hover { background: rgba(43,125,233,0.02); }
-    .org-timeline-user-cell { width: 140px; min-width: 140px; max-width: 140px; padding: 8px 10px; border-right: 1px solid var(--border-color); background: var(--bg-sidebar); position: sticky; left: 0; z-index: 50; display: flex; flex-direction: column; justify-content: center; }
+    .org-timeline-user-cell { width: 140px; min-width: 140px; max-width: 140px; padding: 8px 10px; border-right: 1px solid var(--border-color); background: var(--bg-sidebar); position: sticky; left: 0; z-index: 40; box-shadow: 2px 0 0 rgba(222, 226, 230, 0.9); display: flex; flex-direction: column; justify-content: center; }
     .org-timeline-user-name { font-weight: 600; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text-primary); }
-    .org-timeline-day-cell { flex: 1; min-width: 120px; padding: 4px; border-right: 1px solid var(--border-light); position: relative; min-height: 64px; }
+    .org-timeline-day-cell { flex: 1; min-width: 120px; padding: 4px; border-right: 1px solid var(--border-light); position: relative; min-height: 64px; overflow: hidden; z-index: 1; }
     .org-timeline-day-cell.today { background: rgba(43,125,233,0.04); }
     .org-timeline-day-cell.weekend { background: #fafafa; }
     .org-schedule-item { padding: 3px 6px; margin-bottom: 2px; border-radius: 4px; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; position: relative; z-index: 10; transition: box-shadow 0.15s, transform 0.1s; }
@@ -95,21 +95,21 @@ $toolbarTitle = $formattedWeek;
         .card-body.schedule-container {
             max-height: none;
             overflow-x: auto;
-            overflow-y: visible;
+            overflow-y: auto;
             -webkit-overflow-scrolling: touch;
         }
-        .org-timeline { min-width: 760px; }
-        .org-timeline-header { top: 0; z-index: 120; }
+        .org-timeline { min-width: 760px; width: max-content; }
+        .org-timeline-header { top: 0; z-index: 70; }
         .org-timeline-header-cell.user-column,
         .org-timeline-user-cell {
             width: 92px;
             min-width: 92px;
             max-width: 92px;
             font-size: 10px;
-            z-index: 130;
+            z-index: 80;
         }
         .org-timeline-header-cell { min-width: 95px; padding: 6px 4px; font-size: 10px; }
-        .org-timeline-day-cell { min-width: 95px; min-height: 56px; padding: 2px; overflow: hidden; }
+        .org-timeline-day-cell { min-width: 95px; min-height: 56px; padding: 2px; overflow: hidden; z-index: 1; }
         .org-schedule-item {
             font-size: 0.66rem;
             padding: 2px 4px;
