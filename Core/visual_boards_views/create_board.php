@@ -61,6 +61,16 @@ $userId = (int)$this->auth->id();
                             <label for="vbDescription" class="form-label"><?= htmlspecialchars(tr_text('説明', 'Description')) ?></label>
                             <textarea id="vbDescription" class="form-control" rows="3" maxlength="1000"></textarea>
                         </div>
+                        <div class="col-md-6">
+                            <label for="vbTaskBoard" class="form-label"><?= htmlspecialchars(tr_text('関連タスクプロジェクト', 'Related task project')) ?></label>
+                            <select id="vbTaskBoard" class="form-select">
+                                <option value=""><?= htmlspecialchars(tr_text('未設定', 'Not linked')) ?></option>
+                                <?php foreach (($taskBoards ?? []) as $taskBoard): ?>
+                                    <option value="<?= (int)$taskBoard['id'] ?>"><?= htmlspecialchars($taskBoard['name']) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                            <div class="vb-helper mt-1"><?= htmlspecialchars(tr_text('設定すると、ノードのタスク連携候補をこのプロジェクト内に絞り込みます。', 'When set, task-link candidates in nodes are filtered to this project.')) ?></div>
+                        </div>
                         <div class="col-12">
                             <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
                                 <label class="form-label mb-0"><?= htmlspecialchars(tr_text('テンプレート', 'Template')) ?></label>
@@ -119,6 +129,7 @@ $userId = (int)$this->auth->id();
     const nameInput = document.getElementById('vbName');
     const descriptionInput = document.getElementById('vbDescription');
     const publicCheck = document.getElementById('vbPublic');
+    const taskBoardSelect = document.getElementById('vbTaskBoard');
     const templateGrid = document.getElementById('vbTemplateGrid');
     const userId = <?= (int)$userId ?>;
 
@@ -193,6 +204,7 @@ $userId = (int)$this->auth->id();
                     description: descriptionInput.value || '',
                     owner_type: type,
                     owner_id: ownerId,
+                    linked_task_board_id: Number(taskBoardSelect?.value || 0) || null,
                     template_key: templateKey,
                     is_public: publicCheck.checked
                 })

@@ -49,13 +49,14 @@ $unreadNotificationCount = 0;
 $settingModel = new \Models\Setting();
 $appName = $settingModel->getAppName();
 $companyName = $settingModel->getCompanyName();
-$appVersion = (string)$settingModel->get('app_version', '');
+$appVersion = '';
+$configPath = __DIR__ . '/../../config/config.php';
+if (file_exists($configPath)) {
+    $cfg = require $configPath;
+    $appVersion = (string)($cfg['app']['version'] ?? '');
+}
 if ($appVersion === '') {
-    $configPath = __DIR__ . '/../../config/config.php';
-    if (file_exists($configPath)) {
-        $cfg = require $configPath;
-        $appVersion = (string)($cfg['app']['version'] ?? '');
-    }
+    $appVersion = (string)$settingModel->get('app_version', '');
 }
 $pwaEnabled = filter_var((string)$settingModel->get('pwa_enabled', '0'), FILTER_VALIDATE_BOOLEAN);
 $pwaThemeColor = (string)$settingModel->get('pwa_theme_color', '#2b7de9');

@@ -7,7 +7,7 @@ $canEditBool = !empty($canEdit);
 .vb-shell { height: calc(100vh - 166px); min-height: 560px; display: grid; grid-template-columns: 300px 1fr 280px; gap: 12px; padding: 12px 10px 14px; }
 .vb-panel { border: 1px solid #d8e2ef; border-radius: 12px; background: #fff; overflow: hidden; display: flex; flex-direction: column; min-height: 0; }
 .vb-panel-header { padding: 10px 12px; border-bottom: 1px solid #e7edf6; background: #f8fbff; font-weight: 600; font-size: 14px; }
-.vb-panel-body { padding: 10px 12px; overflow: auto; min-height: 0; }
+.vb-panel-body { padding: 10px 12px; overflow: auto; min-height: 0; flex: 1 1 auto; }
 .vb-toolbar { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
 .vb-toolbar .btn { padding: 6px 10px; font-size: 12px; }
 .vb-status { font-size: 12px; color: #5f6f86; }
@@ -15,6 +15,8 @@ $canEditBool = !empty($canEdit);
         radial-gradient(circle at 1px 1px, rgba(157, 179, 210, .28) 1px, transparent 0),
         linear-gradient(135deg, #fafdff 0%, #f4f8fe 100%);
     background-size: 22px 22px, auto; }
+.vb-canvas-panel .vb-panel-body { padding: 8px; display: flex; overflow: hidden; }
+.vb-canvas-panel .vb-board-wrap { flex: 1 1 auto; height: 100%; min-height: 520px; }
 .vb-board-stage { width: 100%; height: 100%; position: relative; touch-action: none; user-select: none; }
 .vb-world { position: absolute; top: 0; left: 0; transform-origin: 0 0; width: 100%; height: 100%; }
 .vb-edge-layer { position: absolute; inset: 0; overflow: visible; pointer-events: none; }
@@ -39,9 +41,13 @@ $canEditBool = !empty($canEdit);
     .vb-panel-right { grid-column: 1 / -1; min-height: 220px; }
 }
 @media (max-width: 900px) {
-    .vb-shell { grid-template-columns: 1fr; height: auto; }
+    .vb-shell { grid-template-columns: 1fr; height: auto; min-height: 0; }
+    .vb-canvas-panel { order: 1; }
+    .vb-panel-left { order: 2; }
+    .vb-panel-right { order: 3; }
     .vb-panel { min-height: 200px; }
-    .vb-board-wrap { height: 68vh; min-height: 420px; }
+    .vb-canvas-panel .vb-board-wrap { height: 70vh; min-height: 420px; }
+    .vb-toolbar .btn { flex: 1 1 calc(50% - 6px); }
 }
 </style>
 
@@ -50,14 +56,25 @@ $canEditBool = !empty($canEdit);
         <div>
             <h4 class="mb-1"><?= htmlspecialchars($board['name']) ?></h4>
             <div class="text-muted small"><?= htmlspecialchars(tr_text('Visual Boards（ノードベースの思考整理）', 'Visual Boards (node-based idea structuring)')) ?></div>
+            <?php if (!empty($board['linked_task_board_id']) && !empty($board['linked_task_board_name'])): ?>
+                <div class="text-muted small mt-1">
+                    <?= htmlspecialchars(tr_text('関連タスクプロジェクト: ', 'Related task project: ')) ?>
+                    <strong><?= htmlspecialchars($board['linked_task_board_name']) ?></strong>
+                </div>
+            <?php endif; ?>
         </div>
         <div class="d-flex flex-wrap gap-2">
             <a href="<?= BASE_PATH ?>/visual-boards" class="btn btn-outline-secondary btn-sm">
                 <i class="fas fa-arrow-left me-1"></i><?= htmlspecialchars(tr_text('一覧へ戻る', 'Back to list')) ?>
             </a>
-            <a href="<?= BASE_PATH ?>/help/visual-boards" class="btn btn-outline-secondary btn-sm" target="_blank" rel="noopener">
+            <a href="<?= BASE_PATH ?>/help#sec-visual-boards" class="btn btn-outline-secondary btn-sm">
                 <i class="fas fa-question-circle me-1"></i><?= htmlspecialchars(tr_text('ヘルプ', 'Help')) ?>
             </a>
+            <?php if (!empty($board['linked_task_board_id'])): ?>
+                <a href="<?= BASE_PATH ?>/task/board/<?= (int)$board['linked_task_board_id'] ?>" class="btn btn-outline-primary btn-sm">
+                    <i class="fas fa-tasks me-1"></i><?= htmlspecialchars(tr_text('タスクプロジェクト', 'Task project')) ?>
+                </a>
+            <?php endif; ?>
             <a href="<?= BASE_PATH ?>/visual-boards/export/json/<?= $boardId ?>" class="btn btn-outline-primary btn-sm">
                 <i class="fas fa-file-code me-1"></i>JSON
             </a>
@@ -72,7 +89,7 @@ $canEditBool = !empty($canEdit);
          data-board-id="<?= $boardId ?>"
          data-can-edit="<?= $canEditBool ? '1' : '0' ?>">
 
-        <aside class="vb-panel">
+        <aside class="vb-panel vb-panel-left">
             <div class="vb-panel-header"><?= htmlspecialchars(tr_text('操作', 'Actions')) ?></div>
             <div class="vb-panel-body">
                 <div class="vb-toolbar">
@@ -125,7 +142,7 @@ $canEditBool = !empty($canEdit);
             </div>
         </aside>
 
-        <section class="vb-panel">
+        <section class="vb-panel vb-canvas-panel">
             <div class="vb-panel-header d-flex align-items-center justify-content-between">
                 <span><?= htmlspecialchars(tr_text('キャンバス', 'Canvas')) ?></span>
                 <div class="small text-muted">
@@ -218,7 +235,10 @@ $canEditBool = !empty($canEdit);
         boardReadonly: <?= json_encode(tr_text('このボードは閲覧専用です。', 'This board is read-only.')) ?>,
         connectOn: <?= json_encode(tr_text('接続モード: 接続元ノードを選択してください', 'Connect mode: select source node')) ?>,
         connectSelectTarget: <?= json_encode(tr_text('接続先ノードを選択してください', 'Select target node')) ?>,
-        connectOff: <?= json_encode(tr_text('接続モードを終了しました', 'Connect mode disabled')) ?>
+        connectOff: <?= json_encode(tr_text('接続モードを終了しました', 'Connect mode disabled')) ?>,
+        connectAdded: <?= json_encode(tr_text('接続線を追加しました', 'Connection added')) ?>,
+        connectExists: <?= json_encode(tr_text('同じ接続線はすでに存在します', 'This connection already exists')) ?>,
+        fitDone: <?= json_encode(tr_text('全体表示に合わせました', 'Fitted to screen')) ?>
     };
     const notLinkedText = <?= json_encode(tr_text('未連携', 'Not linked')) ?>;
 
@@ -449,34 +469,90 @@ $canEditBool = !empty($canEdit);
         scheduleSave();
     }
 
-    function toggleConnectMode() {
-        if (!canEdit) return;
-        state.connectMode = !state.connectMode;
+    function setConnectMode(active, silent) {
+        state.connectMode = !!active;
         state.connectSourceId = null;
         const btn = document.getElementById('vbConnectBtn');
-        if (state.connectMode) {
+        if (!btn) return;
+
+        if (active) {
             btn.classList.remove('btn-outline-primary');
             btn.classList.add('btn-warning');
-            setStatus(text.connectOn, false);
+            if (!silent) setStatus(text.connectOn, false);
         } else {
             btn.classList.remove('btn-warning');
             btn.classList.add('btn-outline-primary');
-            setStatus(text.connectOff, false);
+            if (!silent) setStatus(text.connectOff, false);
         }
     }
 
-    function fitToScreen() {
+    function toggleConnectMode() {
+        if (!canEdit) return;
+        const next = !state.connectMode;
+        setConnectMode(next, false);
+        if (next && state.selectedNodeId) {
+            state.connectSourceId = Number(state.selectedNodeId);
+            setStatus(text.connectSelectTarget, false);
+        }
+    }
+
+    function handleConnectNode(nodeId) {
+        if (!canEdit || !state.connectMode) return;
+
+        if (!state.connectSourceId) {
+            state.connectSourceId = Number(nodeId);
+            selectNode(nodeId);
+            setStatus(text.connectSelectTarget, false);
+            return;
+        }
+
+        const sourceId = Number(state.connectSourceId);
+        const targetId = Number(nodeId);
+        if (sourceId === targetId) return;
+
+        const exists = state.edges.some((edge) =>
+            Number(edge.source_node_id) === sourceId && Number(edge.target_node_id) === targetId
+        );
+        if (exists) {
+            setStatus(text.connectExists, false);
+            setConnectMode(false, true);
+            return;
+        }
+
+        pushHistory();
+        state.edges.push({
+            id: Date.now() + Math.floor(Math.random() * 1000),
+            source_node_id: sourceId,
+            target_node_id: targetId,
+            line_style: 'solid',
+            label: null
+        });
+        setConnectMode(false, true);
+        setStatus(text.connectAdded, false);
+        renderEdges();
+        scheduleSave();
+    }
+
+    function fitToScreen(attempt) {
+        const retry = Number(attempt || 0);
         if (!state.nodes.length) {
             state.scale = 1;
             state.panX = 0;
             state.panY = 0;
             syncWorldTransform();
+            setStatus(text.fitDone, false);
             return;
         }
         const bounds = getNodeBounds(state.nodes);
         if (!bounds) return;
 
         const rect = stageEl.getBoundingClientRect();
+        if (rect.width < 40 || rect.height < 40) {
+            if (retry < 6) {
+                setTimeout(() => fitToScreen(retry + 1), 120);
+            }
+            return;
+        }
         const margin = 80;
         const width = Math.max(1, bounds.maxX - bounds.minX + margin);
         const height = Math.max(1, bounds.maxY - bounds.minY + margin);
@@ -489,6 +565,7 @@ $canEditBool = !empty($canEdit);
         state.panX = (rect.width / 2) - (centerX * state.scale);
         state.panY = (rect.height / 2) - (centerY * state.scale);
         syncWorldTransform();
+        setStatus(text.fitDone, false);
     }
 
     function getNodeBounds(nodes) {
@@ -599,35 +676,22 @@ $canEditBool = !empty($canEdit);
             nodeEl.appendChild(headEl);
             nodeEl.appendChild(bodyEl);
 
-            nodeEl.addEventListener('mousedown', (ev) => {
-                if (ev.button !== 0) return;
-                if (state.connectMode) return;
+            nodeEl.addEventListener('pointerdown', (ev) => {
+                if (ev.pointerType === 'mouse' && ev.button !== 0) return;
+                if (state.connectMode && canEdit) {
+                    ev.preventDefault();
+                    handleConnectNode(node.id);
+                    return;
+                }
                 selectNode(node.id);
                 if (!canEdit) return;
+                if (ev.target.closest('button')) return;
                 startNodeDrag(ev, node);
             });
 
             nodeEl.addEventListener('click', (ev) => {
                 ev.stopPropagation();
                 selectNode(node.id);
-                if (state.connectMode && canEdit) {
-                    if (!state.connectSourceId) {
-                        state.connectSourceId = Number(node.id);
-                        setStatus(text.connectSelectTarget, false);
-                    } else if (Number(state.connectSourceId) !== Number(node.id)) {
-                        pushHistory();
-                        state.edges.push({
-                            id: Date.now() + Math.floor(Math.random() * 1000),
-                            source_node_id: Number(state.connectSourceId),
-                            target_node_id: Number(node.id),
-                            line_style: 'solid',
-                            label: null
-                        });
-                        state.connectSourceId = null;
-                        renderEdges();
-                        scheduleSave();
-                    }
-                }
             });
 
             nodeEl.addEventListener('dblclick', () => {
@@ -839,6 +903,7 @@ $canEditBool = !empty($canEdit);
 
     function startNodeDrag(event, node) {
         let dragging = true;
+        const pointerId = event.pointerId;
         const startX = event.clientX;
         const startY = event.clientY;
         const originX = Number(node.x);
@@ -846,6 +911,7 @@ $canEditBool = !empty($canEdit);
 
         function onMove(ev) {
             if (!dragging) return;
+            if (Number(ev.pointerId) !== Number(pointerId)) return;
             const dx = (ev.clientX - startX) / state.scale;
             const dy = (ev.clientY - startY) / state.scale;
             node.x = Math.round((originX + dx) * 100) / 100;
@@ -855,47 +921,130 @@ $canEditBool = !empty($canEdit);
             syncInspector();
         }
 
-        function onUp() {
+        function onUp(ev) {
             if (!dragging) return;
+            if (Number(ev.pointerId) !== Number(pointerId)) return;
             dragging = false;
-            document.removeEventListener('mousemove', onMove);
-            document.removeEventListener('mouseup', onUp);
+            document.removeEventListener('pointermove', onMove);
+            document.removeEventListener('pointerup', onUp);
+            document.removeEventListener('pointercancel', onUp);
             pushHistory();
             scheduleSave();
         }
 
-        document.addEventListener('mousemove', onMove);
-        document.addEventListener('mouseup', onUp);
+        document.addEventListener('pointermove', onMove, { passive: true });
+        document.addEventListener('pointerup', onUp, { passive: true });
+        document.addEventListener('pointercancel', onUp, { passive: true });
     }
 
     function setupStagePanZoom() {
-        let panning = false;
-        let panStartX = 0;
-        let panStartY = 0;
-        let originPanX = 0;
-        let originPanY = 0;
+        const pointers = new Map();
+        let panAnchor = null;
+        let pinchAnchor = null;
 
-        stageEl.addEventListener('mousedown', (ev) => {
-            if (ev.button !== 0) return;
+        function toStagePoint(clientX, clientY) {
+            const rect = stageEl.getBoundingClientRect();
+            return {
+                x: clientX - rect.left,
+                y: clientY - rect.top
+            };
+        }
+
+        function beginPan(pointerId) {
+            const pointer = pointers.get(pointerId);
+            if (!pointer) return;
+            panAnchor = {
+                pointerId,
+                startClientX: pointer.x,
+                startClientY: pointer.y,
+                startPanX: state.panX,
+                startPanY: state.panY
+            };
+        }
+
+        function beginPinch() {
+            const entries = Array.from(pointers.values());
+            if (entries.length < 2) return;
+            const p1 = entries[0];
+            const p2 = entries[1];
+            const centerClientX = (p1.x + p2.x) / 2;
+            const centerClientY = (p1.y + p2.y) / 2;
+            const center = toStagePoint(centerClientX, centerClientY);
+            const dist = Math.hypot(p2.x - p1.x, p2.y - p1.y) || 1;
+            pinchAnchor = {
+                startDistance: dist,
+                startScale: state.scale,
+                worldCenterX: (center.x - state.panX) / state.scale,
+                worldCenterY: (center.y - state.panY) / state.scale
+            };
+        }
+
+        stageEl.addEventListener('pointerdown', (ev) => {
+            if (ev.pointerType === 'mouse' && ev.button !== 0) return;
             if (ev.target.closest('.vb-node')) return;
-            panning = true;
-            panStartX = ev.clientX;
-            panStartY = ev.clientY;
-            originPanX = state.panX;
-            originPanY = state.panY;
+            stageEl.setPointerCapture(ev.pointerId);
+            pointers.set(ev.pointerId, { id: ev.pointerId, x: ev.clientX, y: ev.clientY });
             selectNode(null);
+
+            if (pointers.size === 1) {
+                beginPan(ev.pointerId);
+                pinchAnchor = null;
+            } else if (pointers.size >= 2) {
+                beginPinch();
+                panAnchor = null;
+            }
         });
 
-        document.addEventListener('mousemove', (ev) => {
-            if (!panning) return;
-            state.panX = originPanX + (ev.clientX - panStartX);
-            state.panY = originPanY + (ev.clientY - panStartY);
-            syncWorldTransform();
+        stageEl.addEventListener('pointermove', (ev) => {
+            if (!pointers.has(ev.pointerId)) return;
+            pointers.set(ev.pointerId, { id: ev.pointerId, x: ev.clientX, y: ev.clientY });
+
+            if (pinchAnchor && pointers.size >= 2) {
+                const entries = Array.from(pointers.values());
+                const p1 = entries[0];
+                const p2 = entries[1];
+                const centerClientX = (p1.x + p2.x) / 2;
+                const centerClientY = (p1.y + p2.y) / 2;
+                const center = toStagePoint(centerClientX, centerClientY);
+                const dist = Math.hypot(p2.x - p1.x, p2.y - p1.y) || pinchAnchor.startDistance;
+                state.scale = clamp(pinchAnchor.startScale * (dist / pinchAnchor.startDistance), 0.2, 2.8);
+                state.panX = center.x - (pinchAnchor.worldCenterX * state.scale);
+                state.panY = center.y - (pinchAnchor.worldCenterY * state.scale);
+                syncWorldTransform();
+                return;
+            }
+
+            if (panAnchor && Number(panAnchor.pointerId) === Number(ev.pointerId)) {
+                state.panX = panAnchor.startPanX + (ev.clientX - panAnchor.startClientX);
+                state.panY = panAnchor.startPanY + (ev.clientY - panAnchor.startClientY);
+                syncWorldTransform();
+            }
         });
 
-        document.addEventListener('mouseup', () => {
-            panning = false;
-        });
+        function endPointer(ev) {
+            pointers.delete(ev.pointerId);
+
+            if (pointers.size >= 2) {
+                beginPinch();
+                panAnchor = null;
+                return;
+            }
+
+            pinchAnchor = null;
+            if (pointers.size === 1) {
+                const rest = Array.from(pointers.values())[0];
+                beginPan(rest.id);
+            } else {
+                panAnchor = null;
+            }
+        }
+
+        stageEl.addEventListener('pointerup', endPointer, { passive: true });
+        stageEl.addEventListener('pointercancel', endPointer, { passive: true });
+        stageEl.addEventListener('pointerleave', (ev) => {
+            if (ev.pointerType !== 'mouse') return;
+            endPointer(ev);
+        }, { passive: true });
 
         stageEl.addEventListener('wheel', (ev) => {
             ev.preventDefault();
@@ -1085,6 +1234,10 @@ $canEditBool = !empty($canEdit);
         });
 
         setupStagePanZoom();
+        window.addEventListener('resize', () => {
+            if (!state.nodes.length) return;
+            fitToScreen();
+        });
 
         if (!canEdit) {
             setStatus(text.boardReadonly, false);

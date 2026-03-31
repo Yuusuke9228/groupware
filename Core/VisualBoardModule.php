@@ -106,7 +106,55 @@ class VisualBoardModule extends Controller
             }
         }
 
+        $this->ensureTaskBoardLinkColumn();
         self::$schemaReady = true;
+    }
+
+    private function ensureTaskBoardLinkColumn()
+    {
+        try {
+            $exists = $this->db->fetch(
+                "SELECT COUNT(*) AS cnt
+                 FROM information_schema.COLUMNS
+                 WHERE TABLE_SCHEMA = DATABASE()
+                   AND TABLE_NAME = 'visual_boards'
+                   AND COLUMN_NAME = 'linked_task_board_id'"
+            );
+            if ((int)($exists['cnt'] ?? 0) === 0) {
+                $this->db->execute("ALTER TABLE visual_boards ADD COLUMN linked_task_board_id INT NULL AFTER template_key");
+            }
+
+            $indexExists = $this->db->fetch(
+                "SELECT COUNT(*) AS cnt
+                 FROM information_schema.STATISTICS
+                 WHERE TABLE_SCHEMA = DATABASE()
+                   AND TABLE_NAME = 'visual_boards'
+                   AND INDEX_NAME = 'idx_visual_boards_task_board'"
+            );
+            if ((int)($indexExists['cnt'] ?? 0) === 0) {
+                $this->db->execute("ALTER TABLE visual_boards ADD INDEX idx_visual_boards_task_board (linked_task_board_id)");
+            }
+
+            $fkExists = $this->db->fetch(
+                "SELECT COUNT(*) AS cnt
+                 FROM information_schema.TABLE_CONSTRAINTS
+                 WHERE CONSTRAINT_SCHEMA = DATABASE()
+                   AND TABLE_NAME = 'visual_boards'
+                   AND CONSTRAINT_NAME = 'fk_visual_boards_task_board'
+                   AND CONSTRAINT_TYPE = 'FOREIGN KEY'"
+            );
+            if ((int)($fkExists['cnt'] ?? 0) === 0) {
+                $this->db->execute(
+                    "ALTER TABLE visual_boards
+                     ADD CONSTRAINT fk_visual_boards_task_board
+                     FOREIGN KEY (linked_task_board_id)
+                     REFERENCES task_boards(id)
+                     ON DELETE SET NULL"
+                );
+            }
+        } catch (\Exception $e) {
+            error_log('Visual board task-board link schema ensure failed: ' . $e->getMessage());
+        }
     }
 
     public function index()
@@ -131,11 +179,13 @@ class VisualBoardModule extends Controller
         $userId = (int)$this->auth->id();
         $teams = $this->teamModel->getUserTeams($userId);
         $organizations = $this->userModel->getUserOrganizations($userId);
+        $taskBoards = $this->visualBoardModel->getUserAccessibleTaskBoards($userId, 300);
 
         $this->renderTemplate('create_board', [
             'title' => tr_text('Visual Board作成', 'Create Visual Board'),
             'teams' => $teams,
-            'organizations' => $organizations
+            'organizations' => $organizations,
+            'taskBoards' => $taskBoards
         ]);
     }
 
@@ -260,6 +310,7 @@ class VisualBoardModule extends Controller
         $ownerType = (string)($data['owner_type'] ?? '');
         $ownerId = (int)($data['owner_id'] ?? 0);
         $templateKey = (string)($data['template_key'] ?? 'mind_map');
+        $linkedTaskBoardId = (int)($data['linked_task_board_id'] ?? 0);
         $validTemplates = ['mind_map', 'flowchart', 'brainstorm', 'planning'];
 
         if ($name === '') {
@@ -284,11 +335,15 @@ class VisualBoardModule extends Controller
                 return ['error' => tr_text('この組織で作成する権限がありません', 'No permission for this organization.'), 'code' => 403];
             }
         }
+        if ($linkedTaskBoardId > 0 && !$this->visualBoardModel->canUserAccessTaskBoard($linkedTaskBoardId, $userId)) {
+            return ['error' => tr_text('連携するタスクプロジェクトにアクセスできません', 'You do not have access to the selected task project.'), 'code' => 403];
+        }
 
         $boardId = $this->visualBoardModel->createBoard([
             'name' => $name,
             'description' => trim((string)($data['description'] ?? '')),
             'template_key' => $templateKey,
+            'linked_task_board_id' => $linkedTaskBoardId > 0 ? $linkedTaskBoardId : null,
             'owner_type' => $ownerType,
             'owner_id' => $ownerId,
             'is_public' => !empty($data['is_public']),
