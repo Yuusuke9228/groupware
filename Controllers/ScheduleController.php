@@ -20,6 +20,7 @@ class ScheduleController extends Controller
     private $user;
     private $organization;
     private $notification;
+    private $scheduleFacilityTableReady = false;
 
     public function __construct()
     {
@@ -75,6 +76,7 @@ class ScheduleController extends Controller
             'user' => $user,
             'users' => $users,
             'displaySettings' => $this->getScheduleDisplaySettings(),
+            'facilityOptions' => $this->getFacilityOptions(),
             'jsFiles' => ['schedule.js']
         ];
 
@@ -132,6 +134,7 @@ class ScheduleController extends Controller
             'user' => $user,
             'users' => $users,
             'displaySettings' => $this->getScheduleDisplaySettings(),
+            'facilityOptions' => $this->getFacilityOptions(),
             'jsFiles' => ['schedule.js']
         ];
 
@@ -198,6 +201,7 @@ class ScheduleController extends Controller
             'userId' => $userId,
             'user' => $user,
             'users' => $users,
+            'facilityOptions' => $this->getFacilityOptions(),
             'jsFiles' => ['schedule.js']
         ];
 
@@ -279,6 +283,8 @@ class ScheduleController extends Controller
             'organizations' => $organizations,
             'availableOrganizations' => $organizations,
             'availableUsers' => $availableUsers,
+            'facilityOptions' => $this->getFacilityOptions(),
+            'selectedFacilityIds' => [],
             'participants' => [],
             'sharedOrganizations' => [],
             'jsFiles' => ['schedule.js']
@@ -353,6 +359,8 @@ class ScheduleController extends Controller
             'organizations' => $organizations,
             'availableOrganizations' => $organizations,
             'availableUsers' => $availableUsers,
+            'facilityOptions' => $this->getFacilityOptions(),
+            'selectedFacilityIds' => $this->getScheduleFacilityIds((int)$id),
             'participants' => $participants,
             'sharedOrganizations' => $sharedOrganizations,
             'jsFiles' => ['schedule.js']
@@ -402,6 +410,7 @@ class ScheduleController extends Controller
             'schedule' => $schedule,
             'participants' => $participants,
             'sharedOrganizations' => $sharedOrganizations,
+            'scheduleFacilities' => $this->getScheduleFacilities((int)$id),
             'participationStatus' => $participationStatus,
             'isParticipant' => $isParticipant,
             'canEdit' => $canEdit,
@@ -626,6 +635,10 @@ class ScheduleController extends Controller
 
         $schedule['participants'] = $participants;
         $schedule['organizations'] = $sharedOrganizations;
+        $schedule['facilities'] = $this->getScheduleFacilities((int)$id);
+        $schedule['facility_ids'] = array_map(static function ($facility) {
+            return (int)($facility['id'] ?? 0);
+        }, $schedule['facilities']);
 
         return [
             'success' => true,
@@ -637,6 +650,8 @@ class ScheduleController extends Controller
     public function apiCreate($params, $data)
     {
         $data = $this->normalizeScheduleData($data);
+        $facilityInputProvided = array_key_exists('facility_ids', $data);
+        $facilityIds = $facilityInputProvided ? $this->normalizeIdList($data['facility_ids']) : [];
 
         // error_log(json_encode(['postdata:' => $data]));
         $validation = $this->validateScheduleData($data);
@@ -646,6 +661,23 @@ class ScheduleController extends Controller
                 'error' => '入力内容に誤りがあります',
                 'validation' => $validation
             ];
+        }
+
+        if ($facilityInputProvided && !empty($facilityIds)) {
+            $facilityConflicts = $this->findFacilityReservationConflicts(
+                $facilityIds,
+                $data['start_time'],
+                $data['end_time']
+            );
+            if (!empty($facilityConflicts)) {
+                return [
+                    'success' => false,
+                    'error' => '指定した時間帯ですでに予約されている施設があります',
+                    'validation' => [
+                        'facility_ids' => $this->buildFacilityConflictMessage($facilityConflicts)
+                    ]
+                ];
+            }
         }
 
         // 現在のユーザーIDを取得
@@ -738,6 +770,25 @@ class ScheduleController extends Controller
             $this->schedule->addSharedOrganization($scheduleId, (int)$organizationId);
         }
 
+        if ($facilityInputProvided && !empty($facilityIds)) {
+            $facilitySync = $this->syncScheduleFacilityReservations(
+                (int)$scheduleId,
+                $facilityIds,
+                $data['title'],
+                $data['start_time'],
+                $data['end_time'],
+                (int)$userId,
+                (string)($data['description'] ?? '')
+            );
+            if (!$facilitySync['success']) {
+                $this->schedule->delete($scheduleId);
+                return [
+                    'success' => false,
+                    'error' => $facilitySync['error'] ?? '施設予約の保存に失敗しました'
+                ];
+            }
+        }
+
         // 通知を送信
         $this->sendScheduleNotifications($scheduleId, 'create', $data);
 
@@ -757,6 +808,8 @@ class ScheduleController extends Controller
         $id = $params['id'] ?? 0;
 
         $data = $this->normalizeScheduleData($data);
+        $facilityInputProvided = array_key_exists('facility_ids', $data);
+        $facilityIds = $facilityInputProvided ? $this->normalizeIdList($data['facility_ids']) : [];
 
         // スケジュールデータを取得
         $schedule = $this->schedule->getById($id);
@@ -785,6 +838,29 @@ class ScheduleController extends Controller
                 'error' => '入力内容に誤りがあります',
                 'validation' => $validation
             ];
+        }
+
+        if ($facilityInputProvided && !empty($facilityIds)) {
+            $existingFacilityLinks = $this->getScheduleFacilityLinkRows((int)$id);
+            $excludeReservationIds = array_map(static function ($row) {
+                return (int)($row['facility_reservation_id'] ?? 0);
+            }, $existingFacilityLinks);
+
+            $facilityConflicts = $this->findFacilityReservationConflicts(
+                $facilityIds,
+                $data['start_time'],
+                $data['end_time'],
+                $excludeReservationIds
+            );
+            if (!empty($facilityConflicts)) {
+                return [
+                    'success' => false,
+                    'error' => '指定した時間帯ですでに予約されている施設があります',
+                    'validation' => [
+                        'facility_ids' => $this->buildFacilityConflictMessage($facilityConflicts)
+                    ]
+                ];
+            }
         }
 
         // スケジュールデータを更新
@@ -867,6 +943,24 @@ class ScheduleController extends Controller
             $this->schedule->addSharedOrganization($id, $organizationId);
         }
 
+        if ($facilityInputProvided) {
+            $facilitySync = $this->syncScheduleFacilityReservations(
+                (int)$id,
+                $facilityIds,
+                $data['title'],
+                $data['start_time'],
+                $data['end_time'],
+                (int)$this->auth->id(),
+                (string)($data['description'] ?? '')
+            );
+            if (!$facilitySync['success']) {
+                return [
+                    'success' => false,
+                    'error' => $facilitySync['error'] ?? '施設予約の更新に失敗しました'
+                ];
+            }
+        }
+
         // 通知を送信
         $this->sendScheduleNotifications($id, 'update', $data);
 
@@ -910,6 +1004,14 @@ class ScheduleController extends Controller
         $participantIds = array_map(function ($participant) {
             return (int)$participant['id'];
         }, $participantsBeforeDelete);
+
+        $facilityCleanup = $this->deleteScheduleFacilityReservations((int)$id);
+        if (!$facilityCleanup['success']) {
+            return [
+                'success' => false,
+                'error' => $facilityCleanup['error'] ?? '施設予約の削除に失敗しました'
+            ];
+        }
 
         // スケジュールを削除
         $result = $this->schedule->delete($id);
@@ -1215,6 +1317,313 @@ class ScheduleController extends Controller
                 'organization_id' => $organizationId
             ]
         ];
+    }
+
+    private function getFacilityOptions()
+    {
+        try {
+            return $this->db->fetchAll(
+                "SELECT id, name
+                 FROM facilities
+                 ORDER BY sort_order ASC, name ASC"
+            );
+        } catch (\Exception $e) {
+            return [];
+        }
+    }
+
+    private function normalizeIdList($value)
+    {
+        if (is_string($value)) {
+            $value = trim($value);
+            if ($value === '') {
+                return [];
+            }
+            $value = explode(',', $value);
+        }
+
+        if (!is_array($value)) {
+            return [];
+        }
+
+        $ids = array_map(static function ($raw) {
+            return (int)$raw;
+        }, $value);
+        $ids = array_values(array_unique(array_filter($ids, static function ($id) {
+            return $id > 0;
+        })));
+
+        return $ids;
+    }
+
+    private function ensureScheduleFacilityLinkTable()
+    {
+        if ($this->scheduleFacilityTableReady) {
+            return;
+        }
+
+        $this->db->execute(
+            "CREATE TABLE IF NOT EXISTS schedule_facility_reservations (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                schedule_id INT NOT NULL,
+                facility_reservation_id INT NOT NULL,
+                created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE KEY uniq_schedule_reservation (schedule_id, facility_reservation_id),
+                KEY idx_schedule_id (schedule_id),
+                KEY idx_facility_reservation_id (facility_reservation_id),
+                CONSTRAINT fk_sfr_schedule_id FOREIGN KEY (schedule_id) REFERENCES schedules(id) ON DELETE CASCADE,
+                CONSTRAINT fk_sfr_facility_reservation_id FOREIGN KEY (facility_reservation_id) REFERENCES facility_reservations(id) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
+        );
+
+        $this->scheduleFacilityTableReady = true;
+    }
+
+    private function getScheduleFacilityLinkRows($scheduleId)
+    {
+        try {
+            $this->ensureScheduleFacilityLinkTable();
+            return $this->db->fetchAll(
+                "SELECT
+                    sfr.id,
+                    sfr.schedule_id,
+                    sfr.facility_reservation_id,
+                    fr.facility_id
+                 FROM schedule_facility_reservations sfr
+                 JOIN facility_reservations fr ON fr.id = sfr.facility_reservation_id
+                 WHERE sfr.schedule_id = ?",
+                [(int)$scheduleId]
+            );
+        } catch (\Exception $e) {
+            return [];
+        }
+    }
+
+    private function getScheduleFacilityIds($scheduleId)
+    {
+        $rows = $this->getScheduleFacilityLinkRows((int)$scheduleId);
+        $ids = array_map(static function ($row) {
+            return (int)($row['facility_id'] ?? 0);
+        }, $rows);
+        $ids = array_values(array_unique(array_filter($ids, static function ($id) {
+            return $id > 0;
+        })));
+        return $ids;
+    }
+
+    private function getScheduleFacilities($scheduleId)
+    {
+        try {
+            $this->ensureScheduleFacilityLinkTable();
+            $rows = $this->db->fetchAll(
+                "SELECT
+                    fr.id AS reservation_id,
+                    fr.facility_id AS id,
+                    f.name
+                 FROM schedule_facility_reservations sfr
+                 JOIN facility_reservations fr ON fr.id = sfr.facility_reservation_id
+                 JOIN facilities f ON f.id = fr.facility_id
+                 WHERE sfr.schedule_id = ?
+                 ORDER BY f.sort_order ASC, f.name ASC",
+                [(int)$scheduleId]
+            );
+
+            return array_map(static function ($row) {
+                return [
+                    'id' => (int)($row['id'] ?? 0),
+                    'name' => (string)($row['name'] ?? ''),
+                    'reservation_id' => (int)($row['reservation_id'] ?? 0),
+                ];
+            }, $rows);
+        } catch (\Exception $e) {
+            return [];
+        }
+    }
+
+    private function findFacilityReservationConflicts($facilityIds, $startTime, $endTime, $excludeReservationIds = [])
+    {
+        $facilityIds = $this->normalizeIdList($facilityIds);
+        if (empty($facilityIds)) {
+            return [];
+        }
+
+        $excludeReservationIds = $this->normalizeIdList($excludeReservationIds);
+
+        $placeholders = implode(',', array_fill(0, count($facilityIds), '?'));
+        $params = $facilityIds;
+
+        $sql = "SELECT
+                    fr.id,
+                    fr.facility_id,
+                    fr.title,
+                    fr.start_time,
+                    fr.end_time,
+                    f.name AS facility_name
+                FROM facility_reservations fr
+                JOIN facilities f ON f.id = fr.facility_id
+                WHERE fr.facility_id IN ($placeholders)
+                  AND fr.start_time < ?
+                  AND fr.end_time > ?";
+        $params[] = $endTime;
+        $params[] = $startTime;
+
+        if (!empty($excludeReservationIds)) {
+            $excludePlaceholders = implode(',', array_fill(0, count($excludeReservationIds), '?'));
+            $sql .= " AND fr.id NOT IN ($excludePlaceholders)";
+            $params = array_merge($params, $excludeReservationIds);
+        }
+
+        $sql .= " ORDER BY f.sort_order ASC, f.name ASC, fr.start_time ASC";
+
+        return $this->db->fetchAll($sql, $params);
+    }
+
+    private function buildFacilityConflictMessage($conflicts)
+    {
+        if (empty($conflicts)) {
+            return '';
+        }
+
+        $messages = [];
+        foreach ($conflicts as $conflict) {
+            $facilityName = (string)($conflict['facility_name'] ?? '施設');
+            $start = date('m/d H:i', strtotime((string)$conflict['start_time']));
+            $end = date('m/d H:i', strtotime((string)$conflict['end_time']));
+            $messages[] = sprintf('%s (%s-%s)', $facilityName, $start, $end);
+        }
+
+        return '予約済みの施設があります: ' . implode(' / ', array_unique($messages));
+    }
+
+    private function syncScheduleFacilityReservations($scheduleId, $facilityIds, $title, $startTime, $endTime, $userId, $memo = '')
+    {
+        $facilityIds = $this->normalizeIdList($facilityIds);
+        $transactionStarted = false;
+
+        try {
+            $this->ensureScheduleFacilityLinkTable();
+            $this->db->beginTransaction();
+            $transactionStarted = true;
+
+            $existingRows = $this->getScheduleFacilityLinkRows((int)$scheduleId);
+            $existingByFacility = [];
+            foreach ($existingRows as $row) {
+                $facilityId = (int)($row['facility_id'] ?? 0);
+                if ($facilityId > 0) {
+                    $existingByFacility[$facilityId] = (int)($row['facility_reservation_id'] ?? 0);
+                }
+            }
+
+            $requestedFacilitySet = array_fill_keys($facilityIds, true);
+
+            foreach ($existingByFacility as $facilityId => $reservationId) {
+                if (!isset($requestedFacilitySet[$facilityId])) {
+                    $this->db->execute(
+                        "DELETE FROM facility_reservations WHERE id = ?",
+                        [$reservationId]
+                    );
+                }
+            }
+
+            foreach ($facilityIds as $facilityId) {
+                if (isset($existingByFacility[$facilityId])) {
+                    $this->db->execute(
+                        "UPDATE facility_reservations
+                         SET user_id = ?, title = ?, start_time = ?, end_time = ?, memo = ?, updated_at = NOW()
+                         WHERE id = ?",
+                        [
+                            (int)$userId,
+                            (string)$title,
+                            $startTime,
+                            $endTime,
+                            (string)$memo,
+                            (int)$existingByFacility[$facilityId]
+                        ]
+                    );
+                    continue;
+                }
+
+                $this->db->execute(
+                    "INSERT INTO facility_reservations
+                        (facility_id, user_id, title, start_time, end_time, memo, created_at, updated_at)
+                     VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())",
+                    [
+                        (int)$facilityId,
+                        (int)$userId,
+                        (string)$title,
+                        $startTime,
+                        $endTime,
+                        (string)$memo
+                    ]
+                );
+                $reservationId = (int)$this->db->lastInsertId();
+                $this->db->execute(
+                    "INSERT INTO schedule_facility_reservations (schedule_id, facility_reservation_id, created_at)
+                     VALUES (?, ?, NOW())",
+                    [(int)$scheduleId, $reservationId]
+                );
+            }
+
+            $this->db->commit();
+            return ['success' => true];
+        } catch (\Exception $e) {
+            if ($transactionStarted) {
+                try {
+                    $this->db->rollBack();
+                } catch (\Exception $rollbackException) {
+                }
+            }
+
+            return [
+                'success' => false,
+                'error' => '施設予約の同期に失敗しました: ' . $e->getMessage()
+            ];
+        }
+    }
+
+    private function deleteScheduleFacilityReservations($scheduleId)
+    {
+        $transactionStarted = false;
+
+        try {
+            $this->ensureScheduleFacilityLinkTable();
+            $this->db->beginTransaction();
+            $transactionStarted = true;
+
+            $reservationIds = $this->db->fetchAll(
+                "SELECT facility_reservation_id
+                 FROM schedule_facility_reservations
+                 WHERE schedule_id = ?",
+                [(int)$scheduleId]
+            );
+
+            foreach ($reservationIds as $reservation) {
+                $reservationId = (int)($reservation['facility_reservation_id'] ?? 0);
+                if ($reservationId > 0) {
+                    $this->db->execute("DELETE FROM facility_reservations WHERE id = ?", [$reservationId]);
+                }
+            }
+
+            $this->db->execute(
+                "DELETE FROM schedule_facility_reservations WHERE schedule_id = ?",
+                [(int)$scheduleId]
+            );
+
+            $this->db->commit();
+            return ['success' => true];
+        } catch (\Exception $e) {
+            if ($transactionStarted) {
+                try {
+                    $this->db->rollBack();
+                } catch (\Exception $rollbackException) {
+                }
+            }
+
+            return [
+                'success' => false,
+                'error' => 'スケジュールに紐づく施設予約の削除に失敗しました: ' . $e->getMessage()
+            ];
+        }
     }
 
     // 日付の妥当性チェック
@@ -1588,6 +1997,7 @@ class ScheduleController extends Controller
             'organizationId' => $organizationId,
             'organizations' => $organizations,
             'selectedOrganization' => $selectedOrganization,
+            'facilityOptions' => $this->getFacilityOptions(),
             'jsFiles' => ['schedule.js']
         ];
 
@@ -1621,6 +2031,7 @@ class ScheduleController extends Controller
             'organizationId' => $organizationId,
             'organizations' => $organizations,
             'selectedOrganization' => $selectedOrganization,
+            'facilityOptions' => $this->getFacilityOptions(),
             'jsFiles' => ['schedule.js']
         ];
 
@@ -1677,6 +2088,7 @@ class ScheduleController extends Controller
             'organizationId' => $organizationId,
             'organizations' => $organizations,
             'selectedOrganization' => $selectedOrganization,
+            'facilityOptions' => $this->getFacilityOptions(),
             'jsFiles' => ['schedule.js']
         ];
 

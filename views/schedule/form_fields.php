@@ -8,8 +8,10 @@ if (!isset($isEdit)) $isEdit = false;
 
 $availableUsers = $availableUsers ?? [];
 $availableOrganizations = $availableOrganizations ?? ($organizations ?? []);
+$facilityOptions = $facilityOptions ?? [];
 $selectedParticipants = $participants ?? ($schedule['participants'] ?? []);
 $selectedOrganizations = $sharedOrganizations ?? ($schedule['organizations'] ?? []);
+$selectedFacilityIds = $selectedFacilityIds ?? ($schedule['facility_ids'] ?? []);
 
 $selectedParticipantIds = array_map(function ($participant) {
     if (is_array($participant)) {
@@ -24,6 +26,13 @@ $selectedOrganizationIds = array_map(function ($organization) {
     }
     return (int)$organization;
 }, is_array($selectedOrganizations) ? $selectedOrganizations : []);
+
+$selectedFacilityIds = array_map(function ($facilityId) {
+    return (int)$facilityId;
+}, is_array($selectedFacilityIds) ? $selectedFacilityIds : []);
+$selectedFacilityIds = array_values(array_unique(array_filter($selectedFacilityIds, function ($facilityId) {
+    return $facilityId > 0;
+})));
 
 // 各フィールドの値取得用ヘルパー
 $getValue = function ($field, $default = '') use (&$schedule) {
@@ -88,6 +97,22 @@ if (isset($schedule['end_time']) && !isset($schedule['end_time_date'])) {
 <div class="mb-3">
     <label for="location" class="form-label">場所</label>
     <input type="text" class="form-control" id="location" name="location" value="<?php echo $getValue('location'); ?>">
+    <small class="form-text text-muted">出張先や会場名など、自由入力の場所を記録できます。</small>
+</div>
+
+<div class="mb-3">
+    <label for="facility_ids" class="form-label">施設予約（複数選択可）</label>
+    <select class="form-select" id="facility_ids" name="facility_ids[]" multiple>
+        <?php foreach ($facilityOptions as $facility): ?>
+            <?php $facilityId = (int)($facility['id'] ?? 0); ?>
+            <?php if ($facilityId <= 0) continue; ?>
+            <option value="<?php echo $facilityId; ?>" <?php echo in_array($facilityId, $selectedFacilityIds, true) ? 'selected' : ''; ?>>
+                <?php echo htmlspecialchars((string)($facility['name'] ?? '')); ?>
+            </option>
+        <?php endforeach; ?>
+    </select>
+    <div class="invalid-feedback"></div>
+    <small class="form-text text-muted">同時間帯に重複予約がある施設は保存時にエラーになります。</small>
 </div>
 
 <div class="mb-3">

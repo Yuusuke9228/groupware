@@ -102,6 +102,17 @@ $repeatLabels = [
                         <div class="col-md-9"><?php echo htmlspecialchars($schedule['location']); ?></div>
                     </div>
                     <?php endif; ?>
+
+                    <?php if (!empty($scheduleFacilities)): ?>
+                    <div class="row mb-3">
+                        <div class="col-md-3 fw-bold">予約施設</div>
+                        <div class="col-md-9">
+                            <?php echo htmlspecialchars(implode(' / ', array_map(function ($facility) {
+                                return (string)($facility['name'] ?? '');
+                            }, $scheduleFacilities))); ?>
+                        </div>
+                    </div>
+                    <?php endif; ?>
                     
                     <div class="row mb-3">
                         <div class="col-md-3 fw-bold">作成者</div>

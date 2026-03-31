@@ -166,4 +166,25 @@ class FacilityController extends Controller
         }
         $this->redirect(BASE_PATH . '/facility/manage');
     }
+
+    public function apiList()
+    {
+        try {
+            $facilities = $this->db->fetchAll(
+                "SELECT id, name, description, capacity
+                 FROM facilities
+                 ORDER BY sort_order ASC, name ASC"
+            );
+
+            return [
+                'success' => true,
+                'data' => $facilities
+            ];
+        } catch (\Exception $e) {
+            return [
+                'success' => false,
+                'error' => '施設一覧の取得に失敗しました'
+            ];
+        }
+    }
 }
