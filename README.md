@@ -122,6 +122,14 @@
 - ファイル単位のアクセス権限設定
 - 承認リクエスト機能
 
+### ☁️ Drive（独立ファイル共有）
+- 通常のファイル管理と分離された独立ストレージ
+- 大容量ファイル共有向けのアップロード/配布
+- 共有リンク（有効期限 / パスワード / ダウンロード回数上限）
+- 共有先のユーザー / 組織指定と通知（メールキュー連携）
+- 発行済みリンクの無効化
+- 管理者による容量ガバナンス（1ファイル / 全体 / ユーザー / 組織）
+
 ### 🗄️ WEBデータベース
 - 独自フィールド定義によるカスタムデータ管理
 - GUIフォームビルダー（並び替え / セクション / 表示切替 / 必須設定）
@@ -376,6 +384,7 @@ mysql -u <user> -p <database> < db/upgrade_20260327_daily_report_structured.sql
 mysql -u <user> -p <database> < db/upgrade_20260328_daily_report_advanced.sql
 mysql -u <user> -p <database> < db/upgrade_20260328_fk_stability.sql
 mysql -u <user> -p <database> < db/upgrade_20260328_webdatabase_nocode.sql
+mysql -u <user> -p <database> < db/upgrade_20260401_drive_module.sql
 ```
 
 適用前には必ず DB バックアップを取得してください。

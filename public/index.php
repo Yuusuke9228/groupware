@@ -1883,6 +1883,57 @@ $router->get('/admin/csv-import/sample/:type', function ($params) {
     $controller->downloadSample($params['type']);
 }, true);
 
+// Drive（独立ファイル共有）
+$router->get('/drive', function () {
+    $controller = new Controllers\DriveController();
+    $controller->index();
+});
+
+$router->get('/drive/upload', function () {
+    $controller = new Controllers\DriveController();
+    $controller->upload();
+});
+
+$router->post('/drive/upload', function () {
+    $controller = new Controllers\DriveController();
+    $controller->store();
+});
+
+$router->get('/drive/file/:id', function ($params) {
+    $controller = new Controllers\DriveController();
+    $controller->show($params);
+});
+
+$router->get('/drive/download/:id', function ($params) {
+    $controller = new Controllers\DriveController();
+    $controller->download($params);
+});
+
+$router->post('/drive/file/:id/delete', function ($params) {
+    $controller = new Controllers\DriveController();
+    $controller->delete($params);
+});
+
+$router->post('/drive/file/:id/share-links', function ($params) {
+    $controller = new Controllers\DriveController();
+    $controller->createShareLink($params);
+});
+
+$router->post('/drive/share/:id/revoke', function ($params) {
+    $controller = new Controllers\DriveController();
+    $controller->revokeShareLink($params);
+});
+
+$router->get('/drive/share/:token', function ($params) {
+    $controller = new Controllers\DriveController();
+    $controller->shareAccess($params);
+});
+
+$router->post('/drive/share/:token', function ($params) {
+    $controller = new Controllers\DriveController();
+    $controller->shareAccess($params);
+});
+
 // ファイル管理
 $router->get('/files', function () {
     $controller = new Controllers\FileManagerController();

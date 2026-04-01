@@ -173,6 +173,7 @@ $pageTitle = 'ご利用ガイド';
             <a href="#sec-task"><i class="fas fa-tasks"></i> タスク管理</a>
             <a href="#sec-visual-boards"><i class="fas fa-project-diagram"></i> Visual Boards</a>
             <a href="#sec-daily"><i class="fas fa-file-alt"></i> 日報</a>
+            <a href="#sec-drive"><i class="fas fa-cloud"></i> Drive</a>
             <a href="#sec-file"><i class="fas fa-folder-open"></i> ファイル管理</a>
             <a href="#sec-webdb"><i class="fas fa-database"></i> WEBデータベース</a>
             <a href="#sec-address"><i class="fas fa-address-book"></i> アドレス帳</a>
@@ -564,7 +565,41 @@ $pageTitle = 'ご利用ガイド';
         </div>
     </div>
 
-    <!-- ===== 9. ファイル管理 ===== -->
+    <!-- ===== 9. Drive ===== -->
+    <div class="help-section" id="sec-drive">
+        <div class="help-card">
+            <div class="help-card-head" onclick="toggleSection(this)">
+                <span class="sec-icon"><i class="fas fa-cloud"></i></span>
+                <h2>Drive（独立ファイル共有）</h2>
+                <i class="fas fa-chevron-down toggle-icon"></i>
+            </div>
+            <div class="help-card-body">
+                <p>Driveは、通常の「ファイル管理」とは別の独立ストレージです。大容量ファイルの共有、期限付きリンク配布、組織単位の配布に対応します。</p>
+
+                <h4>基本の使い方</h4>
+                <div class="help-step"><span class="help-step-num">1</span><span class="help-step-text">メニューの「Drive」を開きます。</span></div>
+                <div class="help-step"><span class="help-step-num">2</span><span class="help-step-text">「アップロード」からファイルを登録します。</span></div>
+                <div class="help-step"><span class="help-step-num">3</span><span class="help-step-text">保存スコープを「個人」または「組織」で選択します。</span></div>
+                <div class="help-step"><span class="help-step-num">4</span><span class="help-step-text">詳細画面から共有リンクを発行します。</span></div>
+
+                <h4>共有リンク機能</h4>
+                <ul>
+                    <li>有効期限の設定</li>
+                    <li>共有パスワードの設定</li>
+                    <li>ダウンロード回数上限の設定</li>
+                    <li>共有先ユーザー / 共有先組織の指定</li>
+                    <li>共有先への通知（メール連携）</li>
+                    <li>発行済みリンクの無効化（途中削除）</li>
+                </ul>
+                <div class="help-info"><strong><i class="fas fa-info-circle me-1"></i>補足：</strong>共有先を指定したリンクは、対象ユーザーのログイン後のみ利用できます。共有先未指定リンクは、リンク（必要に応じてパスワード）でアクセスできます。</div>
+
+                <h4>容量ガバナンス</h4>
+                <p>管理者は「システム設定 → 認証・PWA・SCIM → Drive設定」で、1ファイル上限、全体容量、ユーザー容量、組織容量を設定できます。</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== 10. ファイル管理 ===== -->
     <div class="help-section" id="sec-file">
         <div class="help-card">
             <div class="help-card-head" onclick="toggleSection(this)">
@@ -602,7 +637,7 @@ $pageTitle = 'ご利用ガイド';
         </div>
     </div>
 
-    <!-- ===== 10. WEBデータベース ===== -->
+    <!-- ===== 11. WEBデータベース ===== -->
     <div class="help-section" id="sec-webdb">
         <div class="help-card">
             <div class="help-card-head" onclick="toggleSection(this)">
