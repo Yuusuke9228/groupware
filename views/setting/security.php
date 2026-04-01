@@ -170,7 +170,7 @@ $isJaLocale = get_locale() === 'ja';
 
             <div class="card mt-4">
                 <div class="card-header">
-                    <h5 class="card-title mb-0"><?= htmlspecialchars(tr_text('Drive設定', 'Drive settings')) ?></h5>
+                    <h5 class="card-title mb-0"><?= htmlspecialchars(tr_text('ファイル共有設定', 'File sharing settings')) ?></h5>
                 </div>
                 <div class="card-body">
                     <form id="driveSettingsForm">
@@ -203,7 +203,7 @@ $isJaLocale = get_locale() === 'ja';
                         </div>
 
                         <div class="mt-3 d-grid">
-                            <button type="submit" class="btn btn-primary"><?= htmlspecialchars(tr_text('Drive設定を保存', 'Save Drive settings')) ?></button>
+                            <button type="submit" class="btn btn-primary"><?= htmlspecialchars(tr_text('ファイル共有設定を保存', 'Save file sharing settings')) ?></button>
                         </div>
                     </form>
                 </div>

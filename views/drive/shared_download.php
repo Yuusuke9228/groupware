@@ -16,7 +16,7 @@ if (!function_exists('driveFormatBytes')) {
 <div class="container py-5" style="max-width: 760px;">
     <div class="card shadow-sm">
         <div class="card-body p-4 p-md-5">
-            <h1 class="h4 mb-3"><i class="fas fa-cloud-download-alt me-2 text-primary"></i><?= htmlspecialchars(tr_text('Drive共有', 'Drive Share')) ?></h1>
+            <h1 class="h4 mb-3"><i class="fas fa-cloud-download-alt me-2 text-primary"></i><?= htmlspecialchars(tr_text('ファイル共有リンク', 'File Sharing Link')) ?></h1>
             <p class="text-muted mb-4"><?= htmlspecialchars($message) ?></p>
 
             <?php if ($status === 'ready' && $share): ?>

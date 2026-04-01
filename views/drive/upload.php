@@ -2,6 +2,7 @@
 $orgOptions = $orgOptions ?? [];
 $driveUsage = $driveUsage ?? ['total_bytes' => 0, 'user_bytes' => 0, 'org_bytes' => 0];
 $driveLimits = $driveLimits ?? [];
+$defaultShareExpiry = $defaultShareExpiry ?? '';
 if (!function_exists('driveFormatBytes')) {
     function driveFormatBytes($bytes) {
         $bytes = (int)$bytes;
@@ -13,8 +14,7 @@ if (!function_exists('driveFormatBytes')) {
 }
 ?>
 <div class="container mt-4" style="max-width: 920px;">
-    <h4 class="mb-1"><i class="fas fa-upload me-2 text-primary"></i><?= htmlspecialchars(tr_text('Driveアップロード', 'Drive Upload')) ?></h4>
-    <p class="text-muted mb-3"><?= htmlspecialchars(tr_text('通常のファイル管理とは別のDrive領域へ保存します。', 'Files are stored in the independent Drive area, separate from File Manager.')) ?></p>
+    <h4 class="mb-1"><i class="fas fa-upload me-2 text-primary"></i><?= htmlspecialchars(tr_text('ファイル共有アップロード', 'File Sharing Upload')) ?></h4>
 
     <?php if (!empty($_SESSION['flash_error'])): ?>
         <div class="alert alert-danger alert-dismissible fade show" role="alert">
@@ -39,7 +39,7 @@ if (!function_exists('driveFormatBytes')) {
 
     <div class="card">
         <div class="card-body">
-            <form method="post" action="<?= BASE_PATH ?>/drive/upload" enctype="multipart/form-data" class="no-ajax">
+            <form method="post" action="<?= BASE_PATH ?>/file-share/upload" enctype="multipart/form-data" class="no-ajax">
                 <input type="hidden" name="csrf_token" value="<?= htmlspecialchars((string)$csrf_token) ?>">
 
                 <div class="mb-3">
@@ -79,8 +79,29 @@ if (!function_exists('driveFormatBytes')) {
                     </select>
                 </div>
 
+                <hr class="my-4">
+                <h6 class="mb-3"><i class="fas fa-link me-1"></i><?= htmlspecialchars(tr_text('公開リンク設定（ログイン不要）', 'Public link settings (no login required)')) ?></h6>
+                <div class="form-check mb-2">
+                    <input class="form-check-input" type="checkbox" id="createPublicLink" name="create_public_link" value="1" checked>
+                    <label class="form-check-label" for="createPublicLink"><?= htmlspecialchars(tr_text('アップロード後に公開共有リンクを自動発行する', 'Create a public share link automatically after upload')) ?></label>
+                </div>
+                <div id="publicLinkSettings">
+                    <div class="mb-2">
+                        <label class="form-label"><?= htmlspecialchars(tr_text('有効期限', 'Expires at')) ?></label>
+                        <input type="datetime-local" name="link_expires_at" class="form-control" value="<?= htmlspecialchars((string)$defaultShareExpiry) ?>">
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label"><?= htmlspecialchars(tr_text('ダウンロード上限（空欄で無制限）', 'Download limit (empty = unlimited)')) ?></label>
+                        <input type="number" min="1" name="link_max_downloads" class="form-control" placeholder="20">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label"><?= htmlspecialchars(tr_text('共有パスワード（任意）', 'Share password (optional)')) ?></label>
+                        <input type="password" name="link_password" class="form-control">
+                    </div>
+                </div>
+
                 <div class="d-flex gap-2">
-                    <a href="<?= BASE_PATH ?>/drive" class="btn btn-outline-secondary">
+                    <a href="<?= BASE_PATH ?>/file-share" class="btn btn-outline-secondary">
                         <i class="fas fa-arrow-left me-1"></i><?= htmlspecialchars(tr_text('戻る', 'Back')) ?>
                     </a>
                     <button type="submit" class="btn btn-primary ms-auto">
@@ -97,6 +118,8 @@ document.addEventListener('DOMContentLoaded', function () {
     var scopeUser = document.getElementById('scopeUser');
     var scopeOrg = document.getElementById('scopeOrg');
     var orgSelect = document.getElementById('ownerOrganizationId');
+    var createPublicLink = document.getElementById('createPublicLink');
+    var publicLinkSettings = document.getElementById('publicLinkSettings');
     function syncScope() {
         var isOrg = !!(scopeOrg && scopeOrg.checked);
         if (!orgSelect) return;
@@ -108,5 +131,13 @@ document.addEventListener('DOMContentLoaded', function () {
     if (scopeUser) scopeUser.addEventListener('change', syncScope);
     if (scopeOrg) scopeOrg.addEventListener('change', syncScope);
     syncScope();
+
+    function syncPublicLink() {
+        var enabled = !!(createPublicLink && createPublicLink.checked);
+        if (!publicLinkSettings) return;
+        publicLinkSettings.style.display = enabled ? '' : 'none';
+    }
+    if (createPublicLink) createPublicLink.addEventListener('change', syncPublicLink);
+    syncPublicLink();
 });
 </script>

@@ -43,7 +43,7 @@ class DriveController extends Controller
         $items = $this->getVisibleItems($currentUser, $search);
 
         $this->view('drive/index', [
-            'title' => tr_text('Drive', 'Drive'),
+            'title' => tr_text('ファイル共有', 'File Sharing'),
             'items' => $items,
             'search' => $search,
             'csrf_token' => $this->generateCsrfToken(),
@@ -64,11 +64,12 @@ class DriveController extends Controller
         $limits = $this->getDriveLimits();
 
         $this->view('drive/upload', [
-            'title' => tr_text('Drive Upload', 'Drive Upload'),
+            'title' => tr_text('ファイル共有アップロード', 'File Sharing Upload'),
             'csrf_token' => $this->generateCsrfToken(),
             'orgOptions' => $orgOptions,
             'driveUsage' => $usage,
             'driveLimits' => $limits,
+            'defaultShareExpiry' => $this->getDefaultShareExpiryInput(),
         ]);
     }
 
@@ -80,13 +81,13 @@ class DriveController extends Controller
 
         if (!$this->validateCsrfToken($_POST['csrf_token'] ?? '')) {
             $_SESSION['flash_error'] = tr_text('不正なリクエストです。', 'Invalid request.');
-            $this->redirect(BASE_PATH . '/drive');
+            $this->redirect($this->modulePath());
             return;
         }
 
         if (!isset($_FILES['file']) || (int)($_FILES['file']['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
             $_SESSION['flash_error'] = tr_text('ファイルのアップロードに失敗しました。', 'Failed to upload file.');
-            $this->redirect(BASE_PATH . '/drive/upload');
+            $this->redirect($this->modulePath('/upload'));
             return;
         }
 
@@ -98,7 +99,7 @@ class DriveController extends Controller
 
         if ($owner === null) {
             $_SESSION['flash_error'] = tr_text('共有先組織の指定が不正です。', 'Invalid organization selected.');
-            $this->redirect(BASE_PATH . '/drive/upload');
+            $this->redirect($this->modulePath('/upload'));
             return;
         }
 
@@ -106,7 +107,7 @@ class DriveController extends Controller
         $quotaError = $this->validateDriveQuota($fileSize, $currentUser, (int)$owner['owner_organization_id']);
         if ($quotaError !== null) {
             $_SESSION['flash_error'] = $quotaError;
-            $this->redirect(BASE_PATH . '/drive/upload');
+            $this->redirect($this->modulePath('/upload'));
             return;
         }
 
@@ -127,7 +128,7 @@ class DriveController extends Controller
         @set_time_limit(0);
         if (!move_uploaded_file((string)$file['tmp_name'], $destination)) {
             $_SESSION['flash_error'] = tr_text('ファイル保存に失敗しました。', 'Failed to save uploaded file.');
-            $this->redirect(BASE_PATH . '/drive/upload');
+            $this->redirect($this->modulePath('/upload'));
             return;
         }
 
@@ -150,9 +151,48 @@ class DriveController extends Controller
                 $owner['owner_organization_id'],
             ]
         );
+        $itemId = (int)$this->db->lastInsertId();
 
-        $_SESSION['flash_success'] = tr_text('Driveへアップロードしました。', 'Uploaded to Drive.');
-        $this->redirect(BASE_PATH . '/drive');
+        $createPublicLink = ((string)($_POST['create_public_link'] ?? '1') === '1');
+        if ($createPublicLink) {
+            $expiresAt = $this->parseExpiry((string)($_POST['link_expires_at'] ?? ''));
+            if ($expiresAt === false) {
+                $_SESSION['flash_error'] = tr_text('公開リンクの有効期限が不正です。', 'Invalid expiry for public share link.');
+                $this->redirect($this->modulePath('/upload'));
+                return;
+            }
+            $maxDownloads = (int)($_POST['link_max_downloads'] ?? 0);
+            if ($maxDownloads <= 0) {
+                $maxDownloads = null;
+            }
+            $linkPassword = trim((string)($_POST['link_password'] ?? ''));
+            $passwordHash = $linkPassword !== '' ? password_hash($linkPassword, PASSWORD_DEFAULT) : null;
+
+            try {
+                $token = $this->insertShareLink(
+                    $itemId,
+                    (int)$currentUser['id'],
+                    $expiresAt ?: null,
+                    $passwordHash,
+                    $maxDownloads,
+                    [],
+                    []
+                );
+                $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+                $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+                $_SESSION['file_share_created_link'] = rtrim($scheme . '://' . $host . BASE_PATH, '/') . '/file-share/share/' . $token;
+                $_SESSION['flash_success'] = tr_text('アップロードと公開共有リンクの発行が完了しました。', 'Upload completed and a public share link has been created.');
+            } catch (\Throwable $e) {
+                error_log('auto create public share link failed: ' . $e->getMessage());
+                $_SESSION['flash_success'] = tr_text('アップロードしました（公開リンク作成は失敗）。', 'Uploaded (public link creation failed).');
+            }
+
+            $this->redirect($this->modulePath('/file/' . $itemId));
+            return;
+        }
+
+        $_SESSION['flash_success'] = tr_text('ファイル共有へアップロードしました。', 'Uploaded to File Sharing.');
+        $this->redirect($this->modulePath());
     }
 
     public function show($params)
@@ -167,7 +207,7 @@ class DriveController extends Controller
 
         if (!$item || !$this->canViewItem($item, $currentUser)) {
             $_SESSION['flash_error'] = tr_text('対象ファイルにアクセスできません。', 'You cannot access this file.');
-            $this->redirect(BASE_PATH . '/drive');
+            $this->redirect($this->modulePath());
             return;
         }
 
@@ -177,7 +217,7 @@ class DriveController extends Controller
         $userOptions = $this->userModel->getActiveUsers();
 
         $this->view('drive/show', [
-            'title' => htmlspecialchars((string)$item['title']) . ' - Drive',
+            'title' => htmlspecialchars((string)$item['title']) . ' - ' . tr_text('ファイル共有', 'File Sharing'),
             'item' => $item,
             'csrf_token' => $this->generateCsrfToken(),
             'shareLinks' => $shareLinks,
@@ -200,7 +240,7 @@ class DriveController extends Controller
 
         if (!$item || !$this->canViewItem($item, $currentUser)) {
             $_SESSION['flash_error'] = tr_text('対象ファイルにアクセスできません。', 'You cannot access this file.');
-            $this->redirect(BASE_PATH . '/drive');
+            $this->redirect($this->modulePath());
             return;
         }
 
@@ -215,7 +255,7 @@ class DriveController extends Controller
 
         if (!$this->validateCsrfToken($_POST['csrf_token'] ?? '')) {
             $_SESSION['flash_error'] = tr_text('不正なリクエストです。', 'Invalid request.');
-            $this->redirect(BASE_PATH . '/drive');
+            $this->redirect($this->modulePath());
             return;
         }
 
@@ -225,7 +265,7 @@ class DriveController extends Controller
 
         if (!$item || !$this->canManageItem($item, $currentUser)) {
             $_SESSION['flash_error'] = tr_text('削除権限がありません。', 'You do not have permission to delete this file.');
-            $this->redirect(BASE_PATH . '/drive');
+            $this->redirect($this->modulePath());
             return;
         }
 
@@ -234,8 +274,8 @@ class DriveController extends Controller
             [$itemId]
         );
 
-        $_SESSION['flash_success'] = tr_text('Driveファイルを削除しました。', 'Drive file deleted.');
-        $this->redirect(BASE_PATH . '/drive');
+        $_SESSION['flash_success'] = tr_text('ファイル共有のファイルを削除しました。', 'File Sharing item deleted.');
+        $this->redirect($this->modulePath());
     }
 
     public function createShareLink($params)
@@ -247,7 +287,7 @@ class DriveController extends Controller
         $itemId = (int)($params['id'] ?? 0);
         if (!$this->validateCsrfToken($_POST['csrf_token'] ?? '')) {
             $_SESSION['flash_error'] = tr_text('不正なリクエストです。', 'Invalid request.');
-            $this->redirect(BASE_PATH . '/drive/file/' . $itemId);
+            $this->redirect($this->modulePath('/file/' . $itemId));
             return;
         }
 
@@ -255,14 +295,14 @@ class DriveController extends Controller
         $currentUser = $this->auth->user();
         if (!$item || !$this->canManageItem($item, $currentUser)) {
             $_SESSION['flash_error'] = tr_text('共有リンクを作成する権限がありません。', 'You do not have permission to create share links.');
-            $this->redirect(BASE_PATH . '/drive');
+            $this->redirect($this->modulePath());
             return;
         }
 
         $expiresAt = $this->parseExpiry((string)($_POST['expires_at'] ?? ''));
         if ($expiresAt === false) {
             $_SESSION['flash_error'] = tr_text('有効期限の形式が不正です。', 'Invalid expiry format.');
-            $this->redirect(BASE_PATH . '/drive/file/' . $itemId);
+            $this->redirect($this->modulePath('/file/' . $itemId));
             return;
         }
 
@@ -272,62 +312,39 @@ class DriveController extends Controller
         }
         $password = trim((string)($_POST['share_password'] ?? ''));
         $passwordHash = $password !== '' ? password_hash($password, PASSWORD_DEFAULT) : null;
-        $shareUserIds = $this->normalizeIds($_POST['share_user_ids'] ?? []);
-        $shareOrganizationIds = $this->normalizeIds($_POST['share_organization_ids'] ?? []);
-        $notifyRecipients = ((string)($_POST['notify_recipients'] ?? '1') === '1');
+        $shareMode = (string)($_POST['share_access_mode'] ?? 'public');
+        $shareUserIds = [];
+        $shareOrganizationIds = [];
+        $notifyRecipients = false;
+        if ($shareMode === 'restricted') {
+            $shareUserIds = $this->normalizeIds($_POST['share_user_ids'] ?? []);
+            $shareOrganizationIds = $this->normalizeIds($_POST['share_organization_ids'] ?? []);
+            $notifyRecipients = ((string)($_POST['notify_recipients'] ?? '1') === '1');
+        }
 
         try {
-            $token = $this->generateShareToken();
-        } catch (\Throwable $e) {
-            error_log('generateDriveShareToken error: ' . $e->getMessage());
-            $_SESSION['flash_error'] = tr_text('共有リンクの作成に失敗しました。', 'Failed to create share link.');
-            $this->redirect(BASE_PATH . '/drive/file/' . $itemId);
-            return;
-        }
-        $this->db->beginTransaction();
-        try {
-            $this->db->execute(
-                "INSERT INTO drive_share_links (
-                    drive_item_id, token, created_by, expires_at, password_hash, max_downloads
-                ) VALUES (?, ?, ?, ?, ?, ?)",
-                [
-                    $itemId,
-                    $token,
-                    (int)$currentUser['id'],
-                    $expiresAt ?: null,
-                    $passwordHash,
-                    $maxDownloads,
-                ]
+            $token = $this->insertShareLink(
+                $itemId,
+                (int)$currentUser['id'],
+                $expiresAt ?: null,
+                $passwordHash,
+                $maxDownloads,
+                $shareUserIds,
+                $shareOrganizationIds
             );
-            $shareLinkId = (int)$this->db->lastInsertId();
-
-            foreach ($shareUserIds as $targetUserId) {
-                $this->db->execute(
-                    "INSERT INTO drive_share_targets (share_link_id, target_type, target_id) VALUES (?, 'user', ?)",
-                    [$shareLinkId, (int)$targetUserId]
-                );
-            }
-            foreach ($shareOrganizationIds as $targetOrganizationId) {
-                $this->db->execute(
-                    "INSERT INTO drive_share_targets (share_link_id, target_type, target_id) VALUES (?, 'organization', ?)",
-                    [$shareLinkId, (int)$targetOrganizationId]
-                );
-            }
-            $this->db->commit();
         } catch (\Throwable $e) {
-            $this->db->rollBack();
-            error_log('createDriveShareLink error: ' . $e->getMessage());
+            error_log('createFileShareLink error: ' . $e->getMessage());
             $_SESSION['flash_error'] = tr_text('共有リンクの作成に失敗しました。', 'Failed to create share link.');
-            $this->redirect(BASE_PATH . '/drive/file/' . $itemId);
+            $this->redirect($this->modulePath('/file/' . $itemId));
             return;
         }
 
-        if ($notifyRecipients) {
+        if ($notifyRecipients && (!empty($shareUserIds) || !empty($shareOrganizationIds))) {
             $this->notifyShareRecipients($item, $token, $shareUserIds, $shareOrganizationIds, $expiresAt ?: null);
         }
 
         $_SESSION['flash_success'] = tr_text('共有リンクを作成しました。', 'Share link created.');
-        $this->redirect(BASE_PATH . '/drive/file/' . $itemId);
+        $this->redirect($this->modulePath('/file/' . $itemId));
     }
 
     public function revokeShareLink($params)
@@ -338,7 +355,7 @@ class DriveController extends Controller
 
         if (!$this->validateCsrfToken($_POST['csrf_token'] ?? '')) {
             $_SESSION['flash_error'] = tr_text('不正なリクエストです。', 'Invalid request.');
-            $this->redirect(BASE_PATH . '/drive');
+            $this->redirect($this->modulePath());
             return;
         }
 
@@ -352,7 +369,7 @@ class DriveController extends Controller
         );
         if (!$share) {
             $_SESSION['flash_error'] = tr_text('共有リンクが見つかりません。', 'Share link not found.');
-            $this->redirect(BASE_PATH . '/drive');
+            $this->redirect($this->modulePath());
             return;
         }
 
@@ -360,7 +377,7 @@ class DriveController extends Controller
         $currentUser = $this->auth->user();
         if (!$item || !$this->canManageItem($item, $currentUser)) {
             $_SESSION['flash_error'] = tr_text('共有リンクを無効化する権限がありません。', 'You do not have permission to revoke this share link.');
-            $this->redirect(BASE_PATH . '/drive');
+            $this->redirect($this->modulePath());
             return;
         }
 
@@ -370,7 +387,7 @@ class DriveController extends Controller
         );
 
         $_SESSION['flash_success'] = tr_text('共有リンクを無効化しました。', 'Share link revoked.');
-        $this->redirect(BASE_PATH . '/drive/file/' . (int)$share['drive_item_id']);
+        $this->redirect($this->modulePath('/file/' . (int)$share['drive_item_id']));
     }
 
     public function shareAccess($params)
@@ -379,7 +396,7 @@ class DriveController extends Controller
         if ($token === '') {
             http_response_code(404);
             $this->view('drive/shared_download', [
-                'title' => tr_text('Drive共有', 'Drive Share'),
+                'title' => tr_text('ファイル共有リンク', 'File Sharing Link'),
                 'status' => 'not_found',
                 'message' => tr_text('共有リンクが見つかりません。', 'Share link not found.'),
             ]);
@@ -397,7 +414,7 @@ class DriveController extends Controller
         if (!$share) {
             http_response_code(404);
             $this->view('drive/shared_download', [
-                'title' => tr_text('Drive共有', 'Drive Share'),
+                'title' => tr_text('ファイル共有リンク', 'File Sharing Link'),
                 'status' => 'not_found',
                 'message' => tr_text('共有リンクが見つかりません。', 'Share link not found.'),
             ]);
@@ -408,7 +425,7 @@ class DriveController extends Controller
         if ($status !== 'ok') {
             http_response_code(410);
             $this->view('drive/shared_download', [
-                'title' => tr_text('Drive共有', 'Drive Share'),
+                'title' => tr_text('ファイル共有リンク', 'File Sharing Link'),
                 'status' => $status,
                 'share' => $share,
                 'message' => $this->shareStatusMessage($status),
@@ -425,7 +442,7 @@ class DriveController extends Controller
             $httpCode = $targetCheck === 'login_required' ? 401 : 403;
             http_response_code($httpCode);
             $this->view('drive/shared_download', [
-                'title' => tr_text('Drive共有', 'Drive Share'),
+                'title' => tr_text('ファイル共有リンク', 'File Sharing Link'),
                 'status' => $targetCheck,
                 'share' => $share,
                 'message' => $this->shareStatusMessage($targetCheck),
@@ -439,14 +456,14 @@ class DriveController extends Controller
                 $password = (string)($_POST['share_password'] ?? '');
                 if ($password !== '' && password_verify($password, (string)$share['password_hash'])) {
                     $this->markSharePasswordVerified($token);
-                    $this->redirect(BASE_PATH . '/drive/share/' . urlencode($token));
+                    $this->redirect($this->modulePath('/share/' . urlencode($token)));
                     return;
                 }
                 $passwordError = tr_text('パスワードが一致しません。', 'Password is incorrect.');
             }
 
             $this->view('drive/shared_download', [
-                'title' => tr_text('Drive共有', 'Drive Share'),
+                'title' => tr_text('ファイル共有リンク', 'File Sharing Link'),
                 'status' => 'password_required',
                 'share' => $share,
                 'message' => tr_text('この共有リンクはパスワード保護されています。', 'This share link is password protected.'),
@@ -461,7 +478,7 @@ class DriveController extends Controller
         }
 
         $this->view('drive/shared_download', [
-            'title' => tr_text('Drive共有', 'Drive Share'),
+            'title' => tr_text('ファイル共有リンク', 'File Sharing Link'),
             'status' => 'ready',
             'share' => $share,
             'message' => tr_text('共有ファイルをダウンロードできます。', 'You can download this shared file.'),
@@ -495,14 +512,25 @@ class DriveController extends Controller
             $params[] = '%' . $search . '%';
         }
 
-        $sql = "SELECT di.*, u.display_name AS creator_name, o.name AS owner_organization_name
+        $sql = "SELECT di.*, u.display_name AS creator_name, o.name AS owner_organization_name,
+                       COALESCE(ls.active_link_count, 0) AS active_share_links
                 FROM drive_items di
                 LEFT JOIN users u ON u.id = di.created_by
                 LEFT JOIN organizations o ON o.id = di.owner_organization_id
+                LEFT JOIN (
+                    SELECT drive_item_id, COUNT(*) AS active_link_count
+                    FROM drive_share_links
+                    WHERE revoked_at IS NULL
+                    GROUP BY drive_item_id
+                ) ls ON ls.drive_item_id = di.id
                 $where
                 ORDER BY di.updated_at DESC";
 
-        return $this->db->fetchAll($sql, $params);
+        $items = $this->db->fetchAll($sql, $params);
+        foreach ($items as &$item) {
+            $item['can_manage'] = $this->canManageItem($item, $user);
+        }
+        return $items;
     }
 
     private function resolveUploadOwner($scope, $organizationId, array $user)
@@ -569,7 +597,7 @@ class DriveController extends Controller
         $path = $this->uploadDir . (string)$item['stored_name'];
         if (!is_file($path)) {
             $_SESSION['flash_error'] = tr_text('ファイル実体が見つかりません。', 'File content not found.');
-            $this->redirect(BASE_PATH . '/drive');
+            $this->redirect($this->modulePath());
             return;
         }
 
@@ -685,7 +713,7 @@ class DriveController extends Controller
 
         $totalQuota = $this->toBytes((int)$limits['storage_quota_mb']);
         if ($totalQuota > 0 && ((int)$usage['total_bytes'] + $incomingBytes) > $totalQuota) {
-            return tr_text('Drive全体の容量上限を超えるため保存できません。', 'Drive global quota exceeded.');
+            return tr_text('ファイル共有全体の容量上限を超えるため保存できません。', 'Global File Sharing quota exceeded.');
         }
 
         $userQuota = $this->toBytes((int)$limits['user_quota_mb']);
@@ -775,6 +803,47 @@ class DriveController extends Controller
         throw new \RuntimeException('Failed to generate share token.');
     }
 
+    private function insertShareLink($itemId, $createdBy, $expiresAt, $passwordHash, $maxDownloads, array $targetUserIds, array $targetOrganizationIds)
+    {
+        $token = $this->generateShareToken();
+        $this->db->beginTransaction();
+        try {
+            $this->db->execute(
+                "INSERT INTO drive_share_links (
+                    drive_item_id, token, created_by, expires_at, password_hash, max_downloads
+                ) VALUES (?, ?, ?, ?, ?, ?)",
+                [
+                    (int)$itemId,
+                    (string)$token,
+                    (int)$createdBy,
+                    $expiresAt,
+                    $passwordHash,
+                    $maxDownloads,
+                ]
+            );
+            $shareLinkId = (int)$this->db->lastInsertId();
+
+            foreach ($targetUserIds as $targetUserId) {
+                $this->db->execute(
+                    "INSERT INTO drive_share_targets (share_link_id, target_type, target_id) VALUES (?, 'user', ?)",
+                    [$shareLinkId, (int)$targetUserId]
+                );
+            }
+            foreach ($targetOrganizationIds as $targetOrganizationId) {
+                $this->db->execute(
+                    "INSERT INTO drive_share_targets (share_link_id, target_type, target_id) VALUES (?, 'organization', ?)",
+                    [$shareLinkId, (int)$targetOrganizationId]
+                );
+            }
+            $this->db->commit();
+        } catch (\Throwable $e) {
+            $this->db->rollBack();
+            throw $e;
+        }
+
+        return $token;
+    }
+
     private function getShareLinksForItem($itemId)
     {
         $links = $this->db->fetchAll(
@@ -848,7 +917,7 @@ class DriveController extends Controller
         }
 
         $actor = $this->auth->user();
-        $content = ($actor['display_name'] ?? tr_text('ユーザー', 'User')) . tr_text(' さんがDrive共有リンクを発行しました。', ' created a Drive share link.');
+        $content = ($actor['display_name'] ?? tr_text('ユーザー', 'User')) . tr_text(' さんがファイル共有リンクを発行しました。', ' created a file share link.');
         $content .= "\n" . tr_text('ファイル: ', 'File: ') . ($item['title'] ?? '');
         if (!empty($expiresAt)) {
             $content .= "\n" . tr_text('有効期限: ', 'Expires at: ') . date('Y/m/d H:i', strtotime((string)$expiresAt));
@@ -858,9 +927,9 @@ class DriveController extends Controller
             $this->notification->create([
                 'user_id' => (int)$recipientId,
                 'type' => 'system',
-                'title' => tr_text('Drive共有リンク', 'Drive share link'),
+                'title' => tr_text('ファイル共有リンク', 'File share link'),
                 'content' => $content,
-                'link' => '/drive/share/' . $token,
+                'link' => '/file-share/share/' . $token,
                 'reference_id' => (int)$item['id'],
                 'reference_type' => 'drive_share',
             ]);
@@ -942,7 +1011,7 @@ class DriveController extends Controller
         if ($status !== 'ok') {
             http_response_code(410);
             $this->view('drive/shared_download', [
-                'title' => tr_text('Drive共有', 'Drive Share'),
+                'title' => tr_text('ファイル共有リンク', 'File Sharing Link'),
                 'status' => $status,
                 'share' => $share,
                 'message' => $this->shareStatusMessage($status),
@@ -954,7 +1023,7 @@ class DriveController extends Controller
         if (!is_file($path)) {
             http_response_code(404);
             $this->view('drive/shared_download', [
-                'title' => tr_text('Drive共有', 'Drive Share'),
+                'title' => tr_text('ファイル共有リンク', 'File Sharing Link'),
                 'status' => 'not_found',
                 'share' => $share,
                 'message' => tr_text('ファイル実体が見つかりません。', 'File content not found.'),
@@ -991,5 +1060,10 @@ class DriveController extends Controller
         @set_time_limit(0);
         readfile($path);
         exit;
+    }
+
+    private function modulePath($suffix = '')
+    {
+        return BASE_PATH . '/file-share' . (string)$suffix;
     }
 }

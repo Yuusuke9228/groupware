@@ -16,7 +16,7 @@
                         <li>Schedule and participation management</li>
                         <li>Workflow request and approval operations</li>
                         <li>Task board and comments</li>
-                        <li>Independent Drive module for large file sharing</li>
+                        <li>File Sharing module with public/restricted share links</li>
                         <li>Notifications and unread management</li>
                     </ul>
                 </div>

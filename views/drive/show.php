@@ -25,10 +25,10 @@ if (!function_exists('driveFormatBytes')) {
             <div class="text-muted small"><?= htmlspecialchars((string)($item['original_name'] ?? '')) ?></div>
         </div>
         <div class="d-flex gap-2">
-            <a href="<?= BASE_PATH ?>/drive/download/<?= (int)($item['id'] ?? 0) ?>" class="btn btn-primary btn-sm">
+            <a href="<?= BASE_PATH ?>/file-share/download/<?= (int)($item['id'] ?? 0) ?>" class="btn btn-primary btn-sm">
                 <i class="fas fa-download me-1"></i><?= htmlspecialchars(tr_text('ダウンロード', 'Download')) ?>
             </a>
-            <a href="<?= BASE_PATH ?>/drive" class="btn btn-outline-secondary btn-sm">
+            <a href="<?= BASE_PATH ?>/file-share" class="btn btn-outline-secondary btn-sm">
                 <i class="fas fa-arrow-left me-1"></i><?= htmlspecialchars(tr_text('一覧へ戻る', 'Back')) ?>
             </a>
         </div>
@@ -47,6 +47,17 @@ if (!function_exists('driveFormatBytes')) {
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
         <?php unset($_SESSION['flash_error']); ?>
+    <?php endif; ?>
+    <?php if (!empty($_SESSION['file_share_created_link'])): ?>
+        <div class="alert alert-info alert-dismissible fade show" role="alert">
+            <div class="fw-bold mb-1"><?= htmlspecialchars(tr_text('公開共有リンクを発行しました。', 'A public share link has been created.')) ?></div>
+            <code class="text-break d-block"><?= htmlspecialchars((string)$_SESSION['file_share_created_link']) ?></code>
+            <button type="button" class="btn btn-sm btn-outline-secondary mt-2" onclick="navigator.clipboard && navigator.clipboard.writeText('<?= htmlspecialchars((string)$_SESSION['file_share_created_link'], ENT_QUOTES) ?>');">
+                <i class="fas fa-copy me-1"></i><?= htmlspecialchars(tr_text('リンクをコピー', 'Copy link')) ?>
+            </button>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        <?php unset($_SESSION['file_share_created_link']); ?>
     <?php endif; ?>
 
     <div class="row g-4">
@@ -81,8 +92,20 @@ if (!function_exists('driveFormatBytes')) {
                     <h6 class="mb-0"><?= htmlspecialchars(tr_text('共有リンクを発行', 'Create share link')) ?></h6>
                 </div>
                 <div class="card-body">
-                    <form method="post" action="<?= BASE_PATH ?>/drive/file/<?= (int)($item['id'] ?? 0) ?>/share-links" class="no-ajax">
+                    <form method="post" action="<?= BASE_PATH ?>/file-share/file/<?= (int)($item['id'] ?? 0) ?>/share-links" class="no-ajax">
                         <input type="hidden" name="csrf_token" value="<?= htmlspecialchars((string)$csrf_token) ?>">
+
+                        <div class="mb-3">
+                            <label class="form-label small d-block mb-1"><?= htmlspecialchars(tr_text('アクセス範囲', 'Access mode')) ?></label>
+                            <div class="form-check">
+                                <input class="form-check-input share-access-mode" type="radio" name="share_access_mode" id="shareAccessPublic" value="public" checked>
+                                <label class="form-check-label small" for="shareAccessPublic"><?= htmlspecialchars(tr_text('公開リンク（ログイン不要）', 'Public link (no login required)')) ?></label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input share-access-mode" type="radio" name="share_access_mode" id="shareAccessRestricted" value="restricted">
+                                <label class="form-check-label small" for="shareAccessRestricted"><?= htmlspecialchars(tr_text('限定リンク（指定ユーザー/組織のみ）', 'Restricted link (selected users/organizations only)')) ?></label>
+                            </div>
+                        </div>
 
                         <div class="mb-2">
                             <label class="form-label small"><?= htmlspecialchars(tr_text('有効期限', 'Expires at')) ?></label>
@@ -96,25 +119,28 @@ if (!function_exists('driveFormatBytes')) {
                             <label class="form-label small"><?= htmlspecialchars(tr_text('共有パスワード（任意）', 'Share password (optional)')) ?></label>
                             <input type="password" name="share_password" class="form-control form-control-sm">
                         </div>
-                        <div class="mb-2">
-                            <label class="form-label small"><?= htmlspecialchars(tr_text('共有先組織', 'Target organizations')) ?></label>
-                            <select class="form-select form-select-sm select2-multi" name="share_organization_ids[]" multiple data-placeholder="<?= htmlspecialchars(tr_text('組織を選択...', 'Select organizations...')) ?>">
-                                <?php foreach ($orgOptions as $org): ?>
-                                    <option value="<?= (int)$org['id'] ?>"><?= htmlspecialchars((string)$org['name']) ?></option>
-                                <?php endforeach; ?>
-                            </select>
-                        </div>
-                        <div class="mb-2">
-                            <label class="form-label small"><?= htmlspecialchars(tr_text('共有先ユーザー', 'Target users')) ?></label>
-                            <select class="form-select form-select-sm select2-multi" name="share_user_ids[]" multiple data-placeholder="<?= htmlspecialchars(tr_text('ユーザーを選択...', 'Select users...')) ?>">
-                                <?php foreach ($userOptions as $user): ?>
-                                    <option value="<?= (int)$user['id'] ?>"><?= htmlspecialchars((string)$user['display_name']) ?></option>
-                                <?php endforeach; ?>
-                            </select>
-                        </div>
-                        <div class="form-check mb-3">
-                            <input class="form-check-input" type="checkbox" id="notify_recipients" name="notify_recipients" value="1" checked>
-                            <label class="form-check-label small" for="notify_recipients"><?= htmlspecialchars(tr_text('共有先へ通知（メール連携）', 'Notify recipients (email-enabled)')) ?></label>
+
+                        <div id="restrictedTargetSettings" style="display:none;">
+                            <div class="mb-2">
+                                <label class="form-label small"><?= htmlspecialchars(tr_text('共有先組織', 'Target organizations')) ?></label>
+                                <select class="form-select form-select-sm select2-multi" name="share_organization_ids[]" multiple data-placeholder="<?= htmlspecialchars(tr_text('組織を選択...', 'Select organizations...')) ?>">
+                                    <?php foreach ($orgOptions as $org): ?>
+                                        <option value="<?= (int)$org['id'] ?>"><?= htmlspecialchars((string)$org['name']) ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                            <div class="mb-2">
+                                <label class="form-label small"><?= htmlspecialchars(tr_text('共有先ユーザー', 'Target users')) ?></label>
+                                <select class="form-select form-select-sm select2-multi" name="share_user_ids[]" multiple data-placeholder="<?= htmlspecialchars(tr_text('ユーザーを選択...', 'Select users...')) ?>">
+                                    <?php foreach ($userOptions as $user): ?>
+                                        <option value="<?= (int)$user['id'] ?>"><?= htmlspecialchars((string)$user['display_name']) ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                            <div class="form-check mb-3">
+                                <input class="form-check-input" type="checkbox" id="notify_recipients" name="notify_recipients" value="1" checked>
+                                <label class="form-check-label small" for="notify_recipients"><?= htmlspecialchars(tr_text('共有先へ通知（メール連携）', 'Notify recipients (email-enabled)')) ?></label>
+                            </div>
                         </div>
                         <button type="submit" class="btn btn-outline-primary btn-sm w-100">
                             <i class="fas fa-link me-1"></i><?= htmlspecialchars(tr_text('共有リンクを作成', 'Create share link')) ?>
@@ -149,7 +175,7 @@ if (!function_exists('driveFormatBytes')) {
                                     $statusLabel = tr_text('上限到達', 'Limit reached');
                                     $statusClass = 'bg-warning text-dark';
                                 }
-                                $publicUrl = $shareBaseUrl . '/drive/share/' . (string)$share['token'];
+                                $publicUrl = $shareBaseUrl . '/file-share/share/' . (string)$share['token'];
                                 ?>
                                 <div class="border rounded p-2">
                                     <div class="d-flex justify-content-between align-items-center mb-1">
@@ -158,6 +184,10 @@ if (!function_exists('driveFormatBytes')) {
                                     </div>
                                     <div class="small text-break mb-1"><code><?= htmlspecialchars($publicUrl) ?></code></div>
                                     <div class="small text-muted mb-1">
+                                        <?= empty($share['target_organizations']) && empty($share['target_users'])
+                                            ? htmlspecialchars(tr_text('公開リンク', 'Public link'))
+                                            : htmlspecialchars(tr_text('限定リンク', 'Restricted link')) ?>
+                                        ・
                                         DL: <?= (int)$share['download_count'] ?>
                                         <?php if (!is_null($share['max_downloads']) && (int)$share['max_downloads'] > 0): ?>
                                             / <?= (int)$share['max_downloads'] ?>
@@ -185,7 +215,7 @@ if (!function_exists('driveFormatBytes')) {
                                             <i class="fas fa-copy me-1"></i><?= htmlspecialchars(tr_text('コピー', 'Copy')) ?>
                                         </button>
                                         <?php if ($canManage && empty($share['is_revoked'])): ?>
-                                            <form method="post" action="<?= BASE_PATH ?>/drive/share/<?= (int)$share['id'] ?>/revoke" class="no-ajax ms-auto" onsubmit="return confirm('<?= htmlspecialchars(tr_text('この共有リンクを無効化しますか？', 'Revoke this share link?'), ENT_QUOTES) ?>');">
+                                            <form method="post" action="<?= BASE_PATH ?>/file-share/share/<?= (int)$share['id'] ?>/revoke" class="no-ajax ms-auto" onsubmit="return confirm('<?= htmlspecialchars(tr_text('この共有リンクを無効化しますか？', 'Revoke this share link?'), ENT_QUOTES) ?>');">
                                                 <input type="hidden" name="csrf_token" value="<?= htmlspecialchars((string)$csrf_token) ?>">
                                                 <button type="submit" class="btn btn-sm btn-outline-danger">
                                                     <i class="fas fa-ban me-1"></i><?= htmlspecialchars(tr_text('無効化', 'Revoke')) ?>
@@ -203,10 +233,10 @@ if (!function_exists('driveFormatBytes')) {
             <?php if ($canManage): ?>
                 <div class="card">
                     <div class="card-body">
-                        <form method="post" action="<?= BASE_PATH ?>/drive/file/<?= (int)($item['id'] ?? 0) ?>/delete" class="no-ajax" onsubmit="return confirm('<?= htmlspecialchars(tr_text('このファイルを削除しますか？', 'Delete this file?'), ENT_QUOTES) ?>');">
+                        <form method="post" action="<?= BASE_PATH ?>/file-share/file/<?= (int)($item['id'] ?? 0) ?>/delete" class="no-ajax" onsubmit="return confirm('<?= htmlspecialchars(tr_text('このファイルを削除しますか？', 'Delete this file?'), ENT_QUOTES) ?>');">
                             <input type="hidden" name="csrf_token" value="<?= htmlspecialchars((string)$csrf_token) ?>">
                             <button type="submit" class="btn btn-outline-danger w-100">
-                                <i class="fas fa-trash me-1"></i><?= htmlspecialchars(tr_text('Driveファイルを削除', 'Delete Drive file')) ?>
+                                <i class="fas fa-trash me-1"></i><?= htmlspecialchars(tr_text('ファイル共有のファイルを削除', 'Delete File Sharing item')) ?>
                             </button>
                         </form>
                     </div>
@@ -215,3 +245,20 @@ if (!function_exists('driveFormatBytes')) {
         </div>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    var publicRadio = document.getElementById('shareAccessPublic');
+    var restrictedRadio = document.getElementById('shareAccessRestricted');
+    var restrictedBlock = document.getElementById('restrictedTargetSettings');
+
+    function syncShareAccessMode() {
+        if (!restrictedBlock) return;
+        restrictedBlock.style.display = (restrictedRadio && restrictedRadio.checked) ? '' : 'none';
+    }
+
+    if (publicRadio) publicRadio.addEventListener('change', syncShareAccessMode);
+    if (restrictedRadio) restrictedRadio.addEventListener('change', syncShareAccessMode);
+    syncShareAccessMode();
+});
+</script>
