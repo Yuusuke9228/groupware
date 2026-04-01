@@ -21,7 +21,7 @@ $pageMap = [
     '/integrations' => 'integrations', '/settings' => 'settings',
     '/bulletin' => 'bulletin',
     '/address-book' => 'address-book', '/facility' => 'facility',
-    '/files' => 'files', '/help' => 'help'
+    '/drive' => 'drive', '/files' => 'files', '/help' => 'help'
 ];
 
 foreach ($pageMap as $path => $page) {
@@ -427,6 +427,13 @@ if ($currentUser) {
                 <a class="gw-module-link <?php echo $currentPage === 'facility' ? 'active' : ''; ?>" href="<?php echo BASE_PATH; ?>/facility">
                     <img src="<?php echo BASE_PATH; ?>/img_icon/icon_equipment_reservation.svg" alt="" class="gw-module-icon">
                     <span class="gw-module-label"><?php echo htmlspecialchars(t('menu.facility')); ?></span>
+                </a>
+            </li>
+            <li class="gw-module-item">
+                <a class="gw-module-link <?php echo $currentPage === 'drive' ? 'active' : ''; ?>" href="<?php echo BASE_PATH; ?>/drive">
+                    <img src="<?php echo BASE_PATH; ?>/img_icon/icon_cabinet.svg" alt="" class="gw-module-icon" onerror="this.style.display='none';this.nextElementSibling.style.display='inline-block';">
+                    <i class="fas fa-cloud" style="display:none;font-size:24px;color:#5b9bd5;"></i>
+                    <span class="gw-module-label"><?php echo htmlspecialchars(tr_text('Drive', 'Drive')); ?></span>
                 </a>
             </li>
             <li class="gw-module-item">

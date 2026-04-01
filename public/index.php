@@ -1883,6 +1883,57 @@ $router->get('/admin/csv-import/sample/:type', function ($params) {
     $controller->downloadSample($params['type']);
 }, true);
 
+// Drive（独立ファイル共有）
+$router->get('/drive', function () {
+    $controller = new Controllers\DriveController();
+    $controller->index();
+});
+
+$router->get('/drive/upload', function () {
+    $controller = new Controllers\DriveController();
+    $controller->upload();
+});
+
+$router->post('/drive/upload', function () {
+    $controller = new Controllers\DriveController();
+    $controller->store();
+});
+
+$router->get('/drive/file/:id', function ($params) {
+    $controller = new Controllers\DriveController();
+    $controller->show($params);
+});
+
+$router->get('/drive/download/:id', function ($params) {
+    $controller = new Controllers\DriveController();
+    $controller->download($params);
+});
+
+$router->post('/drive/file/:id/delete', function ($params) {
+    $controller = new Controllers\DriveController();
+    $controller->delete($params);
+});
+
+$router->post('/drive/file/:id/share-links', function ($params) {
+    $controller = new Controllers\DriveController();
+    $controller->createShareLink($params);
+});
+
+$router->post('/drive/share/:id/revoke', function ($params) {
+    $controller = new Controllers\DriveController();
+    $controller->revokeShareLink($params);
+});
+
+$router->get('/drive/share/:token', function ($params) {
+    $controller = new Controllers\DriveController();
+    $controller->shareAccess($params);
+});
+
+$router->post('/drive/share/:token', function ($params) {
+    $controller = new Controllers\DriveController();
+    $controller->shareAccess($params);
+});
+
 // ファイル管理
 $router->get('/files', function () {
     $controller = new Controllers\FileManagerController();
@@ -1954,14 +2005,32 @@ $router->post('/files/file/:id/checkout', function ($params) {
     $controller->checkoutFile($params);
 });
 
+$router->get('/files/file/:id/checkout', function ($params) {
+    $_SESSION['flash_error'] = tr_text('チェックアウトは詳細画面のボタンから実行してください。', 'Please use the checkout button on the file detail page.');
+    header('Location: ' . BASE_PATH . '/files/file/' . (int)($params['id'] ?? 0));
+    exit;
+});
+
 $router->post('/files/file/:id/checkin', function ($params) {
     $controller = new Controllers\FileManagerController();
     $controller->releaseCheckout($params);
 });
 
+$router->get('/files/file/:id/checkin', function ($params) {
+    $_SESSION['flash_error'] = tr_text('チェックアウト解除は詳細画面のボタンから実行してください。', 'Please use the check-in button on the file detail page.');
+    header('Location: ' . BASE_PATH . '/files/file/' . (int)($params['id'] ?? 0));
+    exit;
+});
+
 $router->post('/files/file/:id/request-approval', function ($params) {
     $controller = new Controllers\FileManagerController();
     $controller->requestApproval($params);
+});
+
+$router->get('/files/file/:id/request-approval', function ($params) {
+    $_SESSION['flash_error'] = tr_text('承認申請は詳細画面のボタンから実行してください。', 'Please use the approval request button on the file detail page.');
+    header('Location: ' . BASE_PATH . '/files/file/' . (int)($params['id'] ?? 0));
+    exit;
 });
 
 $router->post('/files/approval/:request_id/approve', function ($params) {

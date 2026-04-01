@@ -170,6 +170,47 @@ $isJaLocale = get_locale() === 'ja';
 
             <div class="card mt-4">
                 <div class="card-header">
+                    <h5 class="card-title mb-0"><?= htmlspecialchars(tr_text('Drive設定', 'Drive settings')) ?></h5>
+                </div>
+                <div class="card-body">
+                    <form id="driveSettingsForm">
+                        <div class="alert alert-success d-none" id="driveSuccessAlert"><?= htmlspecialchars(tr_text('設定を保存しました。', 'Settings saved.')) ?></div>
+                        <div class="alert alert-danger d-none" id="driveErrorAlert"></div>
+
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label" for="drive_max_upload_mb"><?= htmlspecialchars(tr_text('1ファイル上限(MB)', 'Max upload size per file (MB)')) ?></label>
+                                <input type="number" min="0" max="1048576" class="form-control" id="drive_max_upload_mb" name="drive_max_upload_mb" value="<?= htmlspecialchars((string)($settings['drive_max_upload_mb'] ?? '1024')) ?>">
+                                <div class="form-text"><?= htmlspecialchars(tr_text('0 を指定すると無制限になります。', 'Set to 0 for unlimited.')) ?></div>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label" for="drive_share_default_expiry_days"><?= htmlspecialchars(tr_text('共有リンク既定有効日数', 'Default share-link expiry days')) ?></label>
+                                <input type="number" min="0" max="3650" class="form-control" id="drive_share_default_expiry_days" name="drive_share_default_expiry_days" value="<?= htmlspecialchars((string)($settings['drive_share_default_expiry_days'] ?? '7')) ?>">
+                                <div class="form-text"><?= htmlspecialchars(tr_text('0 を指定すると期限なしリンクを既定にします。', 'Set to 0 to default to no-expiry links.')) ?></div>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label" for="drive_storage_quota_mb"><?= htmlspecialchars(tr_text('全体容量上限(MB)', 'Global storage quota (MB)')) ?></label>
+                                <input type="number" min="0" max="1048576" class="form-control" id="drive_storage_quota_mb" name="drive_storage_quota_mb" value="<?= htmlspecialchars((string)($settings['drive_storage_quota_mb'] ?? '51200')) ?>">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label" for="drive_user_quota_mb"><?= htmlspecialchars(tr_text('ユーザー容量上限(MB)', 'Per-user quota (MB)')) ?></label>
+                                <input type="number" min="0" max="1048576" class="form-control" id="drive_user_quota_mb" name="drive_user_quota_mb" value="<?= htmlspecialchars((string)($settings['drive_user_quota_mb'] ?? '10240')) ?>">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label" for="drive_org_quota_mb"><?= htmlspecialchars(tr_text('組織容量上限(MB)', 'Per-organization quota (MB)')) ?></label>
+                                <input type="number" min="0" max="1048576" class="form-control" id="drive_org_quota_mb" name="drive_org_quota_mb" value="<?= htmlspecialchars((string)($settings['drive_org_quota_mb'] ?? '20480')) ?>">
+                            </div>
+                        </div>
+
+                        <div class="mt-3 d-grid">
+                            <button type="submit" class="btn btn-primary"><?= htmlspecialchars(tr_text('Drive設定を保存', 'Save Drive settings')) ?></button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="card mt-4">
+                <div class="card-header">
                     <h5 class="card-title mb-0"><?= htmlspecialchars(tr_text('SSO設定（OIDC / SAML）', 'SSO settings (OIDC / SAML)')) ?></h5>
                 </div>
                 <div class="card-body">
