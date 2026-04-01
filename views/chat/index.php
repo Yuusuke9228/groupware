@@ -4,11 +4,16 @@ $rooms = $rooms ?? [];
 $activeRoom = $activeRoom ?? null;
 $messages = $messages ?? [];
 $members = $members ?? [];
+$activeMemberUserIds = $activeMemberUserIds ?? [];
 $activeUsers = $activeUsers ?? [];
 $currentUser = $currentUser ?? (\Core\Auth::getInstance()->user() ?? []);
 $userId = (int)($currentUser['id'] ?? 0);
 $csrfToken = (string)($csrf_token ?? '');
 $migrationFile = (string)($migrationFile ?? '');
+$activeMemberMap = [];
+foreach ($activeMemberUserIds as $memberUserId) {
+    $activeMemberMap[(int)$memberUserId] = true;
+}
 
 if (!function_exists('chatFormatDateTime')) {
     function chatFormatDateTime($value)
@@ -29,6 +34,12 @@ $bootstrap = [
     'rooms' => $rooms,
     'activeRoom' => $activeRoom,
     'messages' => $messages,
+    'i18n' => [
+        'read' => tr_text('既読', 'Read'),
+        'readersTitle' => tr_text('既読ユーザー', 'Read users'),
+        'readersEmpty' => tr_text('まだ既読ユーザーはいません。', 'No one has read yet.'),
+        'readersLoadError' => tr_text('既読一覧の取得に失敗しました。', 'Failed to load read users.'),
+    ],
 ];
 ?>
 
@@ -45,6 +56,7 @@ $bootstrap = [
 .chat-main{flex:1;display:flex;flex-direction:column;min-width:0}
 .chat-main-head{padding:14px 18px;background:#fff;border-bottom:1px solid #edf0f4}
 .chat-room-name{font-weight:700;font-size:16px;margin-bottom:2px}
+.chat-room-headline{display:flex;align-items:center;justify-content:space-between;gap:8px}
 .chat-room-sub{font-size:12px;color:#7b8794}
 .chat-message-area{flex:1;overflow:auto;padding:16px;background:linear-gradient(180deg,#f5f6f8 0%,#eef1f6 100%)}
 .chat-empty{height:100%;display:flex;align-items:center;justify-content:center;color:#8c95a3;font-size:14px;text-align:center;padding:24px}
@@ -59,6 +71,8 @@ $bootstrap = [
 .chat-attachment{margin-top:8px;padding:7px 9px;background:rgba(255,255,255,0.6);border:1px solid rgba(0,0,0,0.08);border-radius:10px;font-size:12px}
 .chat-time{font-size:10px;color:#7b8794;margin-top:4px;text-align:right}
 .chat-read{font-size:10px;color:#06a94d;margin-top:2px;text-align:right}
+.chat-read-btn{border:none;background:none;padding:0;color:#06a94d;font-size:10px;cursor:pointer;text-decoration:underline}
+.chat-read-btn:hover{opacity:.75}
 .chat-composer{padding:12px;background:#fff;border-top:1px solid #edf0f4}
 .chat-composer textarea{resize:none}
 .chat-badge{display:inline-flex;min-width:20px;height:20px;padding:0 6px;background:#ff4d4f;color:#fff;border-radius:999px;align-items:center;justify-content:center;font-size:11px;font-weight:700}
@@ -130,7 +144,14 @@ $bootstrap = [
             <section class="chat-main">
                 <?php if ($activeRoom): ?>
                     <div class="chat-main-head">
-                        <div class="chat-room-name"><?= htmlspecialchars((string)($activeRoom['display_name'] ?? $activeRoom['name'] ?? '')) ?></div>
+                        <div class="chat-room-headline">
+                            <div class="chat-room-name"><?= htmlspecialchars((string)($activeRoom['display_name'] ?? $activeRoom['name'] ?? '')) ?></div>
+                            <?php if (($activeRoom['room_type'] ?? '') === 'group'): ?>
+                                <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#chatEditRoomModal">
+                                    <i class="fas fa-edit me-1"></i><?= htmlspecialchars(tr_text('ルーム編集', 'Edit room')) ?>
+                                </button>
+                            <?php endif; ?>
+                        </div>
                         <div class="chat-room-sub">
                             <?= htmlspecialchars(tr_text('メンバー', 'Members')) ?>:
                             <?php foreach ($members as $member): ?>
@@ -163,7 +184,11 @@ $bootstrap = [
                                         </div>
                                         <div class="chat-time"><?= htmlspecialchars(chatFormatDateTime((string)($message['created_at'] ?? ''))) ?></div>
                                         <?php if ($mine && $readByOthers > 0): ?>
-                                            <div class="chat-read"><?= htmlspecialchars(tr_text('既読', 'Read')) ?> <?= $readByOthers ?></div>
+                                            <div class="chat-read">
+                                                <button type="button" class="chat-read-btn" data-message-id="<?= (int)$message['id'] ?>">
+                                                    <?= htmlspecialchars(tr_text('既読', 'Read')) ?> <?= $readByOthers ?>
+                                                </button>
+                                            </div>
                                         <?php endif; ?>
                                     </div>
                                 </div>
@@ -235,6 +260,60 @@ $bootstrap = [
                     <button type="submit" class="btn btn-success"><?= htmlspecialchars(tr_text('作成', 'Create')) ?></button>
                 </div>
             </form>
+        </div>
+    </div>
+</div>
+<?php if ($activeRoom && ($activeRoom['room_type'] ?? '') === 'group'): ?>
+<div class="modal fade" id="chatEditRoomModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form class="no-ajax" method="post" action="<?= BASE_PATH ?>/chat/rooms/<?= (int)$activeRoom['id'] ?>/update">
+                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
+                <div class="modal-header">
+                    <h5 class="modal-title"><?= htmlspecialchars(tr_text('チャットルーム編集', 'Edit Chat Room')) ?></h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label"><?= htmlspecialchars(tr_text('ルーム名', 'Room name')) ?></label>
+                        <input type="text" class="form-control" name="room_name" value="<?= htmlspecialchars((string)($activeRoom['name'] ?? '')) ?>">
+                    </div>
+                    <div>
+                        <label class="form-label"><?= htmlspecialchars(tr_text('メンバー選択（1名以上）', 'Select members (at least 1)')) ?></label>
+                        <select class="form-select select2-multi" name="member_user_ids[]" multiple data-placeholder="<?= htmlspecialchars(tr_text('ユーザーを選択...', 'Select users...')) ?>" required>
+                            <?php foreach ($activeUsers as $u): ?>
+                                <?php $memberId = (int)($u['id'] ?? 0); ?>
+                                <option value="<?= $memberId ?>" <?= !empty($activeMemberMap[$memberId]) ? 'selected' : '' ?>>
+                                    <?= htmlspecialchars((string)$u['display_name']) ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                        <div class="small text-muted mt-1">
+                            <?= htmlspecialchars(tr_text('※ 自分は自動でメンバーに含まれます。', 'You are always included automatically.')) ?>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal"><?= htmlspecialchars(tr_text('キャンセル', 'Cancel')) ?></button>
+                    <button type="submit" class="btn btn-success"><?= htmlspecialchars(tr_text('更新', 'Update')) ?></button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+<?php endif; ?>
+
+<div class="modal fade" id="chatReadDetailModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="chatReadDetailModalTitle"><?= htmlspecialchars(tr_text('既読ユーザー', 'Read users')) ?></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="chatReadDetailModalBody"></div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal"><?= htmlspecialchars(tr_text('閉じる', 'Close')) ?></button>
+            </div>
         </div>
     </div>
 </div>

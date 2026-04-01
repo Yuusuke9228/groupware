@@ -209,6 +209,85 @@ class Chat
         }
     }
 
+    public function updateRoom($roomId, $actorUserId, $roomName, array $memberUserIds)
+    {
+        $roomId = (int)$roomId;
+        $actorUserId = (int)$actorUserId;
+        if ($roomId <= 0 || $actorUserId <= 0 || !$this->isReady()) {
+            return ['success' => false, 'reason' => 'invalid'];
+        }
+        if (!$this->isMember($roomId, $actorUserId)) {
+            return ['success' => false, 'reason' => 'forbidden'];
+        }
+
+        $room = $this->db->fetch(
+            "SELECT id, room_type, name
+             FROM chat_rooms
+             WHERE id = ? AND deleted_at IS NULL
+             LIMIT 1",
+            [$roomId]
+        );
+        if (!$room) {
+            return ['success' => false, 'reason' => 'not_found'];
+        }
+        if ((string)($room['room_type'] ?? '') !== 'group') {
+            return ['success' => false, 'reason' => 'not_editable'];
+        }
+
+        $memberIds = $this->normalizeMemberIds($actorUserId, $memberUserIds);
+        if (count($memberIds) < 2) {
+            return ['success' => false, 'reason' => 'member_too_few'];
+        }
+
+        $roomName = trim((string)$roomName);
+        if ($roomName === '') {
+            $roomName = trim((string)($room['name'] ?? ''));
+        }
+        if ($roomName === '') {
+            $roomName = tr_text('グループチャット', 'Group Chat');
+        }
+
+        $this->db->beginTransaction();
+        try {
+            $this->db->execute(
+                "UPDATE chat_rooms
+                 SET name = ?, updated_at = NOW()
+                 WHERE id = ?",
+                [$roomName, $roomId]
+            );
+
+            $inSql = implode(',', array_fill(0, count($memberIds), '?'));
+            $disableParams = array_merge([$roomId], $memberIds);
+            $this->db->execute(
+                "UPDATE chat_room_members
+                 SET is_active = 0, updated_at = NOW()
+                 WHERE room_id = ?
+                   AND is_active = 1
+                   AND user_id NOT IN ({$inSql})",
+                $disableParams
+            );
+
+            foreach ($memberIds as $memberId) {
+                $this->db->execute(
+                    "INSERT INTO chat_room_members
+                        (room_id, user_id, is_active, last_read_message_id, last_read_at, created_at, updated_at)
+                     VALUES (?, ?, 1, 0, NULL, NOW(), NOW())
+                     ON DUPLICATE KEY UPDATE
+                        is_active = 1,
+                        updated_at = NOW()",
+                    [$roomId, (int)$memberId]
+                );
+            }
+
+            $this->db->commit();
+            return ['success' => true];
+        } catch (\Throwable $e) {
+            $this->db->rollBack();
+            error_log('updateRoom error: ' . $e->getMessage());
+            return ['success' => false, 'reason' => 'exception'];
+        }
+    }
+
     public function postMessage($roomId, $userId, $messageText, array $attachment = [])
     {
         $roomId = (int)$roomId;
@@ -453,6 +532,62 @@ class Chat
         );
 
         return (int)($row['cnt'] ?? 0);
+    }
+
+    public function getReadMembersForMessage($roomId, $messageId, $requestUserId, $excludeUserId = 0)
+    {
+        $roomId = (int)$roomId;
+        $messageId = (int)$messageId;
+        $requestUserId = (int)$requestUserId;
+        $excludeUserId = (int)$excludeUserId;
+
+        if ($roomId <= 0 || $messageId <= 0 || $requestUserId <= 0 || !$this->isReady()) {
+            return [];
+        }
+        if (!$this->isMember($roomId, $requestUserId)) {
+            return [];
+        }
+
+        $message = $this->db->fetch(
+            "SELECT id
+             FROM chat_messages
+             WHERE id = ? AND room_id = ? AND deleted_at IS NULL
+             LIMIT 1",
+            [$messageId, $roomId]
+        );
+        if (!$message) {
+            return [];
+        }
+
+        $params = [$roomId, $messageId];
+        $excludeSql = '';
+        if ($excludeUserId > 0) {
+            $excludeSql = ' AND crm.user_id <> ?';
+            $params[] = $excludeUserId;
+        }
+
+        $rows = $this->db->fetchAll(
+            "SELECT
+                u.id,
+                u.display_name,
+                u.username,
+                crm.last_read_at
+             FROM chat_room_members crm
+             INNER JOIN users u ON u.id = crm.user_id
+             WHERE crm.room_id = ?
+               AND crm.is_active = 1
+               AND COALESCE(crm.last_read_message_id, 0) >= ?
+               {$excludeSql}
+             ORDER BY COALESCE(crm.last_read_at, '1970-01-01 00:00:00') DESC, u.display_name ASC",
+            $params
+        );
+
+        foreach ($rows as &$row) {
+            $row['id'] = (int)($row['id'] ?? 0);
+        }
+        unset($row);
+
+        return $rows;
     }
 
     public function getParticipantUserIds($roomId, $excludeUserId = 0)

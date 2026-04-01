@@ -44,6 +44,7 @@
         userId: Number(bootstrap.userId || 0),
         roomId: Number(bootstrap.roomId || 0),
         csrfToken: bootstrap.csrfToken || '',
+        i18n: bootstrap.i18n || {},
         lastMessageId: 0,
         notifiedMessageIds: {},
         pollTimer: null,
@@ -56,6 +57,17 @@
     var messageInput = byId('chatMessageInput');
     var attachmentInput = byId('chatAttachmentInput');
     var roomList = byId('chatRoomList');
+    var readModalBody = byId('chatReadDetailModalBody');
+    var readModalTitle = byId('chatReadDetailModalTitle');
+    var readModalEl = byId('chatReadDetailModal');
+    var readModal = null;
+
+    function t(key, fallback) {
+        if (state.i18n && state.i18n[key]) {
+            return String(state.i18n[key]);
+        }
+        return fallback || key;
+    }
 
     if (Array.isArray(bootstrap.messages) && bootstrap.messages.length > 0) {
         var last = bootstrap.messages[bootstrap.messages.length - 1];
@@ -105,7 +117,9 @@
         var mine = Number(message.user_id || 0) === state.userId;
         var readByOthers = Math.max(0, Number(message.read_count || 0) - 1);
         var textHtml = message.message_text ? ('<div>' + nl2br(message.message_text) + '</div>') : '';
-        var readHtml = (mine && readByOthers > 0) ? ('<div class="chat-read">既読 ' + readByOthers + '</div>') : '';
+        var readHtml = (mine && readByOthers > 0)
+            ? ('<div class="chat-read"><button type="button" class="chat-read-btn" data-message-id="' + Number(message.id || 0) + '">' + escapeHtml(t('read', 'Read')) + ' ' + readByOthers + '</button></div>')
+            : '';
         return '' +
             '<div class="chat-message-row ' + (mine ? 'mine' : 'other') + '" data-message-id="' + Number(message.id || 0) + '">' +
             '<div class="chat-bubble-wrap">' +
@@ -271,6 +285,78 @@
         .catch(function () {});
     }
 
+    function ensureReadModal() {
+        if (!readModalEl || typeof bootstrap === 'undefined' || !window.bootstrap || !window.bootstrap.Modal) {
+            return null;
+        }
+        if (!readModal) {
+            readModal = new window.bootstrap.Modal(readModalEl);
+        }
+        return readModal;
+    }
+
+    function openReadDetailModal(messageId) {
+        if (!state.roomId || !messageId || !readModalBody) return;
+        var modal = ensureReadModal();
+        if (!modal) return;
+
+        if (readModalTitle) {
+            readModalTitle.textContent = t('readersTitle', 'Read users');
+        }
+        readModalBody.innerHTML = '<div class="text-muted small">Loading...</div>';
+        modal.show();
+
+        var url = state.basePath + '/api/chat/rooms/' + state.roomId + '/messages/' + Number(messageId) + '/readers?exclude_user_id=' + state.userId;
+        fetch(url, {
+            method: 'GET',
+            credentials: 'same-origin',
+            headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
+        })
+        .then(function (res) { return res.json(); })
+        .then(function (json) {
+            if (!json || !json.success || !json.data) {
+                readModalBody.innerHTML = '<div class="text-danger small">' + escapeHtml(t('readersLoadError', 'Failed to load read users.')) + '</div>';
+                return;
+            }
+
+            var readers = Array.isArray(json.data.readers) ? json.data.readers : [];
+            if (readers.length === 0) {
+                readModalBody.innerHTML = '<div class="text-muted small">' + escapeHtml(t('readersEmpty', 'No one has read yet.')) + '</div>';
+                return;
+            }
+
+            var html = '<div class="list-group list-group-flush">';
+            readers.forEach(function (reader) {
+                var name = reader.display_name || reader.username || ('User #' + Number(reader.id || 0));
+                var readAt = formatDateTime(reader.last_read_at || '');
+                html += '' +
+                    '<div class="list-group-item px-0">' +
+                    '<div class="d-flex justify-content-between align-items-center gap-2">' +
+                    '<span>' + escapeHtml(name) + '</span>' +
+                    '<span class="text-muted small">' + escapeHtml(readAt) + '</span>' +
+                    '</div>' +
+                    '</div>';
+            });
+            html += '</div>';
+            readModalBody.innerHTML = html;
+        })
+        .catch(function () {
+            readModalBody.innerHTML = '<div class="text-danger small">' + escapeHtml(t('readersLoadError', 'Failed to load read users.')) + '</div>';
+        });
+    }
+
+    function bindReadDetail() {
+        if (!messageWrap) return;
+        messageWrap.addEventListener('click', function (event) {
+            var button = event.target.closest('.chat-read-btn');
+            if (!button) return;
+            event.preventDefault();
+            var messageId = Number(button.getAttribute('data-message-id') || 0);
+            if (!messageId) return;
+            openReadDetailModal(messageId);
+        });
+    }
+
     function bindMessageForm() {
         if (!messageForm) return;
         messageForm.addEventListener('submit', function (event) {
@@ -332,6 +418,7 @@
     }
 
     bindMessageForm();
+    bindReadDetail();
     bindVisibility();
     startPolling();
     scrollToBottom(true);

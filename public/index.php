@@ -861,6 +861,11 @@ $router->post('/chat/rooms/create', function () {
     $controller->createRoom();
 }, true);
 
+$router->post('/chat/rooms/:id/update', function ($params) {
+    $controller = new Controllers\ChatController();
+    $controller->updateRoom($params);
+}, true);
+
 $router->post('/chat/rooms/:id/message', function ($params) {
     $controller = new Controllers\ChatController();
     $controller->postMessage($params);
@@ -879,6 +884,11 @@ $router->apiGet('/chat/rooms', function () {
 $router->apiGet('/chat/rooms/:id/messages', function ($params) {
     $controller = new Controllers\ChatController();
     return $controller->apiMessages($params);
+}, true);
+
+$router->apiGet('/chat/rooms/:room_id/messages/:message_id/readers', function ($params) {
+    $controller = new Controllers\ChatController();
+    return $controller->apiMessageReaders($params);
 }, true);
 
 $router->apiPost('/chat/rooms/:id/read', function ($params, $data) {

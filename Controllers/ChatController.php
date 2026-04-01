@@ -64,11 +64,18 @@ class ChatController extends Controller
         $activeRoom = null;
         $messages = [];
         $members = [];
+        $activeMemberUserIds = [];
         if ($activeRoomId > 0) {
             $activeRoom = $this->chatModel->getRoomByIdForUser($activeRoomId, $userId);
             if ($activeRoom) {
                 $messages = $this->chatModel->getMessages($activeRoomId, 0, 200);
                 $members = $this->chatModel->getRoomMembers($activeRoomId);
+                $activeMemberUserIds = array_values(array_map(
+                    function ($row) {
+                        return (int)($row['id'] ?? 0);
+                    },
+                    $members
+                ));
                 $lastMessageId = 0;
                 if (!empty($messages)) {
                     $last = end($messages);
@@ -94,6 +101,7 @@ class ChatController extends Controller
             'activeRoom' => $activeRoom,
             'messages' => $messages,
             'members' => $members,
+            'activeMemberUserIds' => $activeMemberUserIds,
             'activeUsers' => $activeUsers,
             'currentUser' => $this->auth->user(),
             'csrf_token' => $this->generateCsrfToken(),
@@ -132,6 +140,69 @@ class ChatController extends Controller
         }
 
         $_SESSION['flash_success'] = tr_text('チャットグループを作成しました。', 'Chat group created.');
+        $this->redirect(BASE_PATH . '/chat?room_id=' . $roomId);
+    }
+
+    public function updateRoom($params)
+    {
+        if (!$this->chatModel->isReady()) {
+            $_SESSION['flash_error'] = tr_text('チャット機能のDBが未適用です。', 'Chat database migration is missing.');
+            $this->redirect(BASE_PATH . '/chat');
+            return;
+        }
+
+        if (!$this->validateCsrfToken($_POST['csrf_token'] ?? '')) {
+            $_SESSION['flash_error'] = tr_text('不正なリクエストです。', 'Invalid request.');
+            $this->redirect(BASE_PATH . '/chat');
+            return;
+        }
+
+        $roomId = (int)($params['id'] ?? 0);
+        $userId = (int)$this->auth->id();
+        if ($roomId <= 0 || !$this->chatModel->isMember($roomId, $userId)) {
+            $_SESSION['flash_error'] = tr_text('チャットルームへアクセスできません。', 'You cannot access this room.');
+            $this->redirect(BASE_PATH . '/chat');
+            return;
+        }
+
+        $room = $this->chatModel->getRoomByIdForUser($roomId, $userId);
+        if (!$room || (string)($room['room_type'] ?? '') !== 'group') {
+            $_SESSION['flash_error'] = tr_text(
+                'このチャットルームは編集できません。',
+                'This chat room cannot be edited.'
+            );
+            $this->redirect(BASE_PATH . '/chat?room_id=' . $roomId);
+            return;
+        }
+
+        $roomName = trim((string)($_POST['room_name'] ?? ''));
+        $members = $_POST['member_user_ids'] ?? [];
+        if (!is_array($members)) {
+            $members = [$members];
+        }
+
+        $result = $this->chatModel->updateRoom($roomId, $userId, $roomName, $members);
+        if (empty($result['success'])) {
+            $reason = (string)($result['reason'] ?? '');
+            if ($reason === 'member_too_few') {
+                $_SESSION['flash_error'] = tr_text(
+                    'メンバーは2名以上必要です。',
+                    'At least 2 members are required.'
+                );
+            } else {
+                $_SESSION['flash_error'] = tr_text(
+                    'チャットルームの更新に失敗しました。',
+                    'Failed to update chat room.'
+                );
+            }
+            $this->redirect(BASE_PATH . '/chat?room_id=' . $roomId);
+            return;
+        }
+
+        $_SESSION['flash_success'] = tr_text(
+            'チャットルームを更新しました。',
+            'Chat room updated.'
+        );
         $this->redirect(BASE_PATH . '/chat?room_id=' . $roomId);
     }
 
@@ -247,6 +318,28 @@ class ChatController extends Controller
             'data' => [
                 'unread_count' => $this->chatModel->getUnreadCount($userId),
                 'last_message_id' => $this->chatModel->getLastMessageId($roomId),
+            ]
+        ];
+    }
+
+    public function apiMessageReaders($params)
+    {
+        $roomId = (int)($params['room_id'] ?? 0);
+        $messageId = (int)($params['message_id'] ?? 0);
+        $userId = (int)$this->auth->id();
+        if ($roomId <= 0 || $messageId <= 0 || !$this->chatModel->isMember($roomId, $userId)) {
+            return ['error' => tr_text('アクセス権限がありません。', 'Forbidden'), 'code' => 403];
+        }
+
+        $excludeUserId = isset($_GET['exclude_user_id']) ? (int)$_GET['exclude_user_id'] : 0;
+        $readers = $this->chatModel->getReadMembersForMessage($roomId, $messageId, $userId, $excludeUserId);
+
+        return [
+            'success' => true,
+            'data' => [
+                'message_id' => $messageId,
+                'readers' => $readers,
+                'count' => count($readers),
             ]
         ];
     }
