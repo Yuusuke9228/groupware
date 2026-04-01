@@ -6,6 +6,7 @@ use Core\Controller;
 use Core\Database;
 use Models\Notification;
 use Models\Organization;
+use Models\Setting;
 use Models\User;
 use Services\FileDiffService;
 use Services\FilePermissionService;
@@ -19,6 +20,7 @@ class FileManagerController extends Controller
     private $userModel;
     private $organizationModel;
     private $permissionService;
+    private $settingModel;
 
     public function __construct()
     {
@@ -29,6 +31,7 @@ class FileManagerController extends Controller
         $this->userModel = new User();
         $this->organizationModel = new Organization();
         $this->permissionService = new FilePermissionService($this->db);
+        $this->settingModel = new Setting();
 
         if (!$this->auth->check()) {
             $this->redirect(BASE_PATH . '/login');
@@ -400,6 +403,8 @@ class FileManagerController extends Controller
             'csrf_token' => $this->generateCsrfToken(),
             'organizations' => $this->organizationModel->getAll(),
             'users' => $this->userModel->getActiveUsers(),
+            'fileShareLimits' => $this->getFileShareLimits(),
+            'storageUsage' => $this->getCurrentStorageUsage($currentUser),
         ]);
     }
 
@@ -442,6 +447,12 @@ class FileManagerController extends Controller
         $originalName = $file['name'];
         $mimeType = $file['type'];
         $fileSize = $file['size'];
+        $quotaError = $this->validateStorageConstraints((int)$fileSize, $currentUser);
+        if ($quotaError !== null) {
+            $_SESSION['flash_error'] = $quotaError;
+            $this->redirect(BASE_PATH . '/files/upload' . ($folderId ? '?folder_id=' . $folderId : ''));
+            return;
+        }
 
         // ユニークファイル名生成
         $extension = pathinfo($originalName, PATHINFO_EXTENSION);
@@ -528,6 +539,7 @@ class FileManagerController extends Controller
         $approvalRequests = $this->getApprovalRequests($fileId);
         $activeApprovalRequest = $approvalRequests[0] ?? null;
         $comparison = $this->buildVersionComparison($versions);
+        $shareLinks = $this->getShareLinksForFile($fileId);
 
         $this->view('file_manager/show', [
             'title' => htmlspecialchars($file['title']) . ' - ファイル管理',
@@ -545,6 +557,8 @@ class FileManagerController extends Controller
             'approvalRequests' => $approvalRequests,
             'activeApprovalRequest' => $activeApprovalRequest,
             'comparison' => $comparison,
+            'shareLinks' => $shareLinks,
+            'fileShareLimits' => $this->getFileShareLimits(),
         ]);
     }
 
@@ -662,6 +676,12 @@ class FileManagerController extends Controller
         $originalName = $uploadedFile['name'];
         $mimeType = $uploadedFile['type'];
         $fileSize = $uploadedFile['size'];
+        $quotaError = $this->validateStorageConstraints((int)$fileSize, $this->auth->user());
+        if ($quotaError !== null) {
+            $_SESSION['flash_error'] = $quotaError;
+            $this->redirect(BASE_PATH . '/files/file/' . $fileId);
+            return;
+        }
 
         $extension = pathinfo($originalName, PATHINFO_EXTENSION);
         $storedName = uniqid('file_', true) . ($extension ? '.' . $extension : '');
@@ -775,6 +795,143 @@ class FileManagerController extends Controller
 
         $_SESSION['flash_success'] = 'ファイル権限を更新しました。';
         $this->redirect(BASE_PATH . '/files/file/' . $fileId);
+    }
+
+    public function createShareLink($params)
+    {
+        $fileId = (int)$params['id'];
+
+        if (!$this->validateCsrfToken($_POST['csrf_token'] ?? '')) {
+            $_SESSION['flash_error'] = '不正なリクエストです。';
+            $this->redirect(BASE_PATH . '/files/file/' . $fileId);
+            return;
+        }
+
+        $file = $this->db->fetch("SELECT * FROM file_entries WHERE id = ?", [$fileId]);
+        if (!$file || !$this->permissionService->canAdminFile($file, $this->auth->user())) {
+            $_SESSION['flash_error'] = '共有リンクを作成する権限がありません。';
+            $this->redirect(BASE_PATH . '/files/file/' . $fileId);
+            return;
+        }
+
+        $expiresAtInput = trim((string)($_POST['expires_at'] ?? ''));
+        $sharePassword = trim((string)($_POST['share_password'] ?? ''));
+        $maxDownloads = (int)($_POST['max_downloads'] ?? 0);
+        $shareUserIds = $this->permissionService->normalizeIds($_POST['share_user_ids'] ?? []);
+        $shareOrgIds = $this->permissionService->normalizeIds($_POST['share_organization_ids'] ?? []);
+        $notifyRecipients = ((string)($_POST['notify_recipients'] ?? '1') === '1');
+
+        $expiresAt = null;
+        if ($expiresAtInput !== '') {
+            $ts = strtotime($expiresAtInput);
+            if ($ts === false) {
+                $_SESSION['flash_error'] = '有効期限の形式が不正です。';
+                $this->redirect(BASE_PATH . '/files/file/' . $fileId);
+                return;
+            }
+            if ($ts <= time()) {
+                $_SESSION['flash_error'] = '有効期限は現在時刻より後を指定してください。';
+                $this->redirect(BASE_PATH . '/files/file/' . $fileId);
+                return;
+            }
+            $expiresAt = date('Y-m-d H:i:s', $ts);
+        } else {
+            $defaultExpiryDays = (int)$this->settingModel->get('files_share_default_expiry_days', '7');
+            if ($defaultExpiryDays > 0) {
+                $expiresAt = date('Y-m-d H:i:s', strtotime('+' . $defaultExpiryDays . ' days'));
+            }
+        }
+
+        if ($maxDownloads <= 0) {
+            $maxDownloads = null;
+        }
+
+        $passwordHash = $sharePassword !== '' ? password_hash($sharePassword, PASSWORD_DEFAULT) : null;
+        try {
+            $token = $this->generateShareToken();
+        } catch (\Throwable $e) {
+            error_log('generateShareToken error: ' . $e->getMessage());
+            $_SESSION['flash_error'] = '共有リンクの作成に失敗しました。';
+            $this->redirect(BASE_PATH . '/files/file/' . $fileId);
+            return;
+        }
+
+        $this->db->beginTransaction();
+        try {
+            $this->db->execute(
+                "INSERT INTO file_share_links (file_id, token, created_by, expires_at, password_hash, max_downloads)
+                 VALUES (?, ?, ?, ?, ?, ?)",
+                [$fileId, $token, $this->auth->id(), $expiresAt, $passwordHash, $maxDownloads]
+            );
+            $shareLinkId = (int)$this->db->lastInsertId();
+
+            foreach ($shareUserIds as $targetUserId) {
+                $this->db->execute(
+                    "INSERT INTO file_share_targets (share_link_id, target_type, target_id) VALUES (?, 'user', ?)",
+                    [$shareLinkId, (int)$targetUserId]
+                );
+            }
+            foreach ($shareOrgIds as $targetOrgId) {
+                $this->db->execute(
+                    "INSERT INTO file_share_targets (share_link_id, target_type, target_id) VALUES (?, 'organization', ?)",
+                    [$shareLinkId, (int)$targetOrgId]
+                );
+            }
+            $this->db->commit();
+        } catch (\Exception $e) {
+            $this->db->rollBack();
+            error_log('createShareLink error: ' . $e->getMessage());
+            $_SESSION['flash_error'] = '共有リンクの作成に失敗しました。';
+            $this->redirect(BASE_PATH . '/files/file/' . $fileId);
+            return;
+        }
+
+        if ($notifyRecipients) {
+            $this->notifyShareRecipients($file, $token, $shareUserIds, $shareOrgIds, $expiresAt);
+        }
+
+        $_SESSION['flash_success'] = '共有リンクを作成しました。';
+        $this->redirect(BASE_PATH . '/files/file/' . $fileId);
+    }
+
+    public function revokeShareLink($params)
+    {
+        $shareId = (int)$params['id'];
+
+        if (!$this->validateCsrfToken($_POST['csrf_token'] ?? '')) {
+            $_SESSION['flash_error'] = '不正なリクエストです。';
+            $this->redirect(BASE_PATH . '/files');
+            return;
+        }
+
+        $share = $this->db->fetch(
+            "SELECT fsl.*, fe.id AS file_id
+             FROM file_share_links fsl
+             INNER JOIN file_entries fe ON fe.id = fsl.file_id
+             WHERE fsl.id = ?",
+            [$shareId]
+        );
+
+        if (!$share) {
+            $_SESSION['flash_error'] = '共有リンクが見つかりません。';
+            $this->redirect(BASE_PATH . '/files');
+            return;
+        }
+
+        $file = $this->db->fetch("SELECT * FROM file_entries WHERE id = ?", [(int)$share['file_id']]);
+        if (!$file || !$this->permissionService->canAdminFile($file, $this->auth->user())) {
+            $_SESSION['flash_error'] = '共有リンクを無効化する権限がありません。';
+            $this->redirect(BASE_PATH . '/files/file/' . (int)$share['file_id']);
+            return;
+        }
+
+        $this->db->execute(
+            "UPDATE file_share_links SET revoked_at = NOW() WHERE id = ?",
+            [$shareId]
+        );
+
+        $_SESSION['flash_success'] = '共有リンクを無効化しました。';
+        $this->redirect(BASE_PATH . '/files/file/' . (int)$share['file_id']);
     }
 
     public function checkoutFile($params)
@@ -1246,6 +1403,235 @@ class FileManagerController extends Controller
         return array_values(array_filter($rows, function ($file) {
             return $this->permissionService->canViewFile($file, $this->auth->user());
         }));
+    }
+
+    private function getFileShareLimits()
+    {
+        return [
+            'max_upload_mb' => max(0, (int)$this->settingModel->get('files_max_upload_mb', '512')),
+            'storage_quota_mb' => max(0, (int)$this->settingModel->get('files_storage_quota_mb', '10240')),
+            'user_quota_mb' => max(0, (int)$this->settingModel->get('files_user_quota_mb', '2048')),
+            'org_quota_mb' => max(0, (int)$this->settingModel->get('files_org_quota_mb', '5120')),
+            'share_default_expiry_days' => max(0, (int)$this->settingModel->get('files_share_default_expiry_days', '7')),
+        ];
+    }
+
+    private function getCurrentStorageUsage($currentUser = null)
+    {
+        $usage = [
+            'total_bytes' => 0,
+            'user_bytes' => 0,
+            'org_bytes' => 0,
+        ];
+
+        try {
+            $total = $this->db->fetch("SELECT COALESCE(SUM(file_size), 0) AS bytes FROM file_versions");
+            $usage['total_bytes'] = (int)($total['bytes'] ?? 0);
+
+            if (!empty($currentUser['id'])) {
+                $userUsage = $this->db->fetch(
+                    "SELECT COALESCE(SUM(file_size), 0) AS bytes FROM file_versions WHERE uploaded_by = ?",
+                    [(int)$currentUser['id']]
+                );
+                $usage['user_bytes'] = (int)($userUsage['bytes'] ?? 0);
+            }
+
+            $orgId = (int)($currentUser['organization_id'] ?? 0);
+            if ($orgId > 0) {
+                $orgUsage = $this->db->fetch(
+                    "SELECT COALESCE(SUM(t.file_size), 0) AS bytes
+                     FROM (
+                        SELECT DISTINCT fv.id, fv.file_size
+                        FROM file_versions fv
+                        INNER JOIN users u ON u.id = fv.uploaded_by
+                        LEFT JOIN user_organizations uo ON uo.user_id = u.id
+                        WHERE u.organization_id = ? OR uo.organization_id = ?
+                     ) t",
+                    [$orgId, $orgId]
+                );
+                $usage['org_bytes'] = (int)($orgUsage['bytes'] ?? 0);
+            }
+        } catch (\Throwable $e) {
+            error_log('getCurrentStorageUsage error: ' . $e->getMessage());
+        }
+
+        return $usage;
+    }
+
+    private function validateStorageConstraints($incomingBytes, $currentUser)
+    {
+        $incomingBytes = (int)$incomingBytes;
+        if ($incomingBytes <= 0) {
+            return 'ファイルサイズが不正です。';
+        }
+
+        $limits = $this->getFileShareLimits();
+        $usage = $this->getCurrentStorageUsage($currentUser);
+
+        $maxUploadBytes = $this->mbToBytes($limits['max_upload_mb']);
+        if ($maxUploadBytes > 0 && $incomingBytes > $maxUploadBytes) {
+            return '1ファイルの上限容量を超えています。管理者にご確認ください。';
+        }
+
+        $totalQuotaBytes = $this->mbToBytes($limits['storage_quota_mb']);
+        if ($totalQuotaBytes > 0 && ($usage['total_bytes'] + $incomingBytes) > $totalQuotaBytes) {
+            return 'ファイル共有の全体容量上限を超過するためアップロードできません。';
+        }
+
+        $userQuotaBytes = $this->mbToBytes($limits['user_quota_mb']);
+        if ($userQuotaBytes > 0 && ($usage['user_bytes'] + $incomingBytes) > $userQuotaBytes) {
+            return 'ユーザー容量上限を超過するためアップロードできません。';
+        }
+
+        $orgQuotaBytes = $this->mbToBytes($limits['org_quota_mb']);
+        if ($orgQuotaBytes > 0 && ($usage['org_bytes'] + $incomingBytes) > $orgQuotaBytes) {
+            return '組織容量上限を超過するためアップロードできません。';
+        }
+
+        return null;
+    }
+
+    private function mbToBytes($mb)
+    {
+        $mb = (int)$mb;
+        if ($mb <= 0) {
+            return 0;
+        }
+
+        return $mb * 1024 * 1024;
+    }
+
+    private function generateShareToken()
+    {
+        for ($i = 0; $i < 10; $i++) {
+            $token = bin2hex(random_bytes(24));
+            $exists = $this->db->fetch(
+                "SELECT id FROM file_share_links WHERE token = ? LIMIT 1",
+                [$token]
+            );
+            if (empty($exists)) {
+                return $token;
+            }
+        }
+
+        throw new \RuntimeException('共有トークンの生成に失敗しました。');
+    }
+
+    private function getShareLinksForFile($fileId)
+    {
+        try {
+            $links = $this->db->fetchAll(
+                "SELECT *
+                 FROM file_share_links
+                 WHERE file_id = ?
+                 ORDER BY created_at DESC",
+                [(int)$fileId]
+            );
+        } catch (\Throwable $e) {
+            error_log('getShareLinksForFile error: ' . $e->getMessage());
+            return [];
+        }
+
+        foreach ($links as &$link) {
+            try {
+                $targets = $this->db->fetchAll(
+                    "SELECT fst.target_type, fst.target_id, u.display_name AS user_name, o.name AS organization_name
+                     FROM file_share_targets fst
+                     LEFT JOIN users u ON fst.target_type = 'user' AND u.id = fst.target_id
+                     LEFT JOIN organizations o ON fst.target_type = 'organization' AND o.id = fst.target_id
+                     WHERE fst.share_link_id = ?
+                     ORDER BY fst.id ASC",
+                    [(int)$link['id']]
+                );
+            } catch (\Throwable $e) {
+                error_log('getShareLinksForFile targets error: ' . $e->getMessage());
+                $targets = [];
+            }
+
+            $targetUsers = [];
+            $targetOrganizations = [];
+            foreach ($targets as $target) {
+                if ($target['target_type'] === 'user' && !empty($target['user_name'])) {
+                    $targetUsers[] = $target['user_name'];
+                }
+                if ($target['target_type'] === 'organization' && !empty($target['organization_name'])) {
+                    $targetOrganizations[] = $target['organization_name'];
+                }
+            }
+
+            $link['target_users'] = $targetUsers;
+            $link['target_organizations'] = $targetOrganizations;
+            $link['has_password'] = !empty($link['password_hash']);
+            $link['is_revoked'] = !empty($link['revoked_at']);
+            $link['is_expired'] = !empty($link['expires_at']) && strtotime((string)$link['expires_at']) < time();
+            $link['is_download_limited'] = !is_null($link['max_downloads']) && (int)$link['max_downloads'] > 0;
+            $link['is_download_limit_reached'] = $link['is_download_limited'] && (int)$link['download_count'] >= (int)$link['max_downloads'];
+        }
+
+        return $links;
+    }
+
+    private function notifyShareRecipients(array $file, $token, array $targetUserIds, array $targetOrgIds, $expiresAt)
+    {
+        $recipientIds = $this->collectShareRecipientUserIds($targetUserIds, $targetOrgIds);
+        if (empty($recipientIds)) {
+            return;
+        }
+
+        $actor = $this->auth->user();
+        $title = 'ファイル共有リンク';
+        $content = ($actor['display_name'] ?? 'ユーザー') . ' さんが「' . ($file['title'] ?? 'ファイル') . '」の共有リンクを発行しました。';
+        if (!empty($expiresAt)) {
+            $content .= "\n有効期限: " . date('Y/m/d H:i', strtotime((string)$expiresAt));
+        }
+
+        foreach (NotificationRecipientHelper::uniqueRecipients($recipientIds, []) as $recipientId) {
+            $this->notification->create([
+                'user_id' => (int)$recipientId,
+                'type' => 'system',
+                'title' => $title,
+                'content' => $content,
+                'link' => '/files/share/' . $token,
+                'reference_id' => (int)$file['id'],
+                'reference_type' => 'file_share'
+            ]);
+        }
+    }
+
+    private function collectShareRecipientUserIds(array $targetUserIds, array $targetOrgIds)
+    {
+        $recipientIds = [];
+
+        foreach ($targetUserIds as $id) {
+            $id = (int)$id;
+            if ($id > 0) {
+                $recipientIds[$id] = $id;
+            }
+        }
+
+        foreach ($targetOrgIds as $organizationId) {
+            $organizationId = (int)$organizationId;
+            if ($organizationId <= 0) {
+                continue;
+            }
+
+            $rows = $this->db->fetchAll(
+                "SELECT DISTINCT u.id
+                 FROM users u
+                 LEFT JOIN user_organizations uo ON uo.user_id = u.id
+                 WHERE u.status = 'active'
+                   AND (u.organization_id = ? OR uo.organization_id = ?)",
+                [$organizationId, $organizationId]
+            );
+            foreach ($rows as $row) {
+                $userId = (int)($row['id'] ?? 0);
+                if ($userId > 0) {
+                    $recipientIds[$userId] = $userId;
+                }
+            }
+        }
+
+        return array_values($recipientIds);
     }
 
     private function notifyFileActivity($action, $fileId, array $fileData)

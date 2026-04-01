@@ -7,6 +7,17 @@ $permissionSummary = $permissionSummary ?? [
     'approve' => ['organizations' => [], 'users' => []],
     'admin' => ['organizations' => [], 'users' => []],
 ];
+$shareLinks = $shareLinks ?? [];
+$fileShareLimits = $fileShareLimits ?? [
+    'share_default_expiry_days' => 7,
+];
+$defaultShareExpiryValue = '';
+if ((int)($fileShareLimits['share_default_expiry_days'] ?? 0) > 0) {
+    $defaultShareExpiryValue = date('Y-m-d\TH:i', strtotime('+' . (int)$fileShareLimits['share_default_expiry_days'] . ' days'));
+}
+$scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+$host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+$shareBaseUrl = rtrim($scheme . '://' . $host . BASE_PATH, '/');
 ?>
 <?php
 if (!function_exists('getFileIcon')) {
@@ -407,6 +418,122 @@ if (!function_exists('formatFileSize')) {
                     <?php endif; ?>
                 </div>
             </div>
+
+            <?php if (!empty($canAdminFile)): ?>
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="fas fa-share-alt me-1"></i>共有リンク</h6>
+                </div>
+                <div class="card-body">
+                    <form method="post" action="<?= BASE_PATH ?>/files/file/<?= $file['id'] ?>/share-links" class="no-ajax mb-3">
+                        <input type="hidden" name="csrf_token" value="<?= $csrf_token ?>">
+
+                        <div class="mb-2">
+                            <label class="form-label small">有効期限</label>
+                            <input type="datetime-local" class="form-control form-control-sm" name="expires_at" value="<?= htmlspecialchars($defaultShareExpiryValue) ?>">
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small">ダウンロード上限（空欄で無制限）</label>
+                            <input type="number" min="1" class="form-control form-control-sm" name="max_downloads" placeholder="例: 20">
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small">共有パスワード（任意）</label>
+                            <input type="password" class="form-control form-control-sm" name="share_password" placeholder="未設定で公開リンク">
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small">共有先組織</label>
+                            <select class="form-select form-select-sm select2-multi" name="share_organization_ids[]" multiple data-placeholder="組織を選択...">
+                                <?php foreach ($organizations as $organization): ?>
+                                    <option value="<?= (int)$organization['id'] ?>"><?= htmlspecialchars($organization['name']) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small">共有先ユーザー</label>
+                            <select class="form-select form-select-sm select2-multi" name="share_user_ids[]" multiple data-placeholder="ユーザーを選択...">
+                                <?php foreach ($users as $user): ?>
+                                    <option value="<?= (int)$user['id'] ?>"><?= htmlspecialchars($user['display_name']) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="checkbox" id="notify_recipients" name="notify_recipients" value="1" checked>
+                            <label class="form-check-label small" for="notify_recipients">共有先へ通知（メールキュー連携）</label>
+                        </div>
+                        <button type="submit" class="btn btn-outline-primary btn-sm w-100">
+                            <i class="fas fa-link me-1"></i>共有リンクを発行
+                        </button>
+                    </form>
+
+                    <?php if (empty($shareLinks)): ?>
+                        <div class="text-muted small">有効な共有リンクはまだありません。</div>
+                    <?php else: ?>
+                        <div class="vstack gap-2">
+                            <?php foreach ($shareLinks as $shareLink): ?>
+                                <?php
+                                $publicUrl = $shareBaseUrl . '/files/share/' . $shareLink['token'];
+                                $statusLabel = '有効';
+                                $statusClass = 'bg-success';
+                                if (!empty($shareLink['is_revoked'])) {
+                                    $statusLabel = '無効';
+                                    $statusClass = 'bg-secondary';
+                                } elseif (!empty($shareLink['is_expired'])) {
+                                    $statusLabel = '期限切れ';
+                                    $statusClass = 'bg-danger';
+                                } elseif (!empty($shareLink['is_download_limit_reached'])) {
+                                    $statusLabel = '上限到達';
+                                    $statusClass = 'bg-warning text-dark';
+                                }
+                                ?>
+                                <div class="border rounded p-2">
+                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                        <span class="badge <?= $statusClass ?>"><?= htmlspecialchars($statusLabel) ?></span>
+                                        <small class="text-muted"><?= date('Y/m/d H:i', strtotime($shareLink['created_at'])) ?></small>
+                                    </div>
+                                    <div class="small text-break mb-1"><code><?= htmlspecialchars($publicUrl) ?></code></div>
+                                    <div class="small text-muted mb-1">
+                                        DL: <?= (int)$shareLink['download_count'] ?>
+                                        <?php if (!is_null($shareLink['max_downloads']) && (int)$shareLink['max_downloads'] > 0): ?>
+                                            / <?= (int)$shareLink['max_downloads'] ?>
+                                        <?php endif; ?>
+                                        <?php if (!empty($shareLink['expires_at'])): ?>
+                                            ・期限: <?= date('Y/m/d H:i', strtotime($shareLink['expires_at'])) ?>
+                                        <?php endif; ?>
+                                        <?php if (!empty($shareLink['has_password'])): ?>
+                                            ・パスワード保護
+                                        <?php endif; ?>
+                                    </div>
+                                    <?php if (!empty($shareLink['target_organizations']) || !empty($shareLink['target_users'])): ?>
+                                        <div class="small text-muted mb-2">
+                                            <?php if (!empty($shareLink['target_organizations'])): ?>
+                                                組織: <?= htmlspecialchars(implode(', ', $shareLink['target_organizations'])) ?>
+                                            <?php endif; ?>
+                                            <?php if (!empty($shareLink['target_users'])): ?>
+                                                <?php if (!empty($shareLink['target_organizations'])): ?> / <?php endif; ?>
+                                                ユーザー: <?= htmlspecialchars(implode(', ', $shareLink['target_users'])) ?>
+                                            <?php endif; ?>
+                                        </div>
+                                    <?php endif; ?>
+                                    <div class="d-flex gap-1">
+                                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="navigator.clipboard && navigator.clipboard.writeText('<?= htmlspecialchars($publicUrl, ENT_QUOTES) ?>');">
+                                            <i class="fas fa-copy me-1"></i>コピー
+                                        </button>
+                                        <?php if (empty($shareLink['is_revoked'])): ?>
+                                            <form method="post" action="<?= BASE_PATH ?>/files/share/<?= (int)$shareLink['id'] ?>/revoke" class="no-ajax ms-auto" onsubmit="return confirm('この共有リンクを無効化しますか？');">
+                                                <input type="hidden" name="csrf_token" value="<?= $csrf_token ?>">
+                                                <button type="submit" class="btn btn-sm btn-outline-danger">
+                                                    <i class="fas fa-ban me-1"></i>無効化
+                                                </button>
+                                            </form>
+                                        <?php endif; ?>
+                                    </div>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+                    <?php endif; ?>
+                </div>
+            </div>
+            <?php endif; ?>
 
             <?php if (!empty($canAdminFile)): ?>
             <div class="card mb-3">

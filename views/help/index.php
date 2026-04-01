@@ -598,6 +598,16 @@ $pageTitle = 'ご利用ガイド';
 
                 <h4>アクセス権限</h4>
                 <p>フォルダやファイルには、閲覧・編集が可能なメンバーや組織を設定することができます。機密資料の管理にご活用ください。</p>
+
+                <h4>共有リンク（期限・パスワード・対象指定）</h4>
+                <div class="help-step"><span class="help-step-num">1</span><span class="help-step-text">ファイル詳細画面の「共有リンク」から発行します。</span></div>
+                <div class="help-step"><span class="help-step-num">2</span><span class="help-step-text">必要に応じて有効期限、ダウンロード回数上限、共有パスワードを設定します。</span></div>
+                <div class="help-step"><span class="help-step-num">3</span><span class="help-step-text">共有先のユーザー/組織を選択すると、通知（メールキュー連携）でリンク配信できます。</span></div>
+                <div class="help-step"><span class="help-step-num">4</span><span class="help-step-text">発行済みリンクは一覧から即時に無効化できます。</span></div>
+                <div class="help-info"><strong><i class="fas fa-info-circle me-1"></i>補足：</strong>共有先を指定したリンクは、対象ユーザーのログインが必要です。対象未指定の場合は、リンク（必要ならパスワード）でアクセスできます。</div>
+
+                <h4>容量上限</h4>
+                <p>管理者は「システム設定 → 認証・PWA・SCIM → ファイル共有設定」で、1ファイル上限、全体容量、ユーザー容量、組織容量を設定できます。</p>
             </div>
         </div>
     </div>

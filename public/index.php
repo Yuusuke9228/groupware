@@ -1939,6 +1939,16 @@ $router->get('/files/download/:id', function ($params) {
     $controller->download($params);
 });
 
+$router->get('/files/share/:token', function ($params) {
+    $controller = new Controllers\FileShareController();
+    $controller->access($params);
+});
+
+$router->post('/files/share/:token', function ($params) {
+    $controller = new Controllers\FileShareController();
+    $controller->access($params);
+});
+
 $router->post('/files/file/:id/update', function ($params) {
     $controller = new Controllers\FileManagerController();
     $controller->updateFile($params);
@@ -1947,6 +1957,16 @@ $router->post('/files/file/:id/update', function ($params) {
 $router->post('/files/file/:id/permissions', function ($params) {
     $controller = new Controllers\FileManagerController();
     $controller->updatePermissions($params);
+});
+
+$router->post('/files/file/:id/share-links', function ($params) {
+    $controller = new Controllers\FileManagerController();
+    $controller->createShareLink($params);
+});
+
+$router->post('/files/share/:id/revoke', function ($params) {
+    $controller = new Controllers\FileManagerController();
+    $controller->revokeShareLink($params);
 });
 
 $router->post('/files/file/:id/checkout', function ($params) {

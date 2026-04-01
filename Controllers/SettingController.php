@@ -129,6 +129,11 @@ class SettingController extends Controller
             'security_login_window_minutes' => '15',
             'security_admin_ip_restriction_enabled' => '0',
             'security_admin_ip_allowlist' => '',
+            'files_max_upload_mb' => '512',
+            'files_storage_quota_mb' => '10240',
+            'files_user_quota_mb' => '2048',
+            'files_org_quota_mb' => '5120',
+            'files_share_default_expiry_days' => '7',
         ], $settingsArray);
 
         // Pushが有効な場合は公開鍵を生成/表示できるようにする
@@ -296,6 +301,23 @@ class SettingController extends Controller
                     throw new \InvalidArgumentException(tr_text('ロック/監視時間は 1-1440 分の範囲で指定してください。', 'Lock/window minutes must be between 1 and 1440.'));
                 }
                 return (string)$minutes;
+
+            case 'files_max_upload_mb':
+            case 'files_storage_quota_mb':
+            case 'files_user_quota_mb':
+            case 'files_org_quota_mb':
+                $megaBytes = (int)$stringValue;
+                if ($megaBytes < 0 || $megaBytes > 1048576) {
+                    throw new \InvalidArgumentException(tr_text('ファイル容量設定は 0-1048576 MB の範囲で指定してください。', 'File storage values must be between 0 and 1048576 MB.'));
+                }
+                return (string)$megaBytes;
+
+            case 'files_share_default_expiry_days':
+                $days = (int)$stringValue;
+                if ($days < 0 || $days > 3650) {
+                    throw new \InvalidArgumentException(tr_text('共有リンク既定有効日数は 0-3650 日の範囲で指定してください。', 'Default share-link expiry days must be between 0 and 3650.'));
+                }
+                return (string)$days;
 
             case 'smtp_auth':
             case 'smtp_allow_self_signed':

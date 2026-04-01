@@ -121,6 +121,10 @@
 - バージョン管理（チェックアウト / チェックイン）
 - ファイル単位のアクセス権限設定
 - 承認リクエスト機能
+- 共有リンク発行（有効期限 / パスワード / ダウンロード回数上限）
+- 共有先のユーザー / 組織を指定した配布（通知・メールキュー連携）
+- 発行済み共有リンクの即時無効化
+- 管理者による容量ガバナンス（1ファイル上限 / 全体 / ユーザー / 組織）
 
 ### 🗄️ WEBデータベース
 - 独自フィールド定義によるカスタムデータ管理
@@ -376,6 +380,7 @@ mysql -u <user> -p <database> < db/upgrade_20260327_daily_report_structured.sql
 mysql -u <user> -p <database> < db/upgrade_20260328_daily_report_advanced.sql
 mysql -u <user> -p <database> < db/upgrade_20260328_fk_stability.sql
 mysql -u <user> -p <database> < db/upgrade_20260328_webdatabase_nocode.sql
+mysql -u <user> -p <database> < db/upgrade_20260401_file_sharing.sql
 ```
 
 適用前には必ず DB バックアップを取得してください。
