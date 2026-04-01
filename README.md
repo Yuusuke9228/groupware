@@ -384,6 +384,7 @@ mysql -u <user> -p <database> < db/upgrade_20260327_daily_report_structured.sql
 mysql -u <user> -p <database> < db/upgrade_20260328_daily_report_advanced.sql
 mysql -u <user> -p <database> < db/upgrade_20260328_fk_stability.sql
 mysql -u <user> -p <database> < db/upgrade_20260328_webdatabase_nocode.sql
+mysql -u <user> -p <database> < db/upgrade_20260401_file_checkout_repair.sql
 mysql -u <user> -p <database> < db/upgrade_20260401_drive_module.sql
 ```
 

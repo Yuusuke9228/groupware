@@ -19,6 +19,7 @@ class FileManagerController extends Controller
     private $userModel;
     private $organizationModel;
     private $permissionService;
+    private $hasCheckoutHistoryTable = null;
 
     public function __construct()
     {
@@ -799,14 +800,23 @@ class FileManagerController extends Controller
             return;
         }
 
-        $this->db->execute(
-            "UPDATE file_entries SET checked_out_by = ?, checked_out_at = NOW() WHERE id = ?",
-            [$this->auth->id(), $fileId]
-        );
-        $this->db->execute(
-            "INSERT INTO file_checkout_history (file_id, user_id, status, note) VALUES (?, ?, 'checked_out', ?)",
-            [$fileId, $this->auth->id(), trim((string)($_POST['note'] ?? '')) ?: null]
-        );
+        try {
+            $this->db->beginTransaction();
+            $this->db->execute(
+                "UPDATE file_entries SET checked_out_by = ?, checked_out_at = NOW() WHERE id = ?",
+                [$this->auth->id(), $fileId]
+            );
+            $this->recordCheckoutHistory($fileId, (int)$this->auth->id(), 'checked_out', trim((string)($_POST['note'] ?? '')) ?: null);
+            $this->db->commit();
+        } catch (\Throwable $e) {
+            if ($this->db->getConnection()->inTransaction()) {
+                $this->db->rollBack();
+            }
+            error_log('checkoutFile error: ' . $e->getMessage());
+            $_SESSION['flash_error'] = 'チェックアウト処理に失敗しました。';
+            $this->redirect(BASE_PATH . '/files/file/' . $fileId);
+            return;
+        }
 
         $_SESSION['flash_success'] = 'ファイルをチェックアウトしました。';
         $this->redirect(BASE_PATH . '/files/file/' . $fileId);
@@ -836,17 +846,64 @@ class FileManagerController extends Controller
             return;
         }
 
-        $this->db->execute(
-            "UPDATE file_entries SET checked_out_by = NULL, checked_out_at = NULL WHERE id = ?",
-            [$fileId]
-        );
-        $this->db->execute(
-            "INSERT INTO file_checkout_history (file_id, user_id, status, note) VALUES (?, ?, 'released', ?)",
-            [$fileId, $this->auth->id(), trim((string)($_POST['note'] ?? '')) ?: null]
-        );
+        try {
+            $this->db->beginTransaction();
+            $this->db->execute(
+                "UPDATE file_entries SET checked_out_by = NULL, checked_out_at = NULL WHERE id = ?",
+                [$fileId]
+            );
+            $this->recordCheckoutHistory($fileId, (int)$this->auth->id(), 'released', trim((string)($_POST['note'] ?? '')) ?: null);
+            $this->db->commit();
+        } catch (\Throwable $e) {
+            if ($this->db->getConnection()->inTransaction()) {
+                $this->db->rollBack();
+            }
+            error_log('releaseCheckout error: ' . $e->getMessage());
+            $_SESSION['flash_error'] = 'チェックアウト解除処理に失敗しました。';
+            $this->redirect(BASE_PATH . '/files/file/' . $fileId);
+            return;
+        }
 
         $_SESSION['flash_success'] = 'チェックアウトを解除しました。';
         $this->redirect(BASE_PATH . '/files/file/' . $fileId);
+    }
+
+    private function recordCheckoutHistory($fileId, $userId, $status, $note = null)
+    {
+        if (!$this->hasTable('file_checkout_history')) {
+            return;
+        }
+
+        $this->db->execute(
+            "INSERT INTO file_checkout_history (file_id, user_id, status, note) VALUES (?, ?, ?, ?)",
+            [(int)$fileId, (int)$userId, (string)$status, $note]
+        );
+    }
+
+    private function hasTable($tableName)
+    {
+        $tableName = trim((string)$tableName);
+        if ($tableName === '') {
+            return false;
+        }
+
+        if ($tableName === 'file_checkout_history' && $this->hasCheckoutHistoryTable !== null) {
+            return $this->hasCheckoutHistoryTable;
+        }
+
+        try {
+            $row = $this->db->fetch("SHOW TABLES LIKE ?", [$tableName]);
+            $exists = !empty($row);
+        } catch (\Throwable $e) {
+            error_log('hasTable check failed for ' . $tableName . ': ' . $e->getMessage());
+            $exists = false;
+        }
+
+        if ($tableName === 'file_checkout_history') {
+            $this->hasCheckoutHistoryTable = $exists;
+        }
+
+        return $exists;
     }
 
     public function requestApproval($params)

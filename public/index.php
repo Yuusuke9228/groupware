@@ -2005,14 +2005,32 @@ $router->post('/files/file/:id/checkout', function ($params) {
     $controller->checkoutFile($params);
 });
 
+$router->get('/files/file/:id/checkout', function ($params) {
+    $_SESSION['flash_error'] = tr_text('チェックアウトは詳細画面のボタンから実行してください。', 'Please use the checkout button on the file detail page.');
+    header('Location: ' . BASE_PATH . '/files/file/' . (int)($params['id'] ?? 0));
+    exit;
+});
+
 $router->post('/files/file/:id/checkin', function ($params) {
     $controller = new Controllers\FileManagerController();
     $controller->releaseCheckout($params);
 });
 
+$router->get('/files/file/:id/checkin', function ($params) {
+    $_SESSION['flash_error'] = tr_text('チェックアウト解除は詳細画面のボタンから実行してください。', 'Please use the check-in button on the file detail page.');
+    header('Location: ' . BASE_PATH . '/files/file/' . (int)($params['id'] ?? 0));
+    exit;
+});
+
 $router->post('/files/file/:id/request-approval', function ($params) {
     $controller = new Controllers\FileManagerController();
     $controller->requestApproval($params);
+});
+
+$router->get('/files/file/:id/request-approval', function ($params) {
+    $_SESSION['flash_error'] = tr_text('承認申請は詳細画面のボタンから実行してください。', 'Please use the approval request button on the file detail page.');
+    header('Location: ' . BASE_PATH . '/files/file/' . (int)($params['id'] ?? 0));
+    exit;
 });
 
 $router->post('/files/approval/:request_id/approve', function ($params) {
