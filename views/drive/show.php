@@ -2,8 +2,10 @@
 $shareLinks = $shareLinks ?? [];
 $orgOptions = $orgOptions ?? [];
 $userOptions = $userOptions ?? [];
+$addressBookOptions = $addressBookOptions ?? [];
 $item = $item ?? [];
 $canManage = !empty($canManage);
+$supportsExternalRecipients = !empty($supportsExternalRecipients);
 $defaultShareExpiry = $defaultShareExpiry ?? '';
 $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
 $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
@@ -103,7 +105,7 @@ if (!function_exists('driveFormatBytes')) {
                             </div>
                             <div class="form-check">
                                 <input class="form-check-input share-access-mode" type="radio" name="share_access_mode" id="shareAccessRestricted" value="restricted">
-                                <label class="form-check-label small" for="shareAccessRestricted"><?= htmlspecialchars(tr_text('限定リンク（指定ユーザー/組織のみ）', 'Restricted link (selected users/organizations only)')) ?></label>
+                                <label class="form-check-label small" for="shareAccessRestricted"><?= htmlspecialchars(tr_text('限定リンク（指定ユーザー/組織/外部宛先）', 'Restricted link (selected users/organizations/external recipients)')) ?></label>
                             </div>
                         </div>
 
@@ -137,6 +139,37 @@ if (!function_exists('driveFormatBytes')) {
                                     <?php endforeach; ?>
                                 </select>
                             </div>
+                            <?php if ($supportsExternalRecipients): ?>
+                                <div class="mb-2">
+                                    <label class="form-label small"><?= htmlspecialchars(tr_text('共有先（アドレス帳）', 'Targets (address book)')) ?></label>
+                                    <select class="form-select form-select-sm select2-multi" name="share_address_book_ids[]" multiple data-placeholder="<?= htmlspecialchars(tr_text('アドレス帳の宛先を選択...', 'Select address book recipients...')) ?>">
+                                        <?php foreach ($addressBookOptions as $contact): ?>
+                                            <?php
+                                            $contactName = trim((string)($contact['name'] ?? ''));
+                                            $contactCompany = trim((string)($contact['company'] ?? ''));
+                                            $contactEmail = trim((string)($contact['email'] ?? ''));
+                                            $label = $contactName;
+                                            if ($contactCompany !== '') {
+                                                $label .= ' (' . $contactCompany . ')';
+                                            }
+                                            if ($contactEmail !== '') {
+                                                $label .= ' <' . $contactEmail . '>';
+                                            }
+                                            ?>
+                                            <option value="<?= (int)$contact['id'] ?>"><?= htmlspecialchars($label) ?></option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </div>
+                                <div class="mb-2">
+                                    <label class="form-label small"><?= htmlspecialchars(tr_text('共有先メールアドレス（直接入力）', 'Target email addresses (direct input)')) ?></label>
+                                    <textarea class="form-control form-control-sm" name="share_external_emails" rows="2" placeholder="<?= htmlspecialchars(tr_text('例: outside@example.com, partner@example.com', 'Example: outside@example.com, partner@example.com')) ?>"></textarea>
+                                </div>
+                                <div class="small text-muted mb-2"><?= htmlspecialchars(tr_text('※ カンマ / セミコロン / 改行区切りで複数指定できます。', 'Use comma / semicolon / newline to specify multiple addresses.')) ?></div>
+                            <?php else: ?>
+                                <div class="alert alert-warning py-2 px-3 small">
+                                    <?= htmlspecialchars(tr_text('外部宛先共有を使うにはDB更新（drive_share_external_targets）を適用してください。', 'Apply database upgrade (drive_share_external_targets) to use external recipients.')) ?>
+                                </div>
+                            <?php endif; ?>
                             <div class="form-check mb-3">
                                 <input class="form-check-input" type="checkbox" id="notify_recipients" name="notify_recipients" value="1" checked>
                                 <label class="form-check-label small" for="notify_recipients"><?= htmlspecialchars(tr_text('共有先へ通知（メール連携）', 'Notify recipients (email-enabled)')) ?></label>
@@ -184,7 +217,7 @@ if (!function_exists('driveFormatBytes')) {
                                     </div>
                                     <div class="small text-break mb-1"><code><?= htmlspecialchars($publicUrl) ?></code></div>
                                     <div class="small text-muted mb-1">
-                                        <?= empty($share['target_organizations']) && empty($share['target_users'])
+                                        <?= empty($share['target_organizations']) && empty($share['target_users']) && empty($share['target_external'])
                                             ? htmlspecialchars(tr_text('公開リンク', 'Public link'))
                                             : htmlspecialchars(tr_text('限定リンク', 'Restricted link')) ?>
                                         ・
@@ -199,7 +232,7 @@ if (!function_exists('driveFormatBytes')) {
                                             ・<?= htmlspecialchars(tr_text('パスワード保護', 'Password protected')) ?>
                                         <?php endif; ?>
                                     </div>
-                                    <?php if (!empty($share['target_organizations']) || !empty($share['target_users'])): ?>
+                                    <?php if (!empty($share['target_organizations']) || !empty($share['target_users']) || !empty($share['target_external'])): ?>
                                         <div class="small text-muted mb-2">
                                             <?php if (!empty($share['target_organizations'])): ?>
                                                 <?= htmlspecialchars(tr_text('組織', 'Organizations')) ?>: <?= htmlspecialchars(implode(', ', $share['target_organizations'])) ?>
@@ -207,6 +240,10 @@ if (!function_exists('driveFormatBytes')) {
                                             <?php if (!empty($share['target_users'])): ?>
                                                 <?php if (!empty($share['target_organizations'])): ?> / <?php endif; ?>
                                                 <?= htmlspecialchars(tr_text('ユーザー', 'Users')) ?>: <?= htmlspecialchars(implode(', ', $share['target_users'])) ?>
+                                            <?php endif; ?>
+                                            <?php if (!empty($share['target_external'])): ?>
+                                                <?php if (!empty($share['target_organizations']) || !empty($share['target_users'])): ?> / <?php endif; ?>
+                                                <?= htmlspecialchars(tr_text('外部宛先', 'External recipients')) ?>: <?= htmlspecialchars(implode(', ', $share['target_external'])) ?>
                                             <?php endif; ?>
                                         </div>
                                     <?php endif; ?>

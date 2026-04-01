@@ -16,6 +16,8 @@ class DriveController extends Controller
     private $userModel;
     private $organizationModel;
     private $settingModel;
+    private $hasExternalTargetsTable = null;
+    private $hasAddressBookTable = null;
 
     public function __construct()
     {
@@ -176,11 +178,11 @@ class DriveController extends Controller
                     $passwordHash,
                     $maxDownloads,
                     [],
+                    [],
+                    [],
                     []
                 );
-                $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
-                $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
-                $_SESSION['file_share_created_link'] = rtrim($scheme . '://' . $host . BASE_PATH, '/') . '/file-share/share/' . $token;
+                $_SESSION['file_share_created_link'] = $this->buildShareUrl($token);
                 $_SESSION['flash_success'] = tr_text('アップロードと公開共有リンクの発行が完了しました。', 'Upload completed and a public share link has been created.');
             } catch (\Throwable $e) {
                 error_log('auto create public share link failed: ' . $e->getMessage());
@@ -215,6 +217,7 @@ class DriveController extends Controller
         $defaultExpiry = $this->getDefaultShareExpiryInput();
         $orgOptions = $this->organizationModel->getAll();
         $userOptions = $this->userModel->getActiveUsers();
+        $addressBookOptions = $this->getAddressBookShareTargets();
 
         $this->view('drive/show', [
             'title' => htmlspecialchars((string)$item['title']) . ' - ' . tr_text('ファイル共有', 'File Sharing'),
@@ -224,6 +227,8 @@ class DriveController extends Controller
             'defaultShareExpiry' => $defaultExpiry,
             'orgOptions' => $orgOptions,
             'userOptions' => $userOptions,
+            'addressBookOptions' => $addressBookOptions,
+            'supportsExternalRecipients' => $this->hasExternalTargetsTable(),
             'canManage' => $this->canManageItem($item, $currentUser),
         ]);
     }
@@ -315,11 +320,23 @@ class DriveController extends Controller
         $shareMode = (string)($_POST['share_access_mode'] ?? 'public');
         $shareUserIds = [];
         $shareOrganizationIds = [];
+        $shareAddressBookIds = [];
+        $shareExternalEmails = [];
         $notifyRecipients = false;
         if ($shareMode === 'restricted') {
             $shareUserIds = $this->normalizeIds($_POST['share_user_ids'] ?? []);
             $shareOrganizationIds = $this->normalizeIds($_POST['share_organization_ids'] ?? []);
+            $shareAddressBookIds = $this->normalizeIds($_POST['share_address_book_ids'] ?? []);
+            $shareExternalEmails = $this->normalizeEmailList($_POST['share_external_emails'] ?? '');
             $notifyRecipients = ((string)($_POST['notify_recipients'] ?? '1') === '1');
+            if (empty($shareUserIds) && empty($shareOrganizationIds) && empty($shareAddressBookIds) && empty($shareExternalEmails)) {
+                $_SESSION['flash_error'] = tr_text(
+                    '限定リンクには共有先を1件以上指定してください。',
+                    'Specify at least one recipient for a restricted link.'
+                );
+                $this->redirect($this->modulePath('/file/' . $itemId));
+                return;
+            }
         }
 
         try {
@@ -330,17 +347,34 @@ class DriveController extends Controller
                 $passwordHash,
                 $maxDownloads,
                 $shareUserIds,
-                $shareOrganizationIds
+                $shareOrganizationIds,
+                $shareAddressBookIds,
+                $shareExternalEmails
             );
         } catch (\Throwable $e) {
             error_log('createFileShareLink error: ' . $e->getMessage());
-            $_SESSION['flash_error'] = tr_text('共有リンクの作成に失敗しました。', 'Failed to create share link.');
+            if (strpos((string)$e->getMessage(), 'drive_share_external_targets') !== false) {
+                $_SESSION['flash_error'] = tr_text(
+                    '外部共有先機能を利用するため、DB更新（drive_share_external_targets）が必要です。',
+                    'Database upgrade (drive_share_external_targets) is required for external recipients.'
+                );
+            } else {
+                $_SESSION['flash_error'] = tr_text('共有リンクの作成に失敗しました。', 'Failed to create share link.');
+            }
             $this->redirect($this->modulePath('/file/' . $itemId));
             return;
         }
 
-        if ($notifyRecipients && (!empty($shareUserIds) || !empty($shareOrganizationIds))) {
-            $this->notifyShareRecipients($item, $token, $shareUserIds, $shareOrganizationIds, $expiresAt ?: null);
+        if ($notifyRecipients && (!empty($shareUserIds) || !empty($shareOrganizationIds) || !empty($shareAddressBookIds) || !empty($shareExternalEmails))) {
+            $this->notifyShareRecipients(
+                $item,
+                $token,
+                $shareUserIds,
+                $shareOrganizationIds,
+                $shareAddressBookIds,
+                $shareExternalEmails,
+                $expiresAt ?: null
+            );
         }
 
         $_SESSION['flash_success'] = tr_text('共有リンクを作成しました。', 'Share link created.');
@@ -394,12 +428,11 @@ class DriveController extends Controller
     {
         $token = trim((string)($params['token'] ?? ''));
         if ($token === '') {
-            http_response_code(404);
-            $this->view('drive/shared_download', [
+            $this->renderShareAccessPage([
                 'title' => tr_text('ファイル共有リンク', 'File Sharing Link'),
                 'status' => 'not_found',
                 'message' => tr_text('共有リンクが見つかりません。', 'Share link not found.'),
-            ]);
+            ], 404);
             return;
         }
 
@@ -412,24 +445,22 @@ class DriveController extends Controller
             [$token]
         );
         if (!$share) {
-            http_response_code(404);
-            $this->view('drive/shared_download', [
+            $this->renderShareAccessPage([
                 'title' => tr_text('ファイル共有リンク', 'File Sharing Link'),
                 'status' => 'not_found',
                 'message' => tr_text('共有リンクが見つかりません。', 'Share link not found.'),
-            ]);
+            ], 404);
             return;
         }
 
         $status = $this->validateShareStatus($share);
         if ($status !== 'ok') {
-            http_response_code(410);
-            $this->view('drive/shared_download', [
+            $this->renderShareAccessPage([
                 'title' => tr_text('ファイル共有リンク', 'File Sharing Link'),
                 'status' => $status,
                 'share' => $share,
                 'message' => $this->shareStatusMessage($status),
-            ]);
+            ], 410);
             return;
         }
 
@@ -437,16 +468,22 @@ class DriveController extends Controller
             "SELECT target_type, target_id FROM drive_share_targets WHERE share_link_id = ?",
             [(int)$share['id']]
         );
-        $targetCheck = $this->validateTargetAccess($targets);
+        $externalTargets = [];
+        if ($this->hasExternalTargetsTable()) {
+            $externalTargets = $this->db->fetchAll(
+                "SELECT target_type, email FROM drive_share_external_targets WHERE share_link_id = ?",
+                [(int)$share['id']]
+            );
+        }
+        $targetCheck = $this->validateTargetAccess($targets, $externalTargets);
         if ($targetCheck !== 'ok') {
             $httpCode = $targetCheck === 'login_required' ? 401 : 403;
-            http_response_code($httpCode);
-            $this->view('drive/shared_download', [
+            $this->renderShareAccessPage([
                 'title' => tr_text('ファイル共有リンク', 'File Sharing Link'),
                 'status' => $targetCheck,
                 'share' => $share,
                 'message' => $this->shareStatusMessage($targetCheck),
-            ]);
+            ], $httpCode);
             return;
         }
 
@@ -462,13 +499,13 @@ class DriveController extends Controller
                 $passwordError = tr_text('パスワードが一致しません。', 'Password is incorrect.');
             }
 
-            $this->view('drive/shared_download', [
+            $this->renderShareAccessPage([
                 'title' => tr_text('ファイル共有リンク', 'File Sharing Link'),
                 'status' => 'password_required',
                 'share' => $share,
                 'message' => tr_text('この共有リンクはパスワード保護されています。', 'This share link is password protected.'),
                 'passwordError' => $passwordError,
-            ]);
+            ], 200);
             return;
         }
 
@@ -477,12 +514,12 @@ class DriveController extends Controller
             return;
         }
 
-        $this->view('drive/shared_download', [
+        $this->renderShareAccessPage([
             'title' => tr_text('ファイル共有リンク', 'File Sharing Link'),
             'status' => 'ready',
             'share' => $share,
             'message' => tr_text('共有ファイルをダウンロードできます。', 'You can download this shared file.'),
-        ]);
+        ], 200);
     }
 
     private function ensureAuthenticated()
@@ -763,6 +800,24 @@ class DriveController extends Controller
         return array_values($unique);
     }
 
+    private function normalizeEmailList($values)
+    {
+        if (is_array($values)) {
+            $values = implode(',', $values);
+        }
+        $values = (string)$values;
+        $chunks = preg_split('/[\s,;]+/', $values) ?: [];
+        $emails = [];
+        foreach ($chunks as $chunk) {
+            $email = strtolower(trim((string)$chunk));
+            if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                continue;
+            }
+            $emails[$email] = $email;
+        }
+        return array_values($emails);
+    }
+
     private function parseExpiry($value)
     {
         $value = trim((string)$value);
@@ -803,8 +858,22 @@ class DriveController extends Controller
         throw new \RuntimeException('Failed to generate share token.');
     }
 
-    private function insertShareLink($itemId, $createdBy, $expiresAt, $passwordHash, $maxDownloads, array $targetUserIds, array $targetOrganizationIds)
+    private function insertShareLink(
+        $itemId,
+        $createdBy,
+        $expiresAt,
+        $passwordHash,
+        $maxDownloads,
+        array $targetUserIds,
+        array $targetOrganizationIds,
+        array $targetAddressBookIds,
+        array $targetExternalEmails
+    )
     {
+        if ((!empty($targetAddressBookIds) || !empty($targetExternalEmails)) && !$this->hasExternalTargetsTable()) {
+            throw new \RuntimeException('drive_share_external_targets table is required.');
+        }
+
         $token = $this->generateShareToken();
         $this->db->beginTransaction();
         try {
@@ -835,6 +904,41 @@ class DriveController extends Controller
                     [$shareLinkId, (int)$targetOrganizationId]
                 );
             }
+
+            if ($this->hasExternalTargetsTable()) {
+                $contacts = $this->getAddressBookContactsByIds($targetAddressBookIds);
+                foreach ($contacts as $contact) {
+                    $email = strtolower(trim((string)($contact['email'] ?? '')));
+                    if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                        continue;
+                    }
+                    $displayName = trim((string)($contact['name'] ?? ''));
+                    $this->db->execute(
+                        "INSERT INTO drive_share_external_targets
+                            (share_link_id, target_type, address_book_id, email, display_name)
+                         VALUES (?, 'address_book', ?, ?, ?)
+                         ON DUPLICATE KEY UPDATE
+                            target_type = VALUES(target_type),
+                            address_book_id = VALUES(address_book_id),
+                            display_name = VALUES(display_name)",
+                        [$shareLinkId, (int)$contact['id'], $email, $displayName !== '' ? $displayName : null]
+                    );
+                }
+
+                foreach ($targetExternalEmails as $email) {
+                    $email = strtolower(trim((string)$email));
+                    if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                        continue;
+                    }
+                    $this->db->execute(
+                        "INSERT INTO drive_share_external_targets
+                            (share_link_id, target_type, address_book_id, email, display_name)
+                         VALUES (?, 'email', NULL, ?, NULL)
+                         ON DUPLICATE KEY UPDATE email = VALUES(email)",
+                        [$shareLinkId, $email]
+                    );
+                }
+            }
             $this->db->commit();
         } catch (\Throwable $e) {
             $this->db->rollBack();
@@ -863,12 +967,32 @@ class DriveController extends Controller
             );
             $link['target_users'] = [];
             $link['target_organizations'] = [];
+            $link['target_external'] = [];
             foreach ($targets as $target) {
                 if ($target['target_type'] === 'user' && !empty($target['user_name'])) {
                     $link['target_users'][] = $target['user_name'];
                 }
                 if ($target['target_type'] === 'organization' && !empty($target['organization_name'])) {
                     $link['target_organizations'][] = $target['organization_name'];
+                }
+            }
+
+            if ($this->hasExternalTargetsTable()) {
+                $externalTargets = $this->db->fetchAll(
+                    "SELECT target_type, display_name, email
+                     FROM drive_share_external_targets
+                     WHERE share_link_id = ?
+                     ORDER BY id ASC",
+                    [(int)$link['id']]
+                );
+                foreach ($externalTargets as $externalTarget) {
+                    $email = strtolower(trim((string)($externalTarget['email'] ?? '')));
+                    if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                        continue;
+                    }
+                    $name = trim((string)($externalTarget['display_name'] ?? ''));
+                    $label = $name !== '' ? ($name . ' <' . $email . '>') : $email;
+                    $link['target_external'][] = $label;
                 }
             }
 
@@ -909,13 +1033,17 @@ class DriveController extends Controller
         return array_values($recipientIds);
     }
 
-    private function notifyShareRecipients(array $item, $token, array $targetUserIds, array $targetOrganizationIds, $expiresAt = null)
+    private function notifyShareRecipients(
+        array $item,
+        $token,
+        array $targetUserIds,
+        array $targetOrganizationIds,
+        array $targetAddressBookIds,
+        array $targetExternalEmails,
+        $expiresAt = null
+    )
     {
         $recipients = $this->collectShareRecipients($targetUserIds, $targetOrganizationIds);
-        if (empty($recipients)) {
-            return;
-        }
-
         $actor = $this->auth->user();
         $content = ($actor['display_name'] ?? tr_text('ユーザー', 'User')) . tr_text(' さんがファイル共有リンクを発行しました。', ' created a file share link.');
         $content .= "\n" . tr_text('ファイル: ', 'File: ') . ($item['title'] ?? '');
@@ -923,16 +1051,138 @@ class DriveController extends Controller
             $content .= "\n" . tr_text('有効期限: ', 'Expires at: ') . date('Y/m/d H:i', strtotime((string)$expiresAt));
         }
 
-        foreach ($recipients as $recipientId) {
-            $this->notification->create([
-                'user_id' => (int)$recipientId,
-                'type' => 'system',
-                'title' => tr_text('ファイル共有リンク', 'File share link'),
-                'content' => $content,
-                'link' => '/file-share/share/' . $token,
-                'reference_id' => (int)$item['id'],
-                'reference_type' => 'drive_share',
-            ]);
+        if (!empty($recipients)) {
+            foreach ($recipients as $recipientId) {
+                $this->notification->create([
+                    'user_id' => (int)$recipientId,
+                    'type' => 'system',
+                    'title' => tr_text('ファイル共有リンク', 'File share link'),
+                    'content' => $content,
+                    'link' => '/file-share/share/' . $token,
+                    'reference_id' => (int)$item['id'],
+                    'reference_type' => 'drive_share',
+                ]);
+            }
+        }
+
+        $externalEmails = [];
+        $externalDisplayNames = [];
+        $contacts = $this->getAddressBookContactsByIds($targetAddressBookIds);
+        foreach ($contacts as $contact) {
+            $email = strtolower(trim((string)($contact['email'] ?? '')));
+            if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                continue;
+            }
+            $externalEmails[$email] = $email;
+            $displayName = trim((string)($contact['name'] ?? ''));
+            if ($displayName !== '') {
+                $externalDisplayNames[$email] = $displayName;
+            }
+        }
+        foreach ($targetExternalEmails as $externalEmail) {
+            $email = strtolower(trim((string)$externalEmail));
+            if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                continue;
+            }
+            $externalEmails[$email] = $email;
+        }
+        if (!empty($externalEmails)) {
+            $this->queueShareEmails($item, $token, array_values($externalEmails), $externalDisplayNames, $expiresAt);
+        }
+    }
+
+    private function queueShareEmails(array $item, $token, array $emails, array $displayNames = [], $expiresAt = null)
+    {
+        $emails = $this->normalizeEmailList($emails);
+        if (empty($emails)) {
+            return;
+        }
+
+        $appName = $this->settingModel->getAppName();
+        $shareUrl = $this->buildShareUrl($token);
+        $actor = $this->auth->user();
+        $actorName = trim((string)($actor['display_name'] ?? tr_text('ユーザー', 'User')));
+        $fileTitle = trim((string)($item['title'] ?? $item['original_name'] ?? tr_text('共有ファイル', 'Shared file')));
+        $subject = '[' . $appName . '] ' . tr_text('ファイル共有リンク: ', 'File Sharing Link: ') . $fileTitle;
+
+        foreach ($emails as $email) {
+            $email = strtolower(trim((string)$email));
+            if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                continue;
+            }
+
+            $recipientName = trim((string)($displayNames[$email] ?? ''));
+            $greeting = $recipientName !== ''
+                ? htmlspecialchars($recipientName) . tr_text(' 様', '')
+                : htmlspecialchars(tr_text('ご担当者様', 'Hello'));
+            $expiresLine = '';
+            if (!empty($expiresAt)) {
+                $expiresLine = '<p><strong>' . htmlspecialchars(tr_text('有効期限', 'Expires at')) . ':</strong> ' .
+                    htmlspecialchars(date('Y/m/d H:i', strtotime((string)$expiresAt))) . '</p>';
+            }
+            $body = '<html><body>';
+            $body .= '<p>' . $greeting . '</p>';
+            $body .= '<p>' . htmlspecialchars($actorName) . htmlspecialchars(tr_text(' さんからファイル共有リンクが届きました。', ' shared a file with you.')) . '</p>';
+            $body .= '<p><strong>' . htmlspecialchars(tr_text('ファイル', 'File')) . ':</strong> ' . htmlspecialchars($fileTitle) . '</p>';
+            $body .= $expiresLine;
+            $body .= '<p><a href="' . htmlspecialchars($shareUrl) . '">' . htmlspecialchars(tr_text('ダウンロードリンクを開く', 'Open download link')) . '</a></p>';
+            $body .= '<hr><p>' . htmlspecialchars($appName) . '</p>';
+            $body .= '</body></html>';
+
+            $this->queueShareEmail($email, $subject, $body);
+        }
+    }
+
+    private function queueShareEmail($email, $subject, $htmlBody)
+    {
+        try {
+            $this->db->execute(
+                "INSERT INTO email_queue (to_email, subject, body, is_html, status) VALUES (?, ?, ?, 1, 'pending')",
+                [(string)$email, (string)$subject, (string)$htmlBody]
+            );
+        } catch (\Throwable $e) {
+            error_log('queueShareEmail error: ' . $e->getMessage());
+        }
+    }
+
+    private function getAddressBookShareTargets()
+    {
+        if (!$this->hasAddressBookTable()) {
+            return [];
+        }
+
+        try {
+            return $this->db->fetchAll(
+                "SELECT id, name, company, email
+                 FROM address_book
+                 WHERE email IS NOT NULL AND email <> ''
+                 ORDER BY name_kana ASC, name ASC
+                 LIMIT 1000"
+            );
+        } catch (\Throwable $e) {
+            error_log('getAddressBookShareTargets error: ' . $e->getMessage());
+            return [];
+        }
+    }
+
+    private function getAddressBookContactsByIds(array $contactIds)
+    {
+        $contactIds = $this->normalizeIds($contactIds);
+        if (empty($contactIds) || !$this->hasAddressBookTable()) {
+            return [];
+        }
+
+        $placeholders = implode(',', array_fill(0, count($contactIds), '?'));
+        try {
+            return $this->db->fetchAll(
+                "SELECT id, name, email
+                 FROM address_book
+                 WHERE id IN ($placeholders) AND email IS NOT NULL AND email <> ''",
+                $contactIds
+            );
+        } catch (\Throwable $e) {
+            error_log('getAddressBookContactsByIds error: ' . $e->getMessage());
+            return [];
         }
     }
 
@@ -950,28 +1200,41 @@ class DriveController extends Controller
         return 'ok';
     }
 
-    private function validateTargetAccess(array $targets)
+    private function validateTargetAccess(array $targets, array $externalTargets = [])
     {
-        if (empty($targets)) {
+        $user = $this->auth->user();
+        if ($user && ((string)($user['role'] ?? '') === 'admin')) {
             return 'ok';
         }
 
-        $user = $this->auth->user();
-        if (!$user) {
-            return 'login_required';
+        $hasInternalTargets = !empty($targets);
+        $hasExternalTargets = !empty($externalTargets);
+        if (!$hasInternalTargets && !$hasExternalTargets) {
+            return 'ok';
         }
 
-        $userId = (int)$user['id'];
-        $orgIds = $this->getUserOrganizationIds($user);
-        foreach ($targets as $target) {
-            $targetType = (string)($target['target_type'] ?? '');
-            $targetId = (int)($target['target_id'] ?? 0);
-            if ($targetType === 'user' && $targetId === $userId) {
-                return 'ok';
+        if ($hasInternalTargets) {
+            if (!$user) {
+                return 'login_required';
             }
-            if ($targetType === 'organization' && in_array($targetId, $orgIds, true)) {
-                return 'ok';
+
+            $userId = (int)$user['id'];
+            $orgIds = $this->getUserOrganizationIds($user);
+            foreach ($targets as $target) {
+                $targetType = (string)($target['target_type'] ?? '');
+                $targetId = (int)($target['target_id'] ?? 0);
+                if ($targetType === 'user' && $targetId === $userId) {
+                    return 'ok';
+                }
+                if ($targetType === 'organization' && in_array($targetId, $orgIds, true)) {
+                    return 'ok';
+                }
             }
+        }
+
+        // 外部宛先（メール・アドレス帳）を含むリンクは、トークン保持者へ対象ファイルのみ公開する。
+        if ($hasExternalTargets) {
+            return 'ok';
         }
 
         return 'forbidden';
@@ -1009,25 +1272,23 @@ class DriveController extends Controller
     {
         $status = $this->validateShareStatus($share);
         if ($status !== 'ok') {
-            http_response_code(410);
-            $this->view('drive/shared_download', [
+            $this->renderShareAccessPage([
                 'title' => tr_text('ファイル共有リンク', 'File Sharing Link'),
                 'status' => $status,
                 'share' => $share,
                 'message' => $this->shareStatusMessage($status),
-            ]);
+            ], 410);
             return;
         }
 
         $path = $this->uploadDir . (string)$share['stored_name'];
         if (!is_file($path)) {
-            http_response_code(404);
-            $this->view('drive/shared_download', [
+            $this->renderShareAccessPage([
                 'title' => tr_text('ファイル共有リンク', 'File Sharing Link'),
                 'status' => 'not_found',
                 'share' => $share,
                 'message' => tr_text('ファイル実体が見つかりません。', 'File content not found.'),
-            ]);
+            ], 404);
             return;
         }
 
@@ -1060,6 +1321,63 @@ class DriveController extends Controller
         @set_time_limit(0);
         readfile($path);
         exit;
+    }
+
+    private function hasExternalTargetsTable()
+    {
+        if ($this->hasExternalTargetsTable !== null) {
+            return $this->hasExternalTargetsTable;
+        }
+
+        try {
+            $row = $this->db->fetch("SHOW TABLES LIKE 'drive_share_external_targets'");
+            $this->hasExternalTargetsTable = !empty($row);
+        } catch (\Throwable $e) {
+            $this->hasExternalTargetsTable = false;
+        }
+
+        return $this->hasExternalTargetsTable;
+    }
+
+    private function hasAddressBookTable()
+    {
+        if ($this->hasAddressBookTable !== null) {
+            return $this->hasAddressBookTable;
+        }
+
+        try {
+            $row = $this->db->fetch("SHOW TABLES LIKE 'address_book'");
+            $this->hasAddressBookTable = !empty($row);
+        } catch (\Throwable $e) {
+            $this->hasAddressBookTable = false;
+        }
+
+        return $this->hasAddressBookTable;
+    }
+
+    private function buildShareUrl($token)
+    {
+        $token = urlencode((string)$token);
+        $appUrl = trim((string)$this->settingModel->getAppUrl());
+        if ($appUrl !== '') {
+            return rtrim($appUrl, '/') . '/file-share/share/' . $token;
+        }
+
+        $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+        $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+        return rtrim($scheme . '://' . $host . BASE_PATH, '/') . '/file-share/share/' . $token;
+    }
+
+    private function renderShareAccessPage(array $data, $statusCode = 200)
+    {
+        $this->sendNoCacheHeaders();
+        http_response_code((int)$statusCode);
+
+        ob_start();
+        extract($data);
+        require __DIR__ . '/../views/drive/shared_download.php';
+        $html = (string)ob_get_clean();
+        echo \Core\RuntimeI18n::translateHtml($html);
     }
 
     private function modulePath($suffix = '')

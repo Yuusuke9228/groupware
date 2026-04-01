@@ -585,7 +585,7 @@ $pageTitle = 'ご利用ガイド';
                 <h4>共有リンクの種類</h4>
                 <ul>
                     <li><strong>公開リンク（ログイン不要）</strong>：URLを知っている相手がダウンロード可能</li>
-                    <li><strong>限定リンク（ログイン必須）</strong>：共有先ユーザー/組織を指定した相手のみ利用可能</li>
+                    <li><strong>限定リンク（社内＋外部共有先）</strong>：共有先ユーザー/組織に加え、アドレス帳宛先・メールアドレス指定にも対応</li>
                 </ul>
 
                 <h4>設定できる項目</h4>
@@ -594,11 +594,12 @@ $pageTitle = 'ご利用ガイド';
                     <li>共有パスワード（任意）</li>
                     <li>ダウンロード回数上限</li>
                     <li>共有先ユーザー / 共有先組織（限定リンク時）</li>
+                    <li>共有先（アドレス帳） / 共有先メールアドレス（限定リンク時）</li>
                     <li>共有先通知（限定リンク時のメール連携）</li>
                     <li>リンク無効化（途中停止）</li>
                     <li>ファイル削除</li>
                 </ul>
-                <div class="help-info"><strong><i class="fas fa-info-circle me-1"></i>補足：</strong>公開リンクは「対象ファイルのみ」ダウンロードできます。システム全体の閲覧権限は付与されません。</div>
+                <div class="help-info"><strong><i class="fas fa-info-circle me-1"></i>補足：</strong>共有リンク画面は専用表示で動作し、対象ファイル以外のメニューや一覧は表示されません。</div>
 
                 <h4>受信者のダウンロード手順</h4>
                 <div class="help-step"><span class="help-step-num">1</span><span class="help-step-text">共有URLを開きます。</span></div>

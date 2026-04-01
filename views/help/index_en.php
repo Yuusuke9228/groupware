@@ -16,7 +16,7 @@
                         <li>Schedule and participation management</li>
                         <li>Workflow request and approval operations</li>
                         <li>Task board and comments</li>
-                        <li>File Sharing module with public/restricted share links</li>
+                        <li>File Sharing module with public/restricted links, address book recipients, and direct email recipients</li>
                         <li>Notifications and unread management</li>
                     </ul>
                 </div>
