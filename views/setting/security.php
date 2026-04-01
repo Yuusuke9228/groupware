@@ -170,6 +170,47 @@ $isJaLocale = get_locale() === 'ja';
 
             <div class="card mt-4">
                 <div class="card-header">
+                    <h5 class="card-title mb-0"><?= htmlspecialchars(tr_text('ファイル共有設定', 'File sharing settings')) ?></h5>
+                </div>
+                <div class="card-body">
+                    <form id="fileShareSettingsForm">
+                        <div class="alert alert-success d-none" id="fileShareSuccessAlert"><?= htmlspecialchars(tr_text('設定を保存しました。', 'Settings saved.')) ?></div>
+                        <div class="alert alert-danger d-none" id="fileShareErrorAlert"></div>
+
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label" for="files_max_upload_mb"><?= htmlspecialchars(tr_text('1ファイル上限(MB)', 'Max upload size per file (MB)')) ?></label>
+                                <input type="number" min="0" max="1048576" class="form-control" id="files_max_upload_mb" name="files_max_upload_mb" value="<?= htmlspecialchars((string)($settings['files_max_upload_mb'] ?? '512')) ?>">
+                                <div class="form-text"><?= htmlspecialchars(tr_text('0 を指定すると無制限になります。', 'Set to 0 for unlimited.')) ?></div>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label" for="files_share_default_expiry_days"><?= htmlspecialchars(tr_text('共有リンク既定有効日数', 'Default share-link expiry days')) ?></label>
+                                <input type="number" min="0" max="3650" class="form-control" id="files_share_default_expiry_days" name="files_share_default_expiry_days" value="<?= htmlspecialchars((string)($settings['files_share_default_expiry_days'] ?? '7')) ?>">
+                                <div class="form-text"><?= htmlspecialchars(tr_text('0 を指定すると期限なしで発行されます。', 'Set to 0 to create links without expiry by default.')) ?></div>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label" for="files_storage_quota_mb"><?= htmlspecialchars(tr_text('全体容量上限(MB)', 'Global storage quota (MB)')) ?></label>
+                                <input type="number" min="0" max="1048576" class="form-control" id="files_storage_quota_mb" name="files_storage_quota_mb" value="<?= htmlspecialchars((string)($settings['files_storage_quota_mb'] ?? '10240')) ?>">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label" for="files_user_quota_mb"><?= htmlspecialchars(tr_text('ユーザー容量上限(MB)', 'Per-user quota (MB)')) ?></label>
+                                <input type="number" min="0" max="1048576" class="form-control" id="files_user_quota_mb" name="files_user_quota_mb" value="<?= htmlspecialchars((string)($settings['files_user_quota_mb'] ?? '2048')) ?>">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label" for="files_org_quota_mb"><?= htmlspecialchars(tr_text('組織容量上限(MB)', 'Per-organization quota (MB)')) ?></label>
+                                <input type="number" min="0" max="1048576" class="form-control" id="files_org_quota_mb" name="files_org_quota_mb" value="<?= htmlspecialchars((string)($settings['files_org_quota_mb'] ?? '5120')) ?>">
+                            </div>
+                        </div>
+
+                        <div class="mt-3 d-grid">
+                            <button type="submit" class="btn btn-primary"><?= htmlspecialchars(tr_text('ファイル共有設定を保存', 'Save file sharing settings')) ?></button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="card mt-4">
+                <div class="card-header">
                     <h5 class="card-title mb-0"><?= htmlspecialchars(tr_text('SSO設定（OIDC / SAML）', 'SSO settings (OIDC / SAML)')) ?></h5>
                 </div>
                 <div class="card-body">

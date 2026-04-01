@@ -2,6 +2,17 @@
 <?php
 $organizations = $organizations ?? [];
 $users = $users ?? [];
+$fileShareLimits = $fileShareLimits ?? [];
+$storageUsage = $storageUsage ?? ['total_bytes' => 0, 'user_bytes' => 0, 'org_bytes' => 0];
+if (!function_exists('fmFormatBytes')) {
+    function fmFormatBytes($bytes) {
+        $bytes = (int)$bytes;
+        if ($bytes >= 1073741824) return number_format($bytes / 1073741824, 2) . ' GB';
+        if ($bytes >= 1048576) return number_format($bytes / 1048576, 2) . ' MB';
+        if ($bytes >= 1024) return number_format($bytes / 1024, 2) . ' KB';
+        return $bytes . ' B';
+    }
+}
 ?>
 <div class="container-fluid mt-4">
     <div class="row mb-3">
@@ -31,6 +42,17 @@ $users = $users ?? [];
         </div>
         <?php unset($_SESSION['flash_error']); ?>
     <?php endif; ?>
+
+    <div class="alert alert-info">
+        <div class="small fw-bold mb-1">容量ガイド</div>
+        <div class="small">
+            1ファイル上限: <?= (int)($fileShareLimits['max_upload_mb'] ?? 0) > 0 ? (int)$fileShareLimits['max_upload_mb'] . ' MB' : '無制限' ?> /
+            全体使用量: <?= fmFormatBytes($storageUsage['total_bytes'] ?? 0) ?>
+            <?php if ((int)($fileShareLimits['storage_quota_mb'] ?? 0) > 0): ?>
+                （上限 <?= (int)$fileShareLimits['storage_quota_mb'] ?> MB）
+            <?php endif; ?>
+        </div>
+    </div>
 
     <div class="row justify-content-center">
         <div class="col-lg-8 col-xl-6">

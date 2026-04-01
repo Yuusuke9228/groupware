@@ -446,6 +446,18 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    const fileShareSettingsForm = document.getElementById('fileShareSettingsForm');
+    if (fileShareSettingsForm) {
+        fileShareSettingsForm.addEventListener('submit', function (e) {
+            e.preventDefault();
+            saveSettingsForm(
+                fileShareSettingsForm,
+                document.getElementById('fileShareSuccessAlert'),
+                document.getElementById('fileShareErrorAlert')
+            );
+        });
+    }
+
     const scimSettingsForm = document.getElementById('scimSettingsForm');
     if (scimSettingsForm) {
         scimSettingsForm.addEventListener('submit', function (e) {

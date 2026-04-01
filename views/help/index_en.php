@@ -16,6 +16,7 @@
                         <li>Schedule and participation management</li>
                         <li>Workflow request and approval operations</li>
                         <li>Task board and comments</li>
+                        <li>File sharing links with expiry, password, and target restrictions</li>
                         <li>Notifications and unread management</li>
                     </ul>
                 </div>
