@@ -56,17 +56,42 @@
     var messageForm = byId('chatMessageForm');
     var messageInput = byId('chatMessageInput');
     var attachmentInput = byId('chatAttachmentInput');
+    var attachmentNameNode = byId('chatAttachmentName');
     var roomList = byId('chatRoomList');
+    var chatShell = byId('chatShell');
+    var chatMobileBackBtn = byId('chatMobileBackBtn');
     var readModalBody = byId('chatReadDetailModalBody');
     var readModalTitle = byId('chatReadDetailModalTitle');
     var readModalEl = byId('chatReadDetailModal');
     var readModal = null;
+    var explicitRoomRequested = /(?:^|[?&])room_id=\d+/.test(window.location.search);
 
     function t(key, fallback) {
         if (state.i18n && state.i18n[key]) {
             return String(state.i18n[key]);
         }
         return fallback || key;
+    }
+
+    function isMobileScreen() {
+        return window.matchMedia && window.matchMedia('(max-width: 767.98px)').matches;
+    }
+
+    function shouldActivateRoom() {
+        if (!state.roomId) return false;
+        if (isMobileScreen() && !explicitRoomRequested) return false;
+        return true;
+    }
+
+    function applyMobileLayoutMode() {
+        if (!chatShell) return;
+        chatShell.classList.remove('mobile-list', 'mobile-room');
+        if (!isMobileScreen()) return;
+        if (shouldActivateRoom()) {
+            chatShell.classList.add('mobile-room');
+        } else {
+            chatShell.classList.add('mobile-list');
+        }
     }
 
     if (Array.isArray(bootstrap.messages) && bootstrap.messages.length > 0) {
@@ -113,6 +138,12 @@
             '</div>';
     }
 
+    function initialText(value) {
+        var text = String(value || '').trim();
+        if (!text) return 'C';
+        return text.charAt(0);
+    }
+
     function buildMessageHtml(message) {
         var mine = Number(message.user_id || 0) === state.userId;
         var readByOthers = Math.max(0, Number(message.read_count || 0) - 1);
@@ -122,6 +153,7 @@
             : '';
         return '' +
             '<div class="chat-message-row ' + (mine ? 'mine' : 'other') + '" data-message-id="' + Number(message.id || 0) + '">' +
+            (mine ? '' : '<div class="chat-sender-avatar">' + escapeHtml(initialText(message.sender_name || '')) + '</div>') +
             '<div class="chat-bubble-wrap">' +
             '<div class="chat-sender">' + escapeHtml(message.sender_name || '') + '</div>' +
             '<div class="chat-bubble">' +
@@ -171,13 +203,19 @@
             var roomId = Number(room.id || 0);
             var isActive = roomId === state.roomId;
             var unread = Number(room.unread_count || 0);
+            var roomName = room.display_name || 'チャット';
             html += '' +
                 '<a class="chat-room-item ' + (isActive ? 'active' : '') + '" href="' + state.basePath + '/chat?room_id=' + roomId + '" data-room-id="' + roomId + '">' +
-                '<div class="chat-room-title">' +
-                '<span>' + escapeHtml(room.display_name || 'チャット') + '</span>' +
+                '<div class="chat-room-row">' +
+                '<div class="chat-room-avatar">' + escapeHtml(initialText(roomName)) + '</div>' +
+                '<div class="chat-room-main">' +
+                '<div class="chat-room-title-row">' +
+                '<span class="chat-room-title-text">' + escapeHtml(roomName) + '</span>' +
                 (unread > 0 ? ('<span class="chat-badge">' + unread + '</span>') : '') +
                 '</div>' +
                 '<div class="chat-room-meta">' + escapeHtml(roomLabel(room)) + '</div>' +
+                '</div>' +
+                '</div>' +
                 '</a>';
         });
         roomList.innerHTML = html;
@@ -225,7 +263,7 @@
     }
 
     function fetchMessages() {
-        if (!state.roomId) return;
+        if (!shouldActivateRoom()) return;
         var url = state.basePath + '/api/chat/rooms/' + state.roomId + '/messages?since_id=' + state.lastMessageId;
         fetch(url, {
             method: 'GET',
@@ -263,7 +301,7 @@
     }
 
     function markRead() {
-        if (!state.roomId || !state.lastMessageId) return;
+        if (!shouldActivateRoom() || !state.lastMessageId) return;
         fetch(state.basePath + '/api/chat/rooms/' + state.roomId + '/read', {
             method: 'POST',
             credentials: 'same-origin',
@@ -357,6 +395,47 @@
         });
     }
 
+    function bindComposerUi() {
+        if (attachmentInput && attachmentNameNode) {
+            attachmentInput.addEventListener('change', function () {
+                var fileName = '';
+                if (attachmentInput.files && attachmentInput.files.length > 0) {
+                    fileName = attachmentInput.files[0].name || '';
+                }
+                attachmentNameNode.textContent = fileName;
+            });
+        }
+
+        if (messageInput) {
+            var resizeInput = function () {
+                messageInput.style.height = 'auto';
+                var nextHeight = Math.min(Math.max(messageInput.scrollHeight, 38), 110);
+                messageInput.style.height = nextHeight + 'px';
+            };
+            messageInput.addEventListener('input', resizeInput);
+            resizeInput();
+        }
+    }
+
+    function bindMobileNavigation() {
+        applyMobileLayoutMode();
+
+        if (chatMobileBackBtn) {
+            chatMobileBackBtn.addEventListener('click', function () {
+                window.location.href = state.basePath + '/chat';
+            });
+        }
+
+        window.addEventListener('resize', function () {
+            var before = shouldActivateRoom();
+            applyMobileLayoutMode();
+            var after = shouldActivateRoom();
+            if (before !== after) {
+                startPolling();
+            }
+        });
+    }
+
     function bindMessageForm() {
         if (!messageForm) return;
         messageForm.addEventListener('submit', function (event) {
@@ -387,6 +466,8 @@
                 }
                 if (messageInput) messageInput.value = '';
                 if (attachmentInput) attachmentInput.value = '';
+                if (attachmentNameNode) attachmentNameNode.textContent = '';
+                if (messageInput) messageInput.style.height = '38px';
                 updateChatBadge((json.data && json.data.unread_count) ? json.data.unread_count : 0);
                 fetchRooms();
                 markRead();
@@ -411,7 +492,7 @@
         if (state.pollTimer) clearInterval(state.pollTimer);
         if (state.roomsTimer) clearInterval(state.roomsTimer);
 
-        if (state.roomId) {
+        if (shouldActivateRoom()) {
             state.pollTimer = setInterval(fetchMessages, 2500);
         }
         state.roomsTimer = setInterval(fetchRooms, 12000);
@@ -419,10 +500,14 @@
 
     bindMessageForm();
     bindReadDetail();
+    bindComposerUi();
+    bindMobileNavigation();
     bindVisibility();
     startPolling();
     scrollToBottom(true);
-    markRead();
+    if (shouldActivateRoom()) {
+        markRead();
+    }
     fetchRooms();
     setTimeout(requestNotificationPermission, 1200);
 })();
