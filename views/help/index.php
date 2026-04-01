@@ -168,6 +168,7 @@ $pageTitle = 'ご利用ガイド';
             <a href="#sec-home"><i class="fas fa-home"></i> トップページ（ポータル）</a>
             <a href="#sec-schedule"><i class="far fa-calendar-alt"></i> スケジュール管理</a>
             <a href="#sec-message"><i class="far fa-envelope"></i> メッセージ</a>
+            <a href="#sec-chat"><i class="fas fa-comments"></i> チャット</a>
             <a href="#sec-bulletin"><i class="fas fa-bullhorn"></i> 掲示板</a>
             <a href="#sec-workflow"><i class="fas fa-project-diagram"></i> ワークフロー（申請・承認）</a>
             <a href="#sec-task"><i class="fas fa-tasks"></i> タスク管理</a>
@@ -341,6 +342,40 @@ $pageTitle = 'ご利用ガイド';
 
                 <h4>フォルダ管理</h4>
                 <p>メッセージをフォルダに分類して整理することができます。プロジェクトごとやカテゴリごとにフォルダを作成すると、必要なメッセージを素早く見つけることができます。</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== 5. チャット ===== -->
+    <div class="help-section" id="sec-chat">
+        <div class="help-card">
+            <div class="help-card-head" onclick="toggleSection(this)">
+                <span class="sec-icon"><i class="fas fa-comments"></i></span>
+                <h2>チャット</h2>
+                <i class="fas fa-chevron-down toggle-icon"></i>
+            </div>
+            <div class="help-card-body">
+                <p>LINEのような画面で、2名以上のメンバーを自由に選択してグループチャットを作成できます。組織や権限に依存せず、必要なメンバーで会話できます。</p>
+
+                <h4>チャットグループ作成</h4>
+                <div class="help-step"><span class="help-step-num">1</span><span class="help-step-text">メニューの「チャット」を開きます。</span></div>
+                <div class="help-step"><span class="help-step-num">2</span><span class="help-step-text">「新規」ボタンを押します。</span></div>
+                <div class="help-step"><span class="help-step-num">3</span><span class="help-step-text">メンバーを1名以上選択します（作成者を含めて2名以上）。</span></div>
+                <div class="help-step"><span class="help-step-num">4</span><span class="help-step-text">必要に応じてグループ名を入力し、作成します。</span></div>
+
+                <h4>メッセージ送信・ファイル送信</h4>
+                <ul>
+                    <li>テキストメッセージをリアルタイムで送受信できます。</li>
+                    <li>添付ファイルをメッセージと一緒に送信できます。</li>
+                    <li>送信済みメッセージには既読人数が表示されます。</li>
+                </ul>
+
+                <h4>未読バッジ・通知</h4>
+                <ul>
+                    <li>メニューの「チャット」アイコンに未読件数バッジが表示されます。</li>
+                    <li>PWA利用時は、ブラウザ通知/デスクトップ通知で新着を受け取れます。</li>
+                </ul>
+                <div class="help-info"><strong><i class="fas fa-info-circle me-1"></i>補足：</strong>メール通知は行わず、アプリ内通知とPush通知を利用します。</div>
             </div>
         </div>
     </div>

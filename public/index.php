@@ -844,6 +844,53 @@ $router->apiGet('/messages/unread-count', function () {
     return $controller->apiGetUnreadCount();
 }, true);
 
+// チャット機能
+$router->get('/chat', function () {
+    $controller = new Controllers\ChatController();
+    $controller->index();
+}, true);
+
+$router->get('/chat/room/:id', function ($params) {
+    $roomId = (int)($params['id'] ?? 0);
+    header('Location: ' . BASE_PATH . '/chat?room_id=' . $roomId);
+    exit;
+}, true);
+
+$router->post('/chat/rooms/create', function () {
+    $controller = new Controllers\ChatController();
+    $controller->createRoom();
+}, true);
+
+$router->post('/chat/rooms/:id/message', function ($params) {
+    $controller = new Controllers\ChatController();
+    $controller->postMessage($params);
+}, true);
+
+$router->get('/chat/files/:id/download', function ($params) {
+    $controller = new Controllers\ChatController();
+    $controller->downloadAttachment($params);
+}, true);
+
+$router->apiGet('/chat/rooms', function () {
+    $controller = new Controllers\ChatController();
+    return $controller->apiRooms();
+}, true);
+
+$router->apiGet('/chat/rooms/:id/messages', function ($params) {
+    $controller = new Controllers\ChatController();
+    return $controller->apiMessages($params);
+}, true);
+
+$router->apiPost('/chat/rooms/:id/read', function ($params, $data) {
+    $controller = new Controllers\ChatController();
+    return $controller->apiRead($params, $data);
+}, true);
+
+$router->apiGet('/chat/unread-count', function () {
+    $controller = new Controllers\ChatController();
+    return $controller->apiUnreadCount();
+}, true);
+
 // システム設定関連のルート
 // 基本設定
 $router->get('/settings', function () {

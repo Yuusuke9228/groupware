@@ -20,7 +20,7 @@ $pageMap = [
     '/webdatabase' => 'webdatabase', '/notifications' => 'notifications',
     '/integrations' => 'integrations', '/settings' => 'settings',
     '/bulletin' => 'bulletin',
-    '/address-book' => 'address-book', '/facility' => 'facility',
+    '/address-book' => 'address-book', '/facility' => 'facility', '/chat' => 'chat',
     '/file-share' => 'file-share', '/drive' => 'file-share', '/files' => 'files', '/help' => 'help'
 ];
 
@@ -44,6 +44,7 @@ $languageRedirect = urlencode((string)($_SERVER['REQUEST_URI'] ?? (BASE_PATH . '
 
 $unreadMessageCount = 0;
 $unreadNotificationCount = 0;
+$unreadChatCount = 0;
 
 // システム設定からアプリ名・会社名を取得
 $settingModel = new \Models\Setting();
@@ -67,6 +68,16 @@ if ($currentUser) {
     $unreadMessageCount = $messageModel->getUnreadCount($currentUser['id']);
     $notificationModel = new \Models\Notification();
     $unreadNotificationCount = $notificationModel->getUnreadCount($currentUser['id']);
+    if (class_exists('\\Models\\Chat')) {
+        try {
+            $chatModel = new \Models\Chat();
+            if (method_exists($chatModel, 'isReady') && $chatModel->isReady()) {
+                $unreadChatCount = (int)$chatModel->getUnreadCount((int)$currentUser['id']);
+            }
+        } catch (\Throwable $e) {
+            $unreadChatCount = 0;
+        }
+    }
 }
 ?>
 <!DOCTYPE html>
@@ -381,6 +392,13 @@ if ($currentUser) {
                 </a>
             </li>
             <li class="gw-module-item">
+                <a class="gw-module-link <?php echo $currentPage === 'chat' ? 'active' : ''; ?>" href="<?php echo BASE_PATH; ?>/chat">
+                    <img src="<?php echo BASE_PATH; ?>/img_icon/icon_chat.png" alt="" class="gw-module-icon">
+                    <span class="gw-module-label"><?php echo htmlspecialchars(tr_text('チャット', 'Chat')); ?></span>
+                    <span id="chatModuleBadge" class="gw-module-badge <?php echo $unreadChatCount > 0 ? '' : 'd-none'; ?>"><?php echo (int)$unreadChatCount; ?></span>
+                </a>
+            </li>
+            <li class="gw-module-item">
                 <a class="gw-module-link <?php echo $currentPage === 'workflow' ? 'active' : ''; ?>" href="<?php echo BASE_PATH; ?>/workflow">
                     <img src="<?php echo BASE_PATH; ?>/img_icon/icon_workflow.svg" alt="" class="gw-module-icon">
                     <span class="gw-module-label"><?php echo htmlspecialchars(t('menu.workflow')); ?></span>
@@ -431,7 +449,7 @@ if ($currentUser) {
             </li>
             <li class="gw-module-item">
                 <a class="gw-module-link <?php echo $currentPage === 'file-share' ? 'active' : ''; ?>" href="<?php echo BASE_PATH; ?>/file-share">
-                    <img src="<?php echo BASE_PATH; ?>/img_icon/icon_cabinet.svg" alt="" class="gw-module-icon" onerror="this.style.display='none';this.nextElementSibling.style.display='inline-block';">
+                    <img src="<?php echo BASE_PATH; ?>/img_icon/icon_drive.svg" alt="" class="gw-module-icon" onerror="this.style.display='none';this.nextElementSibling.style.display='inline-block';">
                     <i class="fas fa-cloud" style="display:none;font-size:24px;color:#5b9bd5;"></i>
                     <span class="gw-module-label"><?php echo htmlspecialchars(tr_text('ファイル共有', 'File Sharing')); ?></span>
                 </a>

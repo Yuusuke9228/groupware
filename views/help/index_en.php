@@ -15,6 +15,7 @@
                     <ul class="mb-0">
                         <li>Schedule and participation management</li>
                         <li>Workflow request and approval operations</li>
+                        <li>LINE-style group chat with file sharing and read receipts</li>
                         <li>Task board and comments</li>
                         <li>File Sharing module with public/restricted links, address book recipients, and direct email recipients</li>
                         <li>Notifications and unread management</li>

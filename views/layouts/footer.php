@@ -39,6 +39,11 @@
             <span class="nav-badge"><?= $unreadMessageCount ?></span>
         <?php endif; ?>
     </a>
+    <a href="<?= BASE_PATH ?>/chat" class="mobile-quick-nav-item <?= (isset($currentPage) && $currentPage === 'chat') ? 'active' : '' ?>">
+        <i class="fas fa-comments"></i>
+        <span><?= htmlspecialchars(tr_text('チャット', 'Chat')) ?></span>
+        <span id="chatMobileBadge" class="nav-badge <?= (isset($unreadChatCount) && $unreadChatCount > 0) ? '' : 'd-none' ?>"><?= (int)($unreadChatCount ?? 0) ?></span>
+    </a>
     <a href="<?= BASE_PATH ?>/workflow/approvals" class="mobile-quick-nav-item <?= (isset($currentPage) && $currentPage === 'workflow') ? 'active' : '' ?>">
         <i class="fas fa-check-circle"></i>
         <span><?php echo htmlspecialchars(t('menu.approvals')); ?></span>
@@ -54,6 +59,43 @@
 <!-- アプリケーションJSファイル -->
 <?php $appJsVersion = @filemtime(__DIR__ . '/../../public/js/app.js') ?: time(); ?>
 <script src="<?= BASE_PATH ?>/js/app.js?v=<?= $appJsVersion ?>"></script>
+<?php if (!empty($currentUser)): ?>
+<script>
+(function() {
+    function updateChatBadge(count) {
+        var value = Number(count || 0);
+        var ids = ['chatModuleBadge', 'chatMobileBadge'];
+        ids.forEach(function(id) {
+            var node = document.getElementById(id);
+            if (!node) return;
+            if (value > 0) {
+                node.textContent = String(value);
+                node.classList.remove('d-none');
+            } else {
+                node.textContent = '0';
+                node.classList.add('d-none');
+            }
+        });
+    }
+
+    function fetchChatUnread() {
+        fetch('<?= BASE_PATH ?>/api/chat/unread-count', {
+            method: 'GET',
+            credentials: 'same-origin',
+            headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
+        }).then(function(res) {
+            return res.json();
+        }).then(function(json) {
+            if (!json || !json.success || !json.data) return;
+            updateChatBadge(Number(json.data.count || 0));
+        }).catch(function() {});
+    }
+
+    fetchChatUnread();
+    setInterval(fetchChatUnread, 15000);
+})();
+</script>
+<?php endif; ?>
 <?php if (!empty($pwaEnabled)): ?>
     <?php $pwaJsVersion = @filemtime(__DIR__ . '/../../public/js/pwa.js') ?: $appJsVersion; ?>
     <script src="<?= BASE_PATH ?>/js/pwa.js?v=<?= $pwaJsVersion ?>"></script>
