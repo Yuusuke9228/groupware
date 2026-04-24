@@ -79,6 +79,8 @@
   - GET直打ち時は404ではなく詳細画面へ誘導するフォールバック導線を追加
 - ファイル共有リンク画面を専用表示へ変更し、ログイン状態に関わらず他メニューが表示されないよう修正
 - 限定リンクで管理者が全共有リンクへアクセスできるよう権限判定を改善
+- `notification_settings` スキーマに `schedule_view_start_time` / `schedule_view_end_time` を追加し、`Models/Notification.php` との不整合を解消
+- インストーラで `db/upgrade_*.sql` を自動適用する処理を追加し、初回導入時の不足テーブル/カラムによるSQLエラーを防止
 
 ### i18n / 多言語
 
