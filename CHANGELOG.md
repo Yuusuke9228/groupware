@@ -81,6 +81,7 @@
 - 限定リンクで管理者が全共有リンクへアクセスできるよう権限判定を改善
 - `notification_settings` スキーマに `schedule_view_start_time` / `schedule_view_end_time` を追加し、`Models/Notification.php` との不整合を解消
 - インストーラで `db/upgrade_*.sql` を自動適用する処理を追加し、初回導入時の不足テーブル/カラムによるSQLエラーを防止
+- パスワード変更画面 `views/user/change_password.php` を追加し、`View user/change_password not found` 例外を解消
 
 ### i18n / 多言語
 
