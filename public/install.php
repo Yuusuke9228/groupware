@@ -27,6 +27,53 @@ function verifyCsrf(): bool {
     return isset($_POST['csrf_token']) && hash_equals($_SESSION['install_csrf_token'], $_POST['csrf_token']);
 }
 
+/**
+ * Normalize SQL before execution in installer context.
+ * - Remove UTF-8 BOM.
+ * - Remove CREATE DATABASE / USE statements because the DB is already selected.
+ */
+function normalizeInstallSql(string $sql): string {
+    $sql = preg_replace('/^\xEF\xBB\xBF/', '', $sql);
+    $sql = preg_replace('/^\s*CREATE\s+DATABASE\s+.*?;\s*$/mi', '', $sql);
+    $sql = preg_replace('/^\s*USE\s+.*?;\s*$/mi', '', $sql);
+    return $sql;
+}
+
+/**
+ * Apply db/upgrade_*.sql files in filename order.
+ *
+ * @return array<int, string> Applied file names.
+ * @throws RuntimeException When an upgrade file fails.
+ */
+function applyUpgradeScripts(PDO $pdo, string $dbDir): array {
+    $files = glob(rtrim($dbDir, '/') . '/upgrade_*.sql');
+    if (!$files) {
+        return [];
+    }
+    sort($files, SORT_STRING);
+
+    $applied = [];
+    foreach ($files as $file) {
+        $basename = basename($file);
+        $sql = @file_get_contents($file);
+        if ($sql === false) {
+            throw new RuntimeException("アップグレードSQLの読み込みに失敗しました: {$basename}");
+        }
+        $sql = normalizeInstallSql($sql);
+        if (trim($sql) === '') {
+            continue;
+        }
+        try {
+            $pdo->exec($sql);
+            $applied[] = $basename;
+        } catch (PDOException $e) {
+            throw new RuntimeException("アップグレードSQLの適用に失敗しました ({$basename}): " . $e->getMessage());
+        }
+    }
+
+    return $applied;
+}
+
 // ========== AJAX: Test Database Connection ==========
 if (isset($_POST['action']) && $_POST['action'] === 'test_db') {
     header('Content-Type: application/json');
@@ -108,9 +155,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['install_step'])) {
                         $schemaFile = $rootDir . '/db/schema.sql';
                         if (file_exists($schemaFile)) {
                             $sql = file_get_contents($schemaFile);
-                            // Remove CREATE DATABASE and USE statements (we already selected the DB)
-                            $sql = preg_replace('/^\s*CREATE\s+DATABASE\s+.*?;\s*$/mi', '', $sql);
-                            $sql = preg_replace('/^\s*USE\s+.*?;\s*$/mi', '', $sql);
+                            $sql = normalizeInstallSql((string)$sql);
                             $pdo->exec($sql);
                         } else {
                             $errors[] = 'スキーマファイルが見つかりません: db/schema.sql';
@@ -253,6 +298,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['install_step'])) {
                     foreach ($settingsData as $row) {
                         $stmt->execute($row);
                     }
+
+                    // Apply post-schema upgrade scripts for feature completeness.
+                    applyUpgradeScripts($pdo, $rootDir . '/db');
 
                     // 4. Create install.lock
                     file_put_contents($rootDir . '/install.lock', date('Y-m-d H:i:s') . "\nInstalled by: " . $admin['username']);

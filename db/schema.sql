@@ -331,6 +331,8 @@ CREATE TABLE IF NOT EXISTS notification_settings (
     notify_workflow BOOLEAN NOT NULL DEFAULT 1 COMMENT 'ワークフロー通知',
     notify_message BOOLEAN NOT NULL DEFAULT 1 COMMENT 'メッセージ通知',
     email_notify BOOLEAN NOT NULL DEFAULT 1 COMMENT 'メール通知',
+    schedule_view_start_time TIME NOT NULL DEFAULT '00:00:00' COMMENT '通知対象の開始時刻',
+    schedule_view_end_time TIME NOT NULL DEFAULT '23:00:00' COMMENT '通知対象の終了時刻',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
