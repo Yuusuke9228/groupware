@@ -176,6 +176,7 @@ class UserController extends Controller
         $viewData = [
             'title' => 'パスワード変更',
             'user' => $user,
+            'requiresCurrentPassword' => ((int)$this->auth->id() === (int)$id) && !$this->auth->isAdmin(),
             'jsFiles' => ['user.js']
         ];
 
