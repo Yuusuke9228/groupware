@@ -201,6 +201,10 @@ class AutomationJob
                 return $this->executePeriodicReport($job, $config);
             case 'deadline_reminder':
                 return $this->executeDeadlineReminder($job, $config);
+            case 'webdatabase_export':
+                return $this->executeWebDatabaseExport($job, $config);
+            case 'webdatabase_import':
+                return $this->executeWebDatabaseImport($job, $config);
             default:
                 return ['success' => false, 'message' => '未対応のジョブタイプです'];
         }
@@ -329,6 +333,59 @@ class AutomationJob
         }
 
         return ['success' => true, 'message' => count($tasks) . ' 件の期限リマインドを送信しました'];
+    }
+
+    private function executeWebDatabaseExport($job, $config)
+    {
+        $databaseId = (int)($config['database_id'] ?? 0);
+        $exportPath = trim((string)($config['export_path'] ?? ''));
+        if ($databaseId <= 0 || $exportPath === '') return ['success' => false, 'message' => 'database_id / export_path が必要です'];
+        $fields = $this->db->fetchAll('SELECT id, name FROM web_database_fields WHERE database_id = ? ORDER BY sort_order, id', [$databaseId]);
+        if (empty($fields)) return ['success' => false, 'message' => 'フィールドが存在しません'];
+        $records = $this->db->fetchAll('SELECT id FROM web_database_records WHERE database_id = ? ORDER BY id', [$databaseId]);
+        $dir = dirname($exportPath);
+        if (!is_dir($dir) && !@mkdir($dir, 0755, true)) return ['success' => false, 'message' => '出力先ディレクトリを作成できません'];
+        $fp = @fopen($exportPath, 'w');
+        if (!$fp) return ['success' => false, 'message' => 'CSVを開けません'];
+        fwrite($fp, "ï»¿");
+        fputcsv($fp, array_merge(['record_id'], array_column($fields, 'name')));
+        foreach ($records as $record) {
+            $values = $this->db->fetchAll('SELECT field_id, value FROM web_database_record_data WHERE record_id = ?', [(int)$record['id']]);
+            $map = [];
+            foreach ($values as $value) $map[(int)$value['field_id']] = $value['value'];
+            $row = [(int)$record['id']];
+            foreach ($fields as $field) $row[] = $map[(int)$field['id']] ?? '';
+            fputcsv($fp, $row);
+        }
+        fclose($fp);
+        return ['success' => true, 'message' => count($records) . ' 件をCSVエクスポートしました'];
+    }
+
+    private function executeWebDatabaseImport($job, $config)
+    {
+        $databaseId = (int)($config['database_id'] ?? 0);
+        $sourcePath = trim((string)($config['source_path'] ?? ''));
+        if ($databaseId <= 0 || $sourcePath === '') return ['success' => false, 'message' => 'database_id / source_path が必要です'];
+        if (!is_file($sourcePath) || !is_readable($sourcePath)) return ['success' => false, 'message' => 'CSVを読み込めません'];
+        $fields = $this->db->fetchAll('SELECT id, name FROM web_database_fields WHERE database_id = ? ORDER BY sort_order, id', [$databaseId]);
+        $fieldByName = [];
+        foreach ($fields as $field) $fieldByName[(string)$field['name']] = (int)$field['id'];
+        $fp = fopen($sourcePath, 'r');
+        $headers = fgetcsv($fp);
+        if (!$headers) return ['success' => false, 'message' => 'CSVヘッダーがありません'];
+        if (isset($headers[0])) $headers[0] = preg_replace('/^ï»¿/', '', $headers[0]);
+        $imported = 0;
+        while (($row = fgetcsv($fp)) !== false) {
+            $this->db->execute('INSERT INTO web_database_records (database_id, creator_id, created_at, updated_at) VALUES (?, ?, NOW(), NOW())', [$databaseId, (int)$job['created_by']]);
+            $recordId = (int)$this->db->lastInsertId();
+            foreach ($headers as $i => $header) {
+                if ($header === 'record_id' || !isset($fieldByName[$header])) continue;
+                $this->db->execute('INSERT INTO web_database_record_data (record_id, field_id, value, created_at, updated_at) VALUES (?, ?, ?, NOW(), NOW())', [$recordId, $fieldByName[$header], $row[$i] ?? '']);
+            }
+            $imported++;
+        }
+        fclose($fp);
+        return ['success' => true, 'message' => $imported . ' 件をCSVインポートしました'];
     }
 
     private function calculateNextRunAt($frequency, $runAt, $weekday = null, $dayOfMonth = null)

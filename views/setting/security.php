@@ -403,3 +403,32 @@ $isJaLocale = get_locale() === 'ja';
         </div>
     </div>
 </div>
+
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0"><?= htmlspecialchars(tr_text('機能・権限制御', 'Feature and permission controls')) ?></h5>
+                </div>
+                <div class="card-body">
+                    <form id="moduleFeatureSettingsForm">
+                        <div class="alert alert-success d-none" id="moduleFeatureSuccessAlert"><?= htmlspecialchars(tr_text('設定を保存しました。', 'Settings saved.')) ?></div>
+                        <div class="alert alert-danger d-none" id="moduleFeatureErrorAlert"></div>
+                        <p class="text-muted small mb-3"><?= htmlspecialchars(tr_text('利用しない機能は全体で無効化できます。作成許可ロールはカンマ区切りで admin,manager,user を指定します。管理者は常に利用できます。', 'Disable modules company-wide. Creation roles are comma-separated admin,manager,user. Administrators always keep access.')) ?></p>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-bordered align-middle">
+                                <thead class="table-light"><tr><th><?= htmlspecialchars(tr_text('機能', 'Feature')) ?></th><th><?= htmlspecialchars(tr_text('利用', 'Access')) ?></th><th><?= htmlspecialchars(tr_text('作成許可ロール', 'Create roles')) ?></th></tr></thead>
+                                <tbody>
+                                <?php foreach (\Core\FeatureGate::modules() as $moduleKey => $module): ?>
+                                    <?php $enabledKey = 'feature_' . $moduleKey . '_enabled'; $rolesKey = 'feature_' . $moduleKey . '_create_roles'; ?>
+                                    <tr>
+                                        <td><?= htmlspecialchars(get_locale() === 'en' ? $module['label_en'] : $module['label_ja']) ?><br><code><?= htmlspecialchars($moduleKey) ?></code></td>
+                                        <td><div class="form-check form-switch"><input class="form-check-input" type="checkbox" name="<?= htmlspecialchars($enabledKey) ?>" id="<?= htmlspecialchars($enabledKey) ?>" <?= ($settings[$enabledKey] ?? '1') === '1' ? 'checked' : '' ?>><label class="form-check-label" for="<?= htmlspecialchars($enabledKey) ?>"><?= htmlspecialchars(tr_text('有効', 'Enabled')) ?></label></div></td>
+                                        <td><input class="form-control form-control-sm" name="<?= htmlspecialchars($rolesKey) ?>" value="<?= htmlspecialchars((string)($settings[$rolesKey] ?? 'admin,manager,user')) ?>"></td>
+                                    </tr>
+                                <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="d-grid"><button type="submit" class="btn btn-primary"><?= htmlspecialchars(tr_text('機能制御を保存', 'Save feature controls')) ?></button></div>
+                    </form>
+                </div>
+            </div>

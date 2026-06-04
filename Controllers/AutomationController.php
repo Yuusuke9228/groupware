@@ -41,6 +41,9 @@ class AutomationController extends Controller
             'user_id' => $data['user_id'] ?? null,
             'title_prefix' => $data['title_prefix'] ?? null,
             'days_before' => $data['days_before'] ?? null,
+            'database_id' => $data['database_id'] ?? null,
+            'source_path' => $data['source_path'] ?? null,
+            'export_path' => $data['export_path'] ?? null,
         ];
 
         $id = $this->model->create([

@@ -145,6 +145,7 @@ class HomeController extends Controller
         $upcomingTasks = $this->taskModel->getUserUpcomingTasks($userId, 5);
         $overdueTasks = $this->taskModel->getUserOverdueTasks($userId, 5);
         $boards = $this->taskModel->getUserBoards($userId);
+        $portalLinks = $this->getPortalLinks();
 
         // 組織メンバーとユーザー別スケジュールを取得
         $orgMembers = $selectedOrganizationId
@@ -219,6 +220,7 @@ class HomeController extends Controller
             'upcomingTasks' => $upcomingTasks,
             'overdueTasks' => $overdueTasks,
             'boards' => $boards,
+            'portalLinks' => $portalLinks,
             'jsFiles' => ['home.js', 'task.js'] // task.jsを追加
         ];
 
@@ -396,6 +398,17 @@ class HomeController extends Controller
         }
 
         return $map;
+    }
+
+    private function getPortalLinks()
+    {
+        try {
+            return $this->db->fetchAll(
+                "SELECT * FROM portal_links WHERE is_active = 1 ORDER BY sort_order ASC, title ASC"
+            );
+        } catch (\Throwable $e) {
+            return [];
+        }
     }
 
 }

@@ -61,6 +61,10 @@ if ($appVersion === '') {
 $pwaEnabled = filter_var((string)$settingModel->get('pwa_enabled', '0'), FILTER_VALIDATE_BOOLEAN);
 $pwaThemeColor = (string)$settingModel->get('pwa_theme_color', '#2b7de9');
 $pwaAppName = (string)$settingModel->get('pwa_app_name', $appName);
+$featureGate = new \Core\FeatureGate();
+$canUseModule = function ($moduleKey) use ($featureGate, $currentUser) {
+    return $featureGate->canAccess($moduleKey, $currentUser);
+};
 
 if ($currentUser) {
     $messageModel = new \Models\Message();
@@ -365,12 +369,15 @@ if ($currentUser) {
                     <span class="gw-module-label"><?php echo htmlspecialchars(t('menu.top')); ?></span>
                 </a>
             </li>
+            <?php if ($canUseModule('schedule')): ?>
             <li class="gw-module-item">
                 <a class="gw-module-link <?php echo $currentPage === 'schedule' ? 'active' : ''; ?>" href="<?php echo BASE_PATH; ?>/schedule">
                     <img src="<?php echo BASE_PATH; ?>/img_icon/icon_schedule.svg" alt="" class="gw-module-icon">
                     <span class="gw-module-label"><?php echo htmlspecialchars(t('menu.schedule')); ?></span>
                 </a>
             </li>
+            <?php endif; ?>
+            <?php if ($canUseModule('messages')): ?>
             <li class="gw-module-item">
                 <a class="gw-module-link <?php echo $currentPage === 'messages' ? 'active' : ''; ?>" href="<?php echo BASE_PATH; ?>/messages/inbox">
                     <img src="<?php echo BASE_PATH; ?>/img_icon/icon_message.svg" alt="" class="gw-module-icon">
@@ -380,30 +387,38 @@ if ($currentUser) {
                     <?php endif; ?>
                 </a>
             </li>
+            <?php endif; ?>
+            <?php if ($canUseModule('workflow')): ?>
             <li class="gw-module-item">
                 <a class="gw-module-link <?php echo $currentPage === 'workflow' ? 'active' : ''; ?>" href="<?php echo BASE_PATH; ?>/workflow">
                     <img src="<?php echo BASE_PATH; ?>/img_icon/icon_workflow.svg" alt="" class="gw-module-icon">
                     <span class="gw-module-label"><?php echo htmlspecialchars(t('menu.workflow')); ?></span>
                 </a>
             </li>
+            <?php endif; ?>
+            <?php if ($canUseModule('task')): ?>
             <li class="gw-module-item">
                 <a class="gw-module-link <?php echo $currentPage === 'task' ? 'active' : ''; ?>" href="<?php echo BASE_PATH; ?>/task">
                     <img src="<?php echo BASE_PATH; ?>/img_icon/icon_todo.svg" alt="" class="gw-module-icon">
                     <span class="gw-module-label"><?php echo htmlspecialchars(t('menu.task')); ?></span>
                 </a>
             </li>
+            <?php endif; ?>
+            <?php if ($canUseModule('daily_report')): ?>
             <li class="gw-module-item">
                 <a class="gw-module-link <?php echo $currentPage === 'daily-report' ? 'active' : ''; ?>" href="<?php echo BASE_PATH; ?>/daily-report">
                     <img src="<?php echo BASE_PATH; ?>/img_icon/icon_report.svg" alt="" class="gw-module-icon">
                     <span class="gw-module-label"><?php echo htmlspecialchars(t('menu.daily_report')); ?></span>
                 </a>
             </li>
+            <?php endif; ?>
             <li class="gw-module-item">
                 <a class="gw-module-link <?php echo $currentPage === 'visual-boards' ? 'active' : ''; ?>" href="<?php echo BASE_PATH; ?>/visual-boards">
                     <img src="<?php echo BASE_PATH; ?>/img_icon/icon_project_management.svg" alt="" class="gw-module-icon">
                     <span class="gw-module-label"><?php echo htmlspecialchars(tr_text('Visual Boards', 'Visual Boards')); ?></span>
                 </a>
             </li>
+            <?php if ($canUseModule('bulletin')): ?>
             <li class="gw-module-item">
                 <a class="gw-module-link <?php echo $currentPage === 'bulletin' ? 'active' : ''; ?>" href="<?php echo BASE_PATH; ?>/bulletin">
                     <img src="<?php echo BASE_PATH; ?>/img_icon/icon_bulletin.svg" alt="" class="gw-module-icon" onerror="this.style.display='none';this.nextElementSibling.style.display='inline-block';">
@@ -411,24 +426,32 @@ if ($currentUser) {
                     <span class="gw-module-label"><?php echo htmlspecialchars(t('menu.bulletin')); ?></span>
                 </a>
             </li>
+            <?php endif; ?>
+            <?php if ($canUseModule('webdatabase')): ?>
             <li class="gw-module-item">
                 <a class="gw-module-link <?php echo $currentPage === 'webdatabase' ? 'active' : ''; ?>" href="<?php echo BASE_PATH; ?>/webdatabase">
                     <img src="<?php echo BASE_PATH; ?>/img_icon/icon_appsuite.svg" alt="" class="gw-module-icon">
                     <span class="gw-module-label"><?php echo htmlspecialchars(t('menu.webdatabase')); ?></span>
                 </a>
             </li>
+            <?php endif; ?>
+            <?php if ($canUseModule('address_book')): ?>
             <li class="gw-module-item">
                 <a class="gw-module-link <?php echo $currentPage === 'address-book' ? 'active' : ''; ?>" href="<?php echo BASE_PATH; ?>/address-book">
                     <img src="<?php echo BASE_PATH; ?>/img_icon/icon_address_book.svg" alt="" class="gw-module-icon">
                     <span class="gw-module-label"><?php echo htmlspecialchars(t('menu.address_book')); ?></span>
                 </a>
             </li>
+            <?php endif; ?>
+            <?php if ($canUseModule('facility')): ?>
             <li class="gw-module-item">
                 <a class="gw-module-link <?php echo $currentPage === 'facility' ? 'active' : ''; ?>" href="<?php echo BASE_PATH; ?>/facility">
                     <img src="<?php echo BASE_PATH; ?>/img_icon/icon_equipment_reservation.svg" alt="" class="gw-module-icon">
                     <span class="gw-module-label"><?php echo htmlspecialchars(t('menu.facility')); ?></span>
                 </a>
             </li>
+            <?php endif; ?>
+            <?php if ($canUseModule('files')): ?>
             <li class="gw-module-item">
                 <a class="gw-module-link <?php echo $currentPage === 'files' ? 'active' : ''; ?>" href="<?php echo BASE_PATH; ?>/files">
                     <img src="<?php echo BASE_PATH; ?>/img_icon/icon_cabinet.svg" alt="" class="gw-module-icon" onerror="this.style.display='none';this.nextElementSibling.style.display='inline-block';">
@@ -436,12 +459,15 @@ if ($currentUser) {
                     <span class="gw-module-label"><?php echo htmlspecialchars(t('menu.file_management')); ?></span>
                 </a>
             </li>
+            <?php endif; ?>
+            <?php if ($canUseModule('integrations')): ?>
             <li class="gw-module-item">
                 <a class="gw-module-link <?php echo $currentPage === 'integrations' ? 'active' : ''; ?>" href="<?php echo BASE_PATH; ?>/integrations">
                     <img src="<?php echo BASE_PATH; ?>/img_icon/icon_smartphone.png" alt="" class="gw-module-icon">
                     <span class="gw-module-label"><?php echo htmlspecialchars(t('menu.integrations')); ?></span>
                 </a>
             </li>
+            <?php endif; ?>
             <li class="gw-module-item">
                 <a class="gw-module-link <?php echo $currentPage === 'notifications' ? 'active' : ''; ?>" href="<?php echo BASE_PATH; ?>/notifications">
                     <img src="<?php echo BASE_PATH; ?>/img_icon/icon_info.svg" alt="" class="gw-module-icon">

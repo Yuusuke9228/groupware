@@ -4,6 +4,7 @@ namespace Controllers;
 
 use Core\Controller;
 use Core\Database;
+use Core\FeatureGate;
 use Models\Notification;
 use Models\Organization;
 use Models\User;
@@ -19,6 +20,7 @@ class FileManagerController extends Controller
     private $userModel;
     private $organizationModel;
     private $permissionService;
+    private $featureGate;
 
     public function __construct()
     {
@@ -29,10 +31,12 @@ class FileManagerController extends Controller
         $this->userModel = new User();
         $this->organizationModel = new Organization();
         $this->permissionService = new FilePermissionService($this->db);
+        $this->featureGate = new FeatureGate();
 
         if (!$this->auth->check()) {
             $this->redirect(BASE_PATH . '/login');
         }
+        $this->featureGate->enforceAccess('files', $this->auth->user());
 
         // アップロードディレクトリ作成
         if (!is_dir($this->uploadDir)) {
@@ -198,6 +202,7 @@ class FileManagerController extends Controller
      */
     public function storeFolder()
     {
+        $this->featureGate->enforceCreate('files', $this->auth->user(), BASE_PATH . '/files');
         if (!$this->validateCsrfToken($_POST['csrf_token'] ?? '')) {
             $_SESSION['flash_error'] = '不正なリクエストです。';
             $this->redirect(BASE_PATH . '/files');
@@ -372,6 +377,7 @@ class FileManagerController extends Controller
      */
     public function upload()
     {
+        $this->featureGate->enforceCreate('files', $this->auth->user(), BASE_PATH . '/files');
         $folderId = $_GET['folder_id'] ?? null;
         $folder = null;
         $breadcrumbs = [];
@@ -408,6 +414,7 @@ class FileManagerController extends Controller
      */
     public function storeFile()
     {
+        $this->featureGate->enforceCreate('files', $this->auth->user(), BASE_PATH . '/files');
         if (!$this->validateCsrfToken($_POST['csrf_token'] ?? '')) {
             $_SESSION['flash_error'] = '不正なリクエストです。';
             $this->redirect(BASE_PATH . '/files');

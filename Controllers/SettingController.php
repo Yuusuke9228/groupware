@@ -316,6 +316,20 @@ class SettingController extends Controller
             case 'security_password_require_lowercase':
             case 'security_password_require_number':
             case 'security_password_require_symbol':
+            case 'feature_schedule_enabled':
+            case 'feature_facility_enabled':
+            case 'feature_messages_enabled':
+            case 'feature_chat_enabled':
+            case 'feature_workflow_enabled':
+            case 'feature_task_enabled':
+            case 'feature_daily_report_enabled':
+            case 'feature_bulletin_enabled':
+            case 'feature_webdatabase_enabled':
+            case 'feature_address_book_enabled':
+            case 'feature_file_share_enabled':
+            case 'feature_files_enabled':
+            case 'feature_integrations_enabled':
+            case 'feature_automation_enabled':
             case 'security_admin_ip_restriction_enabled':
                 return ($stringValue === '1' || strtolower($stringValue) === 'true') ? '1' : '0';
 

@@ -4,6 +4,7 @@ namespace Controllers;
 
 use Core\Controller;
 use Core\Database;
+use Core\FeatureGate;
 use Core\Auth;
 use Models\WebDatabase;
 use Models\WebDatabaseField;
@@ -20,6 +21,7 @@ class WebDatabaseController extends Controller
     private $recordModel;
     private $userModel;
     private $organizationModel;
+    private $featureGate;
 
     public function __construct()
     {
@@ -30,11 +32,13 @@ class WebDatabaseController extends Controller
         $this->recordModel = new WebDatabaseRecord();
         $this->userModel = new User();
         $this->organizationModel = new Organization();
+        $this->featureGate = new FeatureGate();
 
         // 認証チェック
         if (!$this->auth->check()) {
             $this->redirect(BASE_PATH . '/login');
         }
+        $this->featureGate->enforceAccess('webdatabase', $this->auth->user());
     }
 
     /**
@@ -55,6 +59,7 @@ class WebDatabaseController extends Controller
      */
     public function create()
     {
+        $this->featureGate->enforceCreate('webdatabase', $this->auth->user(), BASE_PATH . '/webdatabase');
         $viewData = [
             'title' => '新規データベース作成',
             'jsFiles' => ['webdatabase.js']
@@ -179,6 +184,7 @@ class WebDatabaseController extends Controller
      */
     public function createRecord($params)
     {
+        $this->featureGate->enforceCreate('webdatabase', $this->auth->user(), BASE_PATH . '/webdatabase');
         $id = $params['id'] ?? null;
         if (!$id) {
             $this->redirect(BASE_PATH . '/webdatabase');
@@ -406,6 +412,7 @@ class WebDatabaseController extends Controller
      */
     public function apiCreateDatabase($params, $data)
     {
+        $this->featureGate->enforceCreate('webdatabase', $this->auth->user(), BASE_PATH . '/webdatabase');
         // 認証チェック
         if (!$this->auth->check()) {
             return ['error' => 'Unauthorized', 'code' => 401];
@@ -732,6 +739,7 @@ class WebDatabaseController extends Controller
      */
     public function apiCreateRecord($params, $data)
     {
+        $this->featureGate->enforceCreate('webdatabase', $this->auth->user(), BASE_PATH . '/webdatabase');
         if (!$this->auth->check()) {
             return ['error' => 'Unauthorized', 'code' => 401];
         }

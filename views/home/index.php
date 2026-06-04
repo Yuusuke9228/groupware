@@ -369,6 +369,27 @@ $todayDow = $dayNames[date('w', strtotime($today))];
         </div>
         <?php endif; ?>
 
+        <?php if (!empty($portalLinks)): ?>
+        <div class="gw-widget">
+            <div class="gw-widget-header">
+                <div class="gw-widget-title">
+                    <span class="icon"><i class="fas fa-door-open"></i></span>
+                    <?php echo htmlspecialchars(tr_text('社内システム入口', 'Internal systems')); ?>
+                </div>
+            </div>
+            <div class="gw-widget-body with-padding">
+                <div class="d-grid gap-2">
+                    <?php foreach ($portalLinks as $link): ?>
+                        <a href="<?php echo htmlspecialchars($link['url']); ?>" target="<?php echo htmlspecialchars($link['target'] ?: '_blank'); ?>" rel="noopener noreferrer" class="btn btn-sm btn-outline-primary text-start">
+                            <i class="<?php echo htmlspecialchars($link['icon_class'] ?: 'fas fa-link'); ?> me-2"></i><?php echo htmlspecialchars($link['title']); ?>
+                            <?php if (!empty($link['description'])): ?><small class="d-block text-muted mt-1"><?php echo htmlspecialchars($link['description']); ?></small><?php endif; ?>
+                        </a>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+        </div>
+        <?php endif; ?>
+
         <!-- クイックリンク -->
         <div class="gw-widget">
             <div class="gw-widget-header">

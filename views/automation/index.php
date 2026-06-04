@@ -19,6 +19,8 @@
                             <option value="periodic_request">定期申請</option>
                             <option value="periodic_report">定期レポート</option>
                             <option value="deadline_reminder">期限リマインド</option>
+                            <option value="webdatabase_export">WEB DB自動エクスポート</option>
+                            <option value="webdatabase_import">WEB DB自動インポート</option>
                         </select>
                     </div>
                     <div class="col-md-2">
@@ -48,6 +50,9 @@
                     <div class="col-md-3"><input type="text" class="form-control" name="title_prefix" placeholder="件名プレフィックス"></div>
                     <div class="col-md-2"><input type="number" class="form-control" name="days_before" placeholder="何日前"></div>
                     <div class="col-md-1 text-end small text-muted">週:1-7</div>
+                    <div class="col-md-2"><input type="number" class="form-control" name="database_id" placeholder="DB ID"></div>
+                    <div class="col-md-4"><input type="text" class="form-control" name="source_path" placeholder="インポートCSVパス"></div>
+                    <div class="col-md-4"><input type="text" class="form-control" name="export_path" placeholder="エクスポートCSVパス"></div>
                 </div>
             </form>
         </div>

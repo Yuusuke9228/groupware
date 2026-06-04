@@ -27,7 +27,7 @@
 - インストールマニュアル: `/help/install-manual`
 
 ### Release Channel / リリースチャネル
-- Current public beta: `v0.9.0-beta.6`
+- Current public beta: `v1.0.0`
 
 ### Links
 - Live Demo: https://groupware.yuus-program.com/
@@ -264,7 +264,7 @@ return [
 return [
     'app' => [
         'name'     => 'GroupWare',
-        'version'  => 'v0.9.0-beta.6',
+        'version'  => 'v1.0.0',
         'timezone' => 'Asia/Tokyo',
         'debug'    => false,        // 本番環境では false に設定
         'url'      => 'https://your-domain.com'

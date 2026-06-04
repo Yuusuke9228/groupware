@@ -446,6 +446,18 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    const moduleFeatureSettingsForm = document.getElementById('moduleFeatureSettingsForm');
+    if (moduleFeatureSettingsForm) {
+        moduleFeatureSettingsForm.addEventListener('submit', function (e) {
+            e.preventDefault();
+            saveSettingsForm(
+                moduleFeatureSettingsForm,
+                document.getElementById('moduleFeatureSuccessAlert'),
+                document.getElementById('moduleFeatureErrorAlert')
+            );
+        });
+    }
+
     const scimSettingsForm = document.getElementById('scimSettingsForm');
     if (scimSettingsForm) {
         scimSettingsForm.addEventListener('submit', function (e) {

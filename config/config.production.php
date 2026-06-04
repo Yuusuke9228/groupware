@@ -3,7 +3,7 @@
 return [
     'app' => [
         'name' => 'TeamSpace Demo',
-        'version' => 'v0.9.0-beta.6',
+        'version' => 'v1.0.0',
         'timezone' => 'Asia/Tokyo',
         'debug' => false,
         'url' => 'https://groupware.yuus-program.com',
