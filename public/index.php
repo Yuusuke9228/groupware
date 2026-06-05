@@ -863,6 +863,12 @@ $router->get('/settings/notification', function () {
     $controller->notification();
 }, true);
 
+// ポータルリンク設定
+$router->get('/settings/portal-links', function () {
+    $controller = new Controllers\SettingController();
+    $controller->portalLinks();
+}, true);
+
 // 認証/PWA/SCIM設定
 $router->get('/settings/security', function () {
     $controller = new Controllers\SettingController();
@@ -917,6 +923,21 @@ $router->apiGet('/settings/backup/history', function ($params) {
 $router->apiPost('/settings/demo-data', function ($params, $data) {
     $controller = new Controllers\SettingController();
     return $controller->apiManageDemoData($params, $data);
+}, true);
+
+$router->apiPost('/settings/portal-links', function ($params, $data) {
+    $controller = new Controllers\SettingController();
+    return $controller->apiCreatePortalLink($params, $data);
+}, true);
+
+$router->apiPost('/settings/portal-links/:id', function ($params, $data) {
+    $controller = new Controllers\SettingController();
+    return $controller->apiUpdatePortalLink($params, $data);
+}, true);
+
+$router->apiDelete('/settings/portal-links/:id', function ($params) {
+    $controller = new Controllers\SettingController();
+    return $controller->apiDeletePortalLink($params);
 }, true);
 
 $router->apiPost('/settings/scim-token', function ($params, $data) {

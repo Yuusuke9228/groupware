@@ -17,6 +17,7 @@
                     <a href="<?= BASE_PATH ?>/settings" class="list-group-item list-group-item-action"><?= htmlspecialchars(t("settings.menu.basic")) ?></a>
                     <a href="<?= BASE_PATH ?>/settings/smtp" class="list-group-item list-group-item-action active"><?= htmlspecialchars(t("settings.menu.smtp")) ?></a>
                     <a href="<?= BASE_PATH ?>/settings/notification" class="list-group-item list-group-item-action"><?= htmlspecialchars(t("settings.menu.notification")) ?></a>
+                    <a href="<?= BASE_PATH ?>/settings/portal-links" class="list-group-item list-group-item-action"><?= htmlspecialchars(tr_text("ポータルリンク", "Portal links")) ?></a>
                     <a href="<?= BASE_PATH ?>/settings/security" class="list-group-item list-group-item-action"><?= htmlspecialchars(t("settings.menu.security")) ?></a>
                     <a href="<?= BASE_PATH ?>/settings/security#backup-management" class="list-group-item list-group-item-action"><?= htmlspecialchars(t("settings.menu.backup")) ?></a>
                 </div>

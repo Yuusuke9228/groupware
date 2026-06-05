@@ -369,6 +369,120 @@ document.addEventListener('DOMContentLoaded', function () {
         btnRebuildDemoData.addEventListener('click', () => runDemoDataAction('rebuild'));
     }
 
+    const portalLinkForm = document.getElementById('portalLinkForm');
+    if (portalLinkForm) {
+        const successAlert = document.getElementById('portalLinkSuccessAlert');
+        const errorAlert = document.getElementById('portalLinkErrorAlert');
+        const submitBtn = document.getElementById('portalLinkSubmitBtn');
+        const cancelBtn = document.getElementById('portalLinkCancelBtn');
+        const idInput = document.getElementById('portal_link_id');
+
+        const setPortalMessage = (type, message) => {
+            const isSuccess = type === 'success';
+            if (successAlert) {
+                successAlert.textContent = isSuccess ? message : '';
+                successAlert.classList.toggle('d-none', !isSuccess);
+            }
+            if (errorAlert) {
+                errorAlert.textContent = isSuccess ? '' : message;
+                errorAlert.classList.toggle('d-none', isSuccess);
+            }
+        };
+
+        const resetPortalForm = () => {
+            portalLinkForm.reset();
+            idInput.value = '';
+            const icon = document.getElementById('portal_link_icon_class');
+            const active = document.getElementById('portal_link_is_active');
+            const sort = document.getElementById('portal_link_sort_order');
+            if (icon) icon.value = 'fas fa-link';
+            if (active) active.checked = true;
+            if (sort) sort.value = '0';
+            if (submitBtn) submitBtn.textContent = tl('登録', 'Create');
+            if (cancelBtn) cancelBtn.classList.add('d-none');
+        };
+
+        portalLinkForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const payload = collectFormData(portalLinkForm);
+            const id = String(payload.id || '').trim();
+            delete payload.id;
+            const endpoint = id
+                ? `${BASE_PATH}/api/settings/portal-links/${encodeURIComponent(id)}`
+                : `${BASE_PATH}/api/settings/portal-links`;
+
+            if (submitBtn) submitBtn.disabled = true;
+            fetch(endpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            })
+                .then((r) => r.json())
+                .then((data) => {
+                    if (!data.success) {
+                        throw new Error(data.error || tl('ポータルリンクの保存に失敗しました。', 'Failed to save portal link.'));
+                    }
+                    setPortalMessage('success', data.message || tl('保存しました。', 'Saved.'));
+                    window.setTimeout(() => window.location.reload(), 500);
+                })
+                .catch((error) => {
+                    setPortalMessage('error', error.message || tr('js.error.communication'));
+                })
+                .finally(() => {
+                    if (submitBtn) submitBtn.disabled = false;
+                });
+        });
+
+        if (cancelBtn) {
+            cancelBtn.addEventListener('click', resetPortalForm);
+        }
+
+        document.querySelectorAll('.portal-link-edit').forEach((button) => {
+            button.addEventListener('click', () => {
+                const row = button.closest('tr');
+                if (!row || !row.dataset.portalLink) return;
+                const link = JSON.parse(row.dataset.portalLink);
+                idInput.value = link.id || '';
+                document.getElementById('portal_link_title').value = link.title || '';
+                document.getElementById('portal_link_url').value = link.url || '';
+                document.getElementById('portal_link_icon_class').value = link.icon_class || 'fas fa-link';
+                document.getElementById('portal_link_target').value = link.target || '_blank';
+                document.getElementById('portal_link_sort_order').value = link.sort_order || 0;
+                document.getElementById('portal_link_description').value = link.description || '';
+                document.getElementById('portal_link_is_active').checked = String(link.is_active) === '1';
+                if (submitBtn) submitBtn.textContent = tl('更新', 'Update');
+                if (cancelBtn) cancelBtn.classList.remove('d-none');
+                portalLinkForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            });
+        });
+
+        document.querySelectorAll('.portal-link-delete').forEach((button) => {
+            button.addEventListener('click', () => {
+                if (!window.confirm(tl('このポータルリンクを削除しますか？', 'Delete this portal link?'))) {
+                    return;
+                }
+                const id = button.dataset.id;
+                button.disabled = true;
+                fetch(`${BASE_PATH}/api/settings/portal-links/${encodeURIComponent(id)}`, {
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json' }
+                })
+                    .then((r) => r.json())
+                    .then((data) => {
+                        if (!data.success) {
+                            throw new Error(data.error || tl('削除に失敗しました。', 'Delete failed.'));
+                        }
+                        setPortalMessage('success', data.message || tl('削除しました。', 'Deleted.'));
+                        window.setTimeout(() => window.location.reload(), 500);
+                    })
+                    .catch((error) => {
+                        button.disabled = false;
+                        setPortalMessage('error', error.message || tr('js.error.communication'));
+                    });
+            });
+        });
+    }
+
     const collectFormData = (form) => {
         const data = {};
         Array.from(form.elements).forEach((el) => {

@@ -8,6 +8,7 @@ use Core\Auth;
 use Core\Mailer;
 use Models\ScimToken;
 use Models\Setting;
+use Models\PortalLink;
 use Services\BackupService;
 use Services\DemoDataService;
 use Services\WebPushService;
@@ -16,6 +17,7 @@ class SettingController extends Controller
 {
     private $db;
     private $model;
+    private $portalLinkModel;
     private $scimTokenModel;
     private $webPushService;
 
@@ -24,6 +26,7 @@ class SettingController extends Controller
         parent::__construct();
         $this->db = Database::getInstance();
         $this->model = new Setting();
+        $this->portalLinkModel = new PortalLink();
         $this->scimTokenModel = new ScimToken();
         $this->webPushService = new WebPushService();
 
@@ -153,6 +156,103 @@ class SettingController extends Controller
         ];
 
         $this->view('setting/security', $viewData);
+    }
+
+    /**
+     * ポータルリンク設定ページを表示
+     */
+    public function portalLinks()
+    {
+        $viewData = [
+            'title' => tr_text('ポータルリンク設定', 'Portal link settings'),
+            'portalLinks' => $this->portalLinkModel->all(true),
+            'jsFiles' => ['setting.js']
+        ];
+
+        $this->view('setting/portal_links', $viewData);
+    }
+
+    public function apiCreatePortalLink($params, $data)
+    {
+        if (!$this->auth->check()) {
+            return ['error' => 'Unauthorized', 'code' => 401];
+        }
+        if (!$this->auth->isAdmin()) {
+            return ['error' => 'Permission denied', 'code' => 403];
+        }
+
+        try {
+            $payload = $this->normalizePortalLinkPayload($data);
+            $payload['created_by'] = $this->auth->id();
+            $id = $this->portalLinkModel->create($payload);
+            if ($id <= 0) {
+                return ['error' => tr_text('ポータルリンクの登録に失敗しました', 'Failed to create portal link.'), 'code' => 500];
+            }
+            return [
+                'success' => true,
+                'message' => tr_text('ポータルリンクを登録しました', 'Portal link created.'),
+                'data' => $this->portalLinkModel->find($id)
+            ];
+        } catch (\InvalidArgumentException $e) {
+            return ['error' => $e->getMessage(), 'code' => 422];
+        } catch (\Throwable $e) {
+            return ['error' => tr_text('ポータルリンク登録中にエラーが発生しました', 'An error occurred while creating the portal link.'), 'code' => 500];
+        }
+    }
+
+    public function apiUpdatePortalLink($params, $data)
+    {
+        if (!$this->auth->check()) {
+            return ['error' => 'Unauthorized', 'code' => 401];
+        }
+        if (!$this->auth->isAdmin()) {
+            return ['error' => 'Permission denied', 'code' => 403];
+        }
+
+        $id = (int)($params['id'] ?? 0);
+        if ($id <= 0 || !$this->portalLinkModel->find($id)) {
+            return ['error' => tr_text('ポータルリンクが見つかりません', 'Portal link not found.'), 'code' => 404];
+        }
+
+        try {
+            $payload = $this->normalizePortalLinkPayload($data);
+            $ok = $this->portalLinkModel->update($id, $payload);
+            if (!$ok) {
+                return ['error' => tr_text('ポータルリンクの更新に失敗しました', 'Failed to update portal link.'), 'code' => 500];
+            }
+            return [
+                'success' => true,
+                'message' => tr_text('ポータルリンクを更新しました', 'Portal link updated.'),
+                'data' => $this->portalLinkModel->find($id)
+            ];
+        } catch (\InvalidArgumentException $e) {
+            return ['error' => $e->getMessage(), 'code' => 422];
+        } catch (\Throwable $e) {
+            return ['error' => tr_text('ポータルリンク更新中にエラーが発生しました', 'An error occurred while updating the portal link.'), 'code' => 500];
+        }
+    }
+
+    public function apiDeletePortalLink($params)
+    {
+        if (!$this->auth->check()) {
+            return ['error' => 'Unauthorized', 'code' => 401];
+        }
+        if (!$this->auth->isAdmin()) {
+            return ['error' => 'Permission denied', 'code' => 403];
+        }
+
+        $id = (int)($params['id'] ?? 0);
+        if ($id <= 0 || !$this->portalLinkModel->find($id)) {
+            return ['error' => tr_text('ポータルリンクが見つかりません', 'Portal link not found.'), 'code' => 404];
+        }
+
+        $ok = $this->portalLinkModel->delete($id);
+        return [
+            'success' => (bool)$ok,
+            'message' => $ok
+                ? tr_text('ポータルリンクを削除しました', 'Portal link deleted.')
+                : tr_text('ポータルリンクの削除に失敗しました', 'Failed to delete portal link.')
+        ];
     }
 
     /**
@@ -408,6 +508,47 @@ class SettingController extends Controller
             default:
                 return $stringValue;
         }
+    }
+
+    private function normalizePortalLinkPayload(array $data)
+    {
+        $title = trim((string)($data['title'] ?? ''));
+        $url = trim((string)($data['url'] ?? ''));
+        $description = trim((string)($data['description'] ?? ''));
+        $iconClass = trim((string)($data['icon_class'] ?? 'fas fa-link'));
+        $target = trim((string)($data['target'] ?? '_blank'));
+        $sortOrder = (int)($data['sort_order'] ?? 0);
+        $isActive = isset($data['is_active']) && ((string)$data['is_active'] === '1' || $data['is_active'] === true) ? 1 : 0;
+
+        if ($title === '') {
+            throw new \InvalidArgumentException(tr_text('タイトルを入力してください。', 'Enter a title.'));
+        }
+        if (mb_strlen($title) > 120) {
+            throw new \InvalidArgumentException(tr_text('タイトルは120文字以内で入力してください。', 'Title must be 120 characters or less.'));
+        }
+        if ($url === '' || !filter_var($url, FILTER_VALIDATE_URL)) {
+            throw new \InvalidArgumentException(tr_text('URLは https:// から始まる正しいURLで入力してください。', 'Enter a valid URL beginning with https://.'));
+        }
+        if (!in_array(parse_url($url, PHP_URL_SCHEME), ['https', 'http'], true)) {
+            throw new \InvalidArgumentException(tr_text('URLは http または https のみ利用できます。', 'Only http and https URLs are allowed.'));
+        }
+        if (!preg_match('/^[a-zA-Z0-9 _.-]+$/', $iconClass)) {
+            throw new \InvalidArgumentException(tr_text('アイコンクラスに使用できない文字があります。', 'Icon class contains invalid characters.'));
+        }
+        if (!in_array($target, ['_blank', '_self'], true)) {
+            throw new \InvalidArgumentException(tr_text('開き方の指定が不正です。', 'Invalid link target.'));
+        }
+
+        return [
+            'title' => $title,
+            'url' => $url,
+            'description' => $description,
+            'icon_class' => $iconClass !== '' ? $iconClass : 'fas fa-link',
+            'target' => $target,
+            'sort_order' => $sortOrder,
+            'is_active' => $isActive,
+            'created_by' => null,
+        ];
     }
 
     /**
